@@ -38,7 +38,7 @@ This branch adds channel integration checks and uses the same Android viewer tes
   a macOS `/var` versus `/private/var` canonical-path assertion. Both corrected; the original failure evidence is retained.
 - Corrected channel run: 18/18 passed (`WorkspaceFilesTest`: 6; `WoowtechManifestTest`: 12).
 - Canonical compiler-download CI fixes from `0216f899`/`8f6b5974` are reused; their 10 Python tests pass.
-- Android brand tests, APK builds, physical-device tests and real conversation acceptance are still in progress.
+- Brand JVM tests passed: WOOWTECH 5/5 (file-only port, transport, AI rules, payment policy); Apporo Play 3/3 (transport, AI rules, payment policy). APK builds, physical-device tests and real conversation acceptance are still in progress.
 
 Local evidence is in `build/store-document-acceptance/` (private, ignored by Git). No real credentials belong in
 this report or the repository. Source fingerprints, build logs and test XML identify the exact accepted inputs.

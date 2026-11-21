@@ -8,9 +8,15 @@ import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.cap.sandbox.AndroidSandbox
 import com.wangzan101.mika.cap.sandbox.SandboxDirs
 import com.wangzan101.mika.chat.SharedFile
+import com.wangzan101.mika.core.action.ActionExecutor
+import com.wangzan101.mika.core.action.ActionOutcome
+import com.wangzan101.mika.core.action.ActionRecorder
+import com.wangzan101.mika.core.action.Origin
 import com.wangzan101.mika.core.assembly.toolDispatcher
 import com.wangzan101.mika.core.cap.sandbox.SandboxStatus
+import com.wangzan101.mika.core.guard.OperationGuards
 import com.wangzan101.mika.core.model.Part
+import com.wangzan101.mika.core.record.RunSink
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -34,9 +40,14 @@ class StoreDocumentWorkflowTest {
         val cards = mutableListOf<SharedFile>()
         val port = AndroidSandbox.filesOnly(context, onShared = { cards.add(it) })
         val dispatcher = toolDispatcher(sandbox = port, workspace = { workspace })
+        val executor = ActionExecutor(dispatcher, OperationGuards(), null, gate = {},
+            recorder = ActionRecorder(RunSink.NONE))
         var sequence = 0
-        suspend fun execute(name: String, args: JsonObject) = dispatcher.execute(
-            Part.ToolCall("store-doc-${++sequence}", name, args.toString())).content
+        suspend fun execute(name: String, args: JsonObject): JsonObject {
+            val result = executor.run(Part.ToolCall("store-doc-${++sequence}", name, args.toString()), Origin.Model(sequence))
+            assertTrue(result.toString(), result is ActionOutcome.Ran)
+            return (result as ActionOutcome.Ran).exec.content
+        }
         val document = Json.parseToJsonElement("""{"title":"上架文件驗收","sections":[{"type":"paragraph","text":"繁體中文 ABC 123 <>&"},{"type":"table","columns":["項目","數量","備註"],"rows":[["測試A","2","一般"],["測試B","3","含逗號,與引號"]]}]}""")
         try {
             assertFalse(port.runsCommands)
