@@ -6,6 +6,15 @@ import XCTest
 /// Real native rendering/file IO with synthetic documents. This is not a
 /// provider, business-data or physical-device acceptance test.
 final class DocumentExportIntegrationTests: XCTestCase {
+    func testInferredPDFTitleAppearsOnlyOnce() throws {
+        let report = try DocumentReport.parseMarkdown(source: "# IPAD_TITLE\n\n繁體中文 END_TITLE", title: "IPAD_TITLE", language: "zh-Hant")
+        let pdf = try XCTUnwrap(PDFDocument(data: DocumentPDFRenderer.render(report)))
+        let text = try XCTUnwrap(pdf.string)
+        XCTAssertEqual(text.components(separatedBy: "IPAD_TITLE").count - 1, 1)
+        XCTAssertTrue(text.contains("繁體中文"))
+        XCTAssertTrue(text.contains("END_TITLE"))
+    }
+
     func testChinesePDFRetainsTextThroughParagraphAndTablePagination() throws {
         let table = try DocumentTable(columns: ["項目", "說明"], rows: [
             ["跨頁儲存格", String(repeating: "繁體中文與 English 123，表格內容必須保留。\n", count: 150) + "TABLE_END_MARKER"],

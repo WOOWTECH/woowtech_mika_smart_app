@@ -31,7 +31,7 @@ internal class DocumentPdf(context: Context, private val model: DocumentModel, p
             DocumentLimits.validate(model)
             newPage()
             text(model.title, 22f, true)
-            for (section in model.sections) {
+            for (section in model.bodySections) {
                 checkActive()
                 when (section) {
                     is DocumentSection.Heading -> text(section.text, (20 - section.level).toFloat(), true)

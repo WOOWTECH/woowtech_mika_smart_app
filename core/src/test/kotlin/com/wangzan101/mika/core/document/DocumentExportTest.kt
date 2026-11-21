@@ -6,6 +6,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DocumentExportTest {
+    @Test fun inferredTitleIsPrintedOnceWithoutRemovingOtherHeadings() {
+        val source = "# 文件驗收\n\n正文\n\n# 文件驗收\n\n末段"
+        val document = DocumentMarkdown.parse("文件驗收", "zh-Hant", source)
+        val html = DocumentWriters.html(document)
+        assertEquals(2, Regex("<h1>文件驗收</h1>").findAll(html).count())
+        assertTrue(html.contains("<p>正文</p>"))
+        assertTrue(html.contains("<p>末段</p>"))
+        assertEquals(4, document.sections.size)
+        val renamed = DocumentWriters.html(document.copy(title = "自訂標題"))
+        assertTrue(renamed.contains("<h1>自訂標題</h1>"))
+        assertEquals(2, Regex("<h1>文件驗收</h1>").findAll(renamed).count())
+        val subsection = DocumentMarkdown.parse("文件驗收", "zh-Hant", "## 文件驗收\n正文")
+        assertTrue(DocumentWriters.html(subsection).contains("<h2>文件驗收</h2>"))
+    }
+
     @Test fun chineseMarkdownKeepsSectionsAndLiteralMarkup() {
         val source = "# 台北報告\n\n第一段 **原文**。\n第二行。\n\n- 蘋果\n- 茶\n\n1. 開始\n2. 完成\n\n| 名稱 | 金額 |\n| --- | ---: |\n| 茶 | 25 |"
         val doc = DocumentMarkdown.parse("報告", "zh-Hant", source)

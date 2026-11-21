@@ -13,7 +13,7 @@ object DocumentWriters {
             append("<title>").append(escape(document.title)).append("</title>")
             append("<style>body{font:16px/1.65 sans-serif;color:#17212b;background:#fff;max-width:960px;margin:auto;padding:24px;overflow-wrap:anywhere}h1,h2,h3,h4,h5,h6{line-height:1.3}p,li,td,th{white-space:pre-wrap}table{border-collapse:collapse;width:100%;margin:20px 0}td,th{border:1px solid #8995a1;padding:8px;text-align:start;vertical-align:top}th{background:#eef2f6}caption{text-align:start}@media print{thead{display:table-header-group}body{padding:0}}</style></head><body><h1>")
             append(escape(document.title)).append("</h1>")
-            for (section in document.sections) when (section) {
+            for (section in document.bodySections) when (section) {
                 is DocumentSection.Heading -> append("<h${section.level}>").append(escape(section.text)).append("</h${section.level}>")
                 is DocumentSection.Paragraph -> append("<p>").append(escape(section.text)).append("</p>")
                 is DocumentSection.ListSection -> {

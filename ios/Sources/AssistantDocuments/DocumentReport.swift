@@ -61,6 +61,15 @@ public struct DocumentReport: Equatable, Sendable {
     public let language: String
     public let sections: [DocumentSection]
 
+    /// Renderers already print the document title. Coalesce only an identical
+    /// leading H1; keep the source model and later/different headings intact.
+    public var bodySections: ArraySlice<DocumentSection> {
+        if case .heading(let level, let text)? = sections.first, level == 1, text == title {
+            return sections.dropFirst()
+        }
+        return sections[...]
+    }
+
     public var tables: [DocumentTable] {
         sections.compactMap { if case .table(let table) = $0 { return table }; return nil }
     }

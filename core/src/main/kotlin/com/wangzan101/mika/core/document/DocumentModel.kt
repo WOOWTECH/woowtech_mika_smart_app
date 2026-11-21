@@ -10,7 +10,11 @@ data class DocumentModel(
     val language: String,
     val sections: List<DocumentSection>,
     val schemaVersion: Int = 1,
-)
+) {
+    /** Renderers print the title separately; retain the original sections for interchange. */
+    val bodySections: List<DocumentSection>
+        get() = if (sections.firstOrNull() == DocumentSection.Heading(1, title)) sections.drop(1) else sections
+}
 
 @Serializable
 sealed interface DocumentSection {

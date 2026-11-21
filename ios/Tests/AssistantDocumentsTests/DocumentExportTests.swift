@@ -3,6 +3,21 @@ import XCTest
 @testable import AssistantDocuments
 
 final class DocumentExportTests: XCTestCase {
+    func testInferredTitleIsPrintedOnceWithoutRemovingOtherHeadings() throws {
+        let source = "# 文件驗收\n\n正文\n\n# 文件驗收\n\n末段"
+        let report = try DocumentReport.parseMarkdown(source: source, title: "文件驗收", language: "zh-Hant")
+        let html = try report.html()
+        XCTAssertEqual(html.components(separatedBy: "<h1>文件驗收</h1>").count - 1, 2)
+        XCTAssertTrue(html.contains("<p>正文</p>"))
+        XCTAssertTrue(html.contains("<p>末段</p>"))
+        XCTAssertEqual(report.sections.count, 4, "Export must not mutate the source model")
+        let renamed = try DocumentReport.parseMarkdown(source: source, title: "自訂標題", language: "zh-Hant")
+        XCTAssertTrue(try renamed.html().contains("<h1>自訂標題</h1>"))
+        XCTAssertEqual(try renamed.html().components(separatedBy: "<h1>文件驗收</h1>").count - 1, 2)
+        let subsection = try DocumentReport.parseMarkdown(source: "## 文件驗收\n正文", title: "文件驗收", language: "zh-Hant")
+        XCTAssertTrue(try subsection.html().contains("<h2>文件驗收</h2>"))
+    }
+
     private func report(_ table: DocumentTable) throws -> DocumentReport {
         try .init(title: "Export", language: "en", sections: [.table(table)])
     }

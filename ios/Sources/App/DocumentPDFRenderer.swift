@@ -138,7 +138,7 @@ private final class PDFLayout {
     func draw(_ report: DocumentReport) throws {
         try beginPage()
         try paragraph(report.title, size: 23, bold: true, gap: 16)
-        for section in report.sections {
+        for section in report.bodySections {
             try Task.checkCancellation()
             switch section {
             case .heading(let level, let text):

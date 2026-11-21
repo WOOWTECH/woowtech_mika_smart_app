@@ -17,7 +17,7 @@ extension DocumentReport {
         @page{size:A4;margin:16mm}@media print{body{margin:0;padding:0;max-width:none}.table-scroll{overflow:visible}h1,h2,h3{break-after:avoid}}
         </style></head><body><h1>\(title.documentHTMLEscaped)</h1>
         """)
-        for section in sections {
+        for section in bodySections {
             try Task.checkCancellation()
             switch section {
             case .heading(let level, let text):
