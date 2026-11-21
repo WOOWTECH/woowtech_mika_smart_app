@@ -1117,7 +1117,10 @@ private struct ChatView: View {
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .overlay(alignment: .bottomTrailing) {
-            if (showsReturnToLatest || !pageIncludesLatest) && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
+            // Paged histories already expose Latest above the viewport. A second
+            // floating button can cover the final reply in a short viewport.
+            if session.entries.count <= ChatTranscriptPage.maximumMessages,
+               showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
                 // A landscape keyboard plus a multiline draft and notice can
                 // leave less height than this button. The transcript must stay
                 // clipped, so defer the overlay until the whole control fits.

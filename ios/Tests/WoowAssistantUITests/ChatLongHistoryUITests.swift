@@ -20,12 +20,16 @@ final class ChatLongHistoryUITests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        // The run has not finished here: hasSucceeded is not a final verdict.
+        // Record failures observed so far; xcresult owns the completed result.
+        let failuresObservedBeforeTeardown = testRun?.failureCount ?? 0
         var report: [String: Any] = [
             "fixture": "long-history-v1", "synthetic": true, "namespace": namespace,
             "initialTurns": initialTurns, "initialMessages": initialTurns * 2,
             "maximumSeconds": 300, "phases": timings, "pages": pageObservations,
             "maximumRenderedMessages": 80,
-            "succeeded": testRun?.hasSucceeded ?? false,
+            "failuresObservedBeforeTeardown": failuresObservedBeforeTeardown,
+            "finalResultSource": "xcresult",
             "timingScope": "native XCTest actions and AX observations; includes automation overhead"
         ]
         if let activePhase, let phaseStarted {
@@ -38,7 +42,7 @@ final class ChatLongHistoryUITests: XCTestCase {
         summary.lifetime = .keepAlways
         add(summary)
         print("LONG_HISTORY_RESULT " + String(decoding: data, as: UTF8.self))
-        if testRun?.hasSucceeded == false, app.state == .runningForeground {
+        if failuresObservedBeforeTeardown > 0, app.state == .runningForeground {
             capture("long-history-failure-" + (activePhase ?? "assertion"))
         }
         app.terminate()
@@ -54,6 +58,7 @@ final class ChatLongHistoryUITests: XCTestCase {
     /// then a process restart and a real archive reopen retain the completed reply.
     func testThousandthTurnPersistsFrom999TurnArchive() {
         exercise(turns: 999, expectsArchiveLimit: false)
+        exerciseBlockedSendOnEarlierPage()
     }
 
     private func exercise(turns: Int, expectsArchiveLimit: Bool) {
@@ -128,6 +133,79 @@ final class ChatLongHistoryUITests: XCTestCase {
         }
     }
 
+    /// Run only after the 999 -> 1000 save/reopen assertions. Delete the synthetic
+    /// provider through real Settings in this process: relaunching would reseed it.
+    private func exerciseBlockedSendOnEarlierPage() {
+        let blockedDraft = "Earlier page without model"
+        phase("remove_fixture_provider") {
+            navigateMikaSection("settings", in: app)
+            openModelSettings(in: app)
+            deleteModelProvider("model.example.invalid", in: app)
+            returnFromModelSettings(in: app)
+            navigateMikaSection("chat", in: app)
+            assertLabel(app.staticTexts["chat.status"].firstMatch, "尚未設定模型")
+            openHistory(lastIndex: 1999, marker: "測試回覆：" + probe)
+        }
+        phase("earlier_page_blocked_send") {
+            visitEarliest(total: 2000)
+            let draft = chatDraftControl(in: app)
+            ready(draft); draft.tap(); prepareKeyboard()
+            typeDraft(blockedDraft)
+            tap("chat.dismissKeyboard")
+            wait(NSPredicate(format: "exists == false"), on: app.keyboards.firstMatch, seconds: 10)
+            let transcript = app.scrollViews["chat.transcript"].firstMatch
+            // Reproduce the old-page hole, not the existing <200-point fallback.
+            wait(NSPredicate { _, _ in
+                transcript.exists && transcript.frame.height >= 200
+            }, on: transcript, seconds: 10)
+            let heightBeforeSend = transcript.frame.height
+            XCTAssertGreaterThanOrEqual(heightBeforeSend, 200)
+            tap("chat.send")
+            let card = app.descendants(matching: .any)["chat.sendBlocked"].firstMatch
+            XCTAssertTrue(card.waitForExistence(timeout: 5))
+            XCTAssertTrue(card.staticTexts["還不能開始任務"].exists)
+            XCTAssertTrue(card.staticTexts["還缺：還沒有能用的模型"].exists)
+            XCTAssertFalse(transcript.descendants(matching: .any)["chat.sendBlocked"].exists,
+                           "An earlier page needs the composer fallback, outside omitted tailRows")
+            for identifier in ["chat.sendBlocked.dismiss", "chat.sendBlocked.openSettings"] {
+                let action = app.buttons[identifier].firstMatch
+                ready(action)
+                XCTAssertFalse(action.frame.isEmpty)
+                XCTAssertTrue(app.frame.contains(action.frame))
+                XCTAssertLessThanOrEqual(action.frame.maxY, draft.frame.minY)
+            }
+            XCTAssertFalse(card.frame.isEmpty)
+            XCTAssertTrue(app.frame.contains(card.frame))
+            XCTAssertGreaterThanOrEqual(card.frame.minY, transcript.frame.maxY)
+            XCTAssertEqual(draft.value as? String, blockedDraft)
+            XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
+            XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
+            // An off-page absence check alone cannot prove no append: verify total
+            // and unchanged old-page bounds, then inspect the latest page below.
+            assertBoundedPage(first: 0, last: 79, total: 2000)
+            XCTAssertFalse(app.buttons["chat.history.earliest"].firstMatch.isEnabled)
+            print("LONG_HISTORY_BLOCKED_SEND total=2000 first=0 last=79 viewportBefore=\(heightBeforeSend) fallback=1")
+            capture("long-history-earlier-page-no-model")
+        }
+        phase("blocked_send_settings_action") {
+            tap("chat.sendBlocked.openSettings")
+            XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+            ready(app.buttons["settings.modelJump"].firstMatch)
+            navigateMikaSection("chat", in: app)
+            assertLabel(app.staticTexts["chat.status"].firstMatch, "尚未設定模型")
+            XCTAssertFalse(app.descendants(matching: .any)["chat.sendBlocked"].exists)
+            XCTAssertEqual(chatDraftControl(in: app).value as? String, blockedDraft)
+            // Returning from Settings may recreate ChatView already on the latest
+            // page; otherwise explicitly leave the earlier page before checking IDs.
+            if app.buttons["chat.history.latest"].firstMatch.isEnabled { tap("chat.history.latest") }
+            assertLatest(lastIndex: 1999, marker: "測試回覆：" + probe)
+            assertLabel(message(1998, role: "user"), probe)
+            XCTAssertFalse(message(2000, role: "user").exists)
+            XCTAssertFalse(message(2001, role: "assistant").exists)
+            XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
+        }
+    }
+
     private func launch(reset: Bool) {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-WoowSkipOnboarding",
             "-UITestMode", "-UITestNamespace", namespace, "-UITestTranscriptFixture",
@@ -191,6 +269,8 @@ final class ChatLongHistoryUITests: XCTestCase {
     }
 
     private func assertBoundedPage(first: Int, last: Int, total: Int) {
+        XCTAssertFalse(app.buttons["chat.returnToLatest"].exists,
+                       "Paged history uses its top Latest control without covering replies")
         // The zh-Hant display locale groups thousands (native272: 1,919–1,998).
         // Keep exact label equality, including all three independently expected counts.
         let expectedRange = String(format: "第 %1$lld–%2$lld 則，共 %3$lld 則",
