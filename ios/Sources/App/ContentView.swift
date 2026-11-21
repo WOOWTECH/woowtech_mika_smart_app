@@ -216,6 +216,7 @@ struct ContentView: View {
                     if selection == .chat {
                         Button { showsDrawer = true } label: {
                             Image(systemName: "line.3.horizontal")
+                                .foregroundStyle(palette.accent)
                                 .frame(width: 40, height: 40)
                         }
                         .accessibilityLabel(localizer.text(.shellMenu))
@@ -228,6 +229,7 @@ struct ContentView: View {
                             selection = destination
                         } label: {
                             Image(systemName: "chevron.backward")
+                                .foregroundStyle(palette.accent)
                                 .frame(width: 40, height: 40)
                         }
                         .accessibilityLabel(localizer.text(selection == .browser && browserReturnSection == .memory
@@ -253,6 +255,7 @@ struct ContentView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: requestNewConversation) {
                             Image(systemName: "square.and.pencil")
+                                .foregroundStyle(session.isSubmitting ? palette.secondaryInk : palette.accent)
                                 .frame(width: 40, height: 40)
                         }
                         .disabled(session.isSubmitting)
