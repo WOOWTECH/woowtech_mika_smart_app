@@ -145,3 +145,7 @@ CPU 取樣：輸入窗口 19 筆 0–78.243%，末筆 0%；送出／互動後窗
 267 最終恢復深色與直向，`ipad-267-04-final-inventory` 6.8 秒 PASS；升級後再核對 16 個原對話 ID 相同。本機完整還原紀錄 `ipad-267-final-restoration.json`、三個 267 操作序列與截圖摘要 `ipad-267-visual-evidence-index.json`。沒有留下正在執行的手機自動化序列；兩個授權暫停的容器均已恢復。
 
 原 `BrowserSearchUITests.testCustomSearchQueryAndSettingsSurviveRelaunch`、`MemoryToolUITests.testUpdateOfManualMemoryPersistsAfterRelaunch` 的舊 CI 失敗，不在本輪視覺回歸覆蓋範圍；不可由頁面能開啟或附件 hosted PASS 推論它們已修復。原 iPhone A31、MCP 工具錯誤／unknown、多供應商與斷線逾時、瀏覽器登入下載、雙平台實機接收端、1,000 輪歷史效能及原生版面警告仍需分別驗證。
+
+## 269 後續團隊進度
+
+後續長歷史分頁、MCP 安全分類、共用鍵盤 Done、273–275 原生結果與 269 正式／隔離 QA 實機證據，見 [269 團隊回歸](IPAD_269_TEAM_VALIDATION.md)。該紀錄保留未重現的間歇延遲、原 iPhone／真 Apporo 連線缺口及 Android 差異；不將本頁 267 結果套成 269 完整商用驗收。
