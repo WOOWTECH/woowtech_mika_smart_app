@@ -1262,13 +1262,14 @@ private struct ChatView: View {
         if dynamicTypeSize.isAccessibilitySize {
             // Keep long notices reachable without pushing their dismiss action
             // above the navigation bar. The normal text size keeps its layout.
-            ViewThatFits(in: .vertical) {
-                composerContext.fixedSize(horizontal: false, vertical: true)
-                ScrollView { composerContext }
-                    .scrollBounceBehavior(.basedOnSize)
-                    .accessibilityIdentifier("chat.composerContext")
+            MikaContentHeightLimit(maximumHeight: max(64, availableHeight * 0.35)) {
+                ViewThatFits(in: .vertical) {
+                    composerContext.fixedSize(horizontal: false, vertical: true)
+                    ScrollView { composerContext }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .accessibilityIdentifier("chat.composerContext")
+                }
             }
-            .frame(maxHeight: max(64, availableHeight * 0.35))
         } else {
             composerContext
         }
