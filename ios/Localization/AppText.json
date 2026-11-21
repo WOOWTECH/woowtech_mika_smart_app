@@ -1161,6 +1161,64 @@
       }
     },
     {
+      "case": "chatHistoryEarliest",
+      "key": "chat.history.earliest",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "最早訊息",
+        "en": "First messages"
+      }
+    },
+    {
+      "case": "chatHistoryEarlier",
+      "key": "chat.history.earlier",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "較早訊息",
+        "en": "Earlier messages"
+      }
+    },
+    {
+      "case": "chatHistoryNewer",
+      "key": "chat.history.newer",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "較新訊息",
+        "en": "Newer messages"
+      }
+    },
+    {
+      "case": "chatHistoryLatest",
+      "key": "chat.history.latest",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "最新訊息",
+        "en": "Latest messages"
+      }
+    },
+    {
+      "case": "chatHistoryRange",
+      "key": "chat.history.range",
+      "parameters": [
+        {
+          "name": "first",
+          "type": "Int"
+        },
+        {
+          "name": "last",
+          "type": "Int"
+        },
+        {
+          "name": "total",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "第 %1$lld–%2$lld 則，共 %3$lld 則",
+        "en": "Messages %1$lld–%2$lld of %3$lld"
+      }
+    },
+    {
       "case": "shellSend",
       "key": "shell.send",
       "parameters": [],
@@ -1818,8 +1876,8 @@
       "key": "mcp.results.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "本次 MCP 工具結果",
-        "en": "MCP results for this conversation"
+        "zh-Hant": "本次 MCP 結果紀錄",
+        "en": "MCP result records for this submission"
       }
     },
     {
@@ -9342,8 +9400,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "MCP 嘗試呼叫 %1$lld 次；已收到 %2$lld 次結果；工具錯誤 %3$lld 次。",
-        "en": "MCP calls tried: %1$lld; results received: %2$lld; tool errors: %3$lld."
+        "zh-Hant": "MCP 嘗試呼叫 %1$lld 次；結果紀錄 %2$lld 筆；異常 %3$lld 筆。",
+        "en": "MCP calls attempted: %1$lld; result records: %2$lld; errors: %3$lld."
       }
     },
     {
@@ -10158,6 +10216,106 @@
         }
       },
       "plural": "count"
+    },
+    {
+      "case": "mcpDiagnosticUnclassified",
+      "key": "mcp.diagnostic.unclassified",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未記錄結果分類",
+        "en": "Result classification unavailable"
+      }
+    },
+    {
+      "case": "mcpDiagnosticHTTP",
+      "key": "mcp.diagnostic.http",
+      "parameters": [
+        {
+          "name": "code",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "HTTP 錯誤 %1$lld",
+        "en": "HTTP error %1$lld"
+      }
+    },
+    {
+      "case": "mcpDiagnosticRPC",
+      "key": "mcp.diagnostic.rpc",
+      "parameters": [
+        {
+          "name": "code",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "RPC 錯誤 %1$lld",
+        "en": "RPC error %1$lld"
+      }
+    },
+    {
+      "case": "mcpDiagnosticTimeout",
+      "key": "mcp.diagnostic.timeout",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 呼叫逾時",
+        "en": "MCP call timed out"
+      }
+    },
+    {
+      "case": "mcpDiagnosticCancelled",
+      "key": "mcp.diagnostic.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 呼叫已取消",
+        "en": "MCP call cancelled"
+      }
+    },
+    {
+      "case": "mcpDiagnosticTransport",
+      "key": "mcp.diagnostic.transport",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 傳輸失敗",
+        "en": "MCP transport failure"
+      }
+    },
+    {
+      "case": "mcpDiagnosticProtocol",
+      "key": "mcp.diagnostic.protocol",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 回應或協定異常",
+        "en": "MCP response or protocol error"
+      }
+    },
+    {
+      "case": "mcpDiagnosticOther",
+      "key": "mcp.diagnostic.other",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 呼叫異常",
+        "en": "MCP call error"
+      }
+    },
+    {
+      "case": "mcpDiagnosticOutcomeUnknown",
+      "key": "mcp.diagnostic.outcomeUnknown",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "是否已套用變更未知。若操作會修改資料，請勿重送；請先以唯讀操作確認。",
+        "en": "Whether changes were applied is unknown. Do not resend an operation that changes data; check with a read-only operation first."
+      }
+    },
+    {
+      "case": "mcpResultsTransient",
+      "key": "mcp.results.transient",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "僅顯示本次送出訊息的紀錄；下次送出時會清除，不會隨對話儲存。",
+        "en": "These records cover this submission only. They reset on the next submission and are not saved with the conversation."
+      }
     }
   ]
 }

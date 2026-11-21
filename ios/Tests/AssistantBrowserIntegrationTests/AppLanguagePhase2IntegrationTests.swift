@@ -5,6 +5,29 @@ import AssistantDomain
 /// Actual packaged tables and native notification request objects. Does not
 /// access the notification center, send notifications or grant permissions.
 @MainActor final class AppLanguagePhase2IntegrationTests: XCTestCase {
+    func testMCPActivityStoredTextMapsRecordAndErrorCountsToEnglish() throws {
+        let english = AppLocalizer(language: .english)
+        let traditional = AppLocalizer(language: .traditionalChinese)
+        let cases: [(String, AppText, String)] = [
+            ("MCP 嘗試呼叫 4 次；結果紀錄 4 筆；異常 2 筆。",
+             .storedChatMcpActivity(tried: 4, received: 4, failed: 2),
+             "MCP calls attempted: 4; result records: 4; errors: 2."),
+            ("MCP 嘗試呼叫 3 次；結果紀錄 1 筆；異常 0 筆。",
+             .storedChatMcpActivity(tried: 3, received: 1, failed: 0),
+             "MCP calls attempted: 3; result records: 1; errors: 0.")
+        ]
+        for (raw, expectedMessage, expectedEnglish) in cases {
+            let parsed = try XCTUnwrap(AppText.storedMessage(raw))
+            XCTAssertEqual(parsed, expectedMessage)
+            XCTAssertEqual(english.stored(raw), expectedEnglish)
+            XCTAssertEqual(traditional.stored(raw), raw)
+            let resolved = english.resolve(parsed)
+            XCTAssertEqual(resolved.text, expectedEnglish)
+            XCTAssertEqual(resolved.language, .english)
+            XCTAssertFalse(resolved.usedFallback)
+        }
+    }
+
     func testPackagedMCPBrowserCatalogAndNotificationMessagesKeepTypedData() throws {
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language)

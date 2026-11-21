@@ -546,12 +546,17 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
 @MainActor
 private final class ChatScrollFollowBox {
     var policy = ChatScrollFollowPolicy()
+    var pageBasis: ChatTranscriptPageBasis?
 }
 
-@MainActor
+private struct ChatTranscriptLayout: Equatable {
+    let basis: ChatTranscriptPageBasis
+    let viewport: ChatTranscriptViewport
+}
+
 private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
-    static var defaultValue: ChatTranscriptViewport? = nil
-    static func reduce(value: inout ChatTranscriptViewport?, nextValue: () -> ChatTranscriptViewport?) {
+    static var defaultValue: ChatTranscriptLayout? { nil }
+    static func reduce(value: inout ChatTranscriptLayout?, nextValue: () -> ChatTranscriptLayout?) {
         value = nextValue() ?? value
     }
 }
@@ -600,6 +605,7 @@ private struct ChatView: View {
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
     @State private var scrollFollowBox = ChatScrollFollowBox()
+    @State private var transcriptPage = ChatTranscriptPage()
     /// Whether the return-to-latest button shows (!followsTail): the only part
     /// of following that redraws the chat.
     @State private var showsReturnToLatest = false
@@ -637,6 +643,37 @@ private struct ChatView: View {
     /// The follow policy, read without redrawing the chat.
     private var scrollFollow: ChatScrollFollowPolicy { scrollFollowBox.policy }
 
+    private var transcriptRange: Range<Int> {
+        transcriptPage.range(conversationID: session.conversationID, messageCount: session.entries.count)
+    }
+
+    private var transcriptBasis: ChatTranscriptPageBasis {
+        transcriptPage.basis(conversationID: session.conversationID, messageCount: session.entries.count)
+    }
+
+    private var pageIncludesLatest: Bool { transcriptRange.upperBound == session.entries.count }
+
+    private func pinTranscriptPage() {
+        guard session.entries.count > ChatTranscriptPage.maximumMessages else { return }
+        var page = transcriptPage
+        page.pin(conversationID: session.conversationID, messageCount: session.entries.count)
+        if page != transcriptPage { transcriptPage = page }
+    }
+
+    private func trackLatestPage() {
+        var page = transcriptPage
+        page.trackLatest(conversationID: session.conversationID)
+        if page != transcriptPage { transcriptPage = page }
+    }
+
+    private func navigateTranscript(_ destination: ChatTranscriptPage.Destination) {
+        cancelScrollSettle()
+        transcriptPage.navigate(destination, conversationID: session.conversationID,
+                                messageCount: session.entries.count)
+        // The matching layout report applies the policy and anchor together.
+        // Neither old-page geometry nor a delayed drag settle may scroll this page.
+    }
+
     /// Changes the follow policy. Only a change of the return button redraws the
     /// chat: geometry arrives on every layout pass, and redrawing for each
     /// report let a long chat's layout and its reports feed each other.
@@ -644,6 +681,7 @@ private struct ChatView: View {
     private func updateFollow<Result>(_ change: (inout ChatScrollFollowPolicy) -> Result) -> Result {
         let result = change(&scrollFollowBox.policy)
         let shows = !scrollFollowBox.policy.followsTail
+        if shows { pinTranscriptPage() }
         if showsReturnToLatest != shows { showsReturnToLatest = shows }
         return result
     }
@@ -840,6 +878,7 @@ private struct ChatView: View {
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
             let settled = updateFollow { $0.settle(expectedRevision: revision) }
+            if settled && scrollFollow.followsTail { trackLatestPage() }
             if settled && scrollFollow.needsTailScroll {
                 // A no-op drag may have paused scrolling while a new fragment
                 // arrived. Catch up only after its final offset is known.
@@ -914,12 +953,14 @@ private struct ChatView: View {
     /// Like Android, the card is the transcript's last item. On the physical iPad
     /// the transcript once collapsed to almost nothing; a card that would not fit
     /// shows above the input bar instead, so a blocked send is never silent.
-    private var blockedCardFitsTranscript: Bool { transcriptViewportHeight >= 200 }
+    private var blockedCardFitsTranscript: Bool { pageIncludesLatest && transcriptViewportHeight >= 200 }
 
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
-        let rows = Array(session.entries.enumerated())
+        let range = transcriptRange
+        let basis = transcriptBasis
+        let rows = range.map { (offset: $0, element: session.entries[$0]) }
         return VStack(alignment: .leading, spacing: 16) {
             welcomeRows
             // A lazy history container can remeasure indefinitely when the keyboard
@@ -930,18 +971,18 @@ private struct ChatView: View {
             // existing messages between history/recent containers during tail layout.
             // Do not restore deferred layout here without the device regression.
             messageRows(rows[...], targets: targets)
-            tailRows
+            if range.upperBound == session.entries.count { tailRows }
         }
         .padding(.vertical, 4)
         .background {
             GeometryReader { content in
                 Color.clear.preference(key: ChatTranscriptViewportPreferenceKey.self,
-                    value: ChatTranscriptViewport(
+                    value: ChatTranscriptLayout(basis: basis, viewport: ChatTranscriptViewport(
                         // Whole points: a fraction of a point between two layout
                         // passes is not a change worth following.
                         contentHeight: Double(content.size.height).rounded(),
                         bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY).rounded(),
-                        viewportHeight: viewportHeight.rounded()))
+                        viewportHeight: viewportHeight.rounded())))
             }
         }
     }
@@ -1008,19 +1049,50 @@ private struct ChatView: View {
         // press away from the message menu or the streaming reply's text.
         .simultaneousGesture(DragGesture(minimumDistance: 5)
             .onChanged { drag in
+                guard pageIncludesLatest, scrollFollowBox.pageBasis == transcriptBasis else { return }
+                // Do not evict the row under a finger when a reply completes.
+                if session.entries.count > ChatTranscriptPage.maximumMessages { pinTranscriptPage() }
                 updateFollow { $0.beginDrag() }
                 if drag.translation.height > 4 { updateFollow { $0.userDraggedTowardEarlierContent() } }
                 if drag.translation.height < -4 { updateFollow { $0.userDraggedTowardLatestContent() } }
             }
             .onEnded { _ in
+                guard pageIncludesLatest, scrollFollowBox.pageBasis == transcriptBasis else { return }
                 updateFollow { $0.endDrag() }
                 scheduleScrollSettle()
             })
-        .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
+        .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { layout in
             // An empty conversation is a browsable list, not a transcript
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
-            guard let position else { return }
+            guard let layout, layout.basis == transcriptBasis else { return }
+            let position = layout.viewport
             let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
+            if scrollFollowBox.pageBasis != layout.basis {
+                let previous = scrollFollowBox.pageBasis
+                let explicit = previous?.conversationID != layout.basis.conversationID
+                    || previous?.requestRevision != layout.basis.requestRevision
+                let landing = transcriptPage.landing(conversationID: session.conversationID)
+                let follows = explicit ? landing == .tail : scrollFollow.followsTail
+                cancelScrollSettle()
+                scrollFollowBox.pageBasis = layout.basis
+                updateFollow { $0.presentationChanged(to: hasTranscript ? position : nil, followsTail: follows) }
+                if explicit, hasTranscript {
+                    switch landing {
+                    case .start:
+                        if let index = transcriptRange.first { proxy.scrollTo(session.entries[index].id, anchor: .top) }
+                    case .end:
+                        if let index = transcriptRange.last { proxy.scrollTo(session.entries[index].id, anchor: .bottom) }
+                    case .tail:
+                        proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                    }
+                } else if follows && pageIncludesLatest && hasTranscript {
+                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                }
+                return
+            }
+            // The end of an older page is not the transcript's tail. Its native
+            // scrolling and VoiceOver browsing must never re-arm tail following.
+            guard pageIncludesLatest else { return }
             let followed = scrollFollow.followsTail
             let shouldScroll = updateFollow { $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }
 #if DEBUG
@@ -1034,32 +1106,25 @@ private struct ChatView: View {
             scheduleScrollSettle()
         }
         .onChange(of: session.conversationID) { _, _ in
-            cancelScrollSettle()
-            updateFollow { $0.conversationChanged() }
-            if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
-                proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
-            }
+            navigateTranscript(.latest)
         }
         .onChange(of: session.isSubmitting) { _, submitting in
             guard submitting else { return }
-            cancelScrollSettle()
-            updateFollow { $0.userSubmitted() }
-            proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            navigateTranscript(.latest)
         }
         .onChange(of: scrollToTailRequest) { _, _ in
+            guard pageIncludesLatest, scrollFollowBox.pageBasis == transcriptBasis else { return }
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .overlay(alignment: .bottomTrailing) {
-            if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
+            if (showsReturnToLatest || !pageIncludesLatest) && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
                 // A landscape keyboard plus a multiline draft and notice can
                 // leave less height than this button. The transcript must stay
                 // clipped, so defer the overlay until the whole control fits.
                 // As an overlay this does not change the transcript's geometry.
                 ViewThatFits(in: .vertical) {
                     Button {
-                        cancelScrollSettle()
-                        updateFollow { $0.userRequestedLatest() }
-                        scrollToTailRequest += 1
+                        navigateTranscript(.latest)
                     } label: {
                         Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
                     }
@@ -1073,13 +1138,44 @@ private struct ChatView: View {
         }
     }
 
-    private var transcript: some View {
-        GeometryReader { viewport in
-            ScrollViewReader { proxy in
-                transcriptScroll(proxy: proxy, viewportHeight: Double(viewport.size.height))
+    private func pageButton(_ destination: ChatTranscriptPage.Destination, text: AppText,
+                            identifier: String, disabled: Bool) -> some View {
+        Button(localizer.text(text)) { navigateTranscript(destination) }
+            .font(.caption)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .disabled(disabled)
+            .accessibilityIdentifier(identifier)
+    }
+
+    private var transcriptNavigation: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                pageButton(.earliest, text: .chatHistoryEarliest, identifier: "chat.history.earliest",
+                           disabled: transcriptRange.lowerBound == 0)
+                pageButton(.earlier, text: .chatHistoryEarlier, identifier: "chat.history.earlier",
+                           disabled: transcriptRange.lowerBound == 0)
+                pageButton(.newer, text: .chatHistoryNewer, identifier: "chat.history.newer",
+                           disabled: pageIncludesLatest)
+                pageButton(.latest, text: .chatHistoryLatest, identifier: "chat.history.latest",
+                           disabled: pageIncludesLatest && scrollFollow.followsTail)
             }
-            .onAppear { transcriptViewportHeight = viewport.size.height }
-            .onChange(of: viewport.size.height) { _, height in transcriptViewportHeight = height }
+            Text(localizer.text(.chatHistoryRange(first: transcriptRange.lowerBound + 1,
+                                                 last: transcriptRange.upperBound, total: session.entries.count)))
+                .font(.caption2).foregroundStyle(palette.secondaryInk)
+                .accessibilityIdentifier("chat.history.range")
+        }
+    }
+
+    private var transcript: some View {
+        VStack(spacing: 0) {
+            if session.entries.count > ChatTranscriptPage.maximumMessages { transcriptNavigation }
+            GeometryReader { viewport in
+                ScrollViewReader { proxy in
+                    transcriptScroll(proxy: proxy, viewportHeight: Double(viewport.size.height))
+                }
+                .onAppear { transcriptViewportHeight = viewport.size.height }
+                .onChange(of: viewport.size.height) { _, height in transcriptViewportHeight = height }
+            }
         }
         // Keep scrolling content inside the space assigned above the status and
         // composer, including while the keyboard or attachment panel moves them.
@@ -1182,7 +1278,7 @@ private struct ChatView: View {
         let shape = RoundedRectangle(cornerRadius: 32, style: .continuous)
         return HStack(alignment: .bottom, spacing: 4) {
             attachToggle
-            // Return adds a line; the keyboard toolbar Done closes editing without sending.
+            // Return adds a line; the Done bar closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
                       text: draft, axis: .vertical)
                 .lineLimit(lines)
@@ -1225,9 +1321,7 @@ private struct ChatView: View {
                 session.attemptSend(mcp: mcp)
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
-                    cancelScrollSettle()
-                    updateFollow { $0.userSubmitted() }
-                    scrollToTailRequest += 1
+                    navigateTranscript(.latest)
                 }
             } label: {
                 Image(systemName: "arrow.up")
@@ -1292,6 +1386,10 @@ private struct ChatView: View {
                     composer(draft: draft, availableHeight: availableHeight)
                 }
                 attachPanel
+                if isEditingDraft && !showsAttachPanel {
+                    MikaKeyboardDoneBar(title: localizer.text(.commonDone),
+                                        identifier: "chat.dismissKeyboard") { isEditingDraft = false }
+                }
             }
             .layoutPriority(1)
             .background {
@@ -1338,13 +1436,6 @@ private struct ChatView: View {
 
     var body: some View {
         presentedChat
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button(localizer.text(.commonDone)) { isEditingDraft = false }
-                        .accessibilityIdentifier("chat.dismissKeyboard")
-                }
-            }
             .onChange(of: showsDrawer) { _, visible in
                 if visible { voice.cancel(); isEditingDraft = false }
             }

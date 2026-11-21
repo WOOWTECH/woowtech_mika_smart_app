@@ -215,6 +215,8 @@ enum MCPConversationChecks {
         let result = try await run(model, executor)
         try c.expect(result.stopReason == .finished && result.answer != nil, "like Android, a tool error goes back to the model")
         try c.expect(result.steps[0].isError && result.steps[0].result == failure, "all error content preserved")
+        try c.expect(result.steps[0].diagnostic == .init(category: .toolError, outcomeUnknown: true),
+                     "returned tool error does not promise rollback or use structuredContent code")
         let errorInputs = await model.inputs
         try c.expect(errorInputs.count == 2 && (errorInputs[1].last?.content.contains("Tool refused") ?? false),
                      "the model reads the actual error and decides the next step")
@@ -223,6 +225,8 @@ enum MCPConversationChecks {
         let afterFailure = try await run(brokenModel, broken)
         let brokenCalls = await broken.calls.count, brokenInputs = await brokenModel.inputs
         try c.expect(afterFailure.stopReason == .finished && afterFailure.steps.first?.isError == true, "a failed request is an error result")
+        try c.expect(afterFailure.steps.first?.diagnostic == .init(category: .other, outcomeUnknown: true),
+                     "unrecognized executor failures stay generic and unknown")
         try c.expect(brokenCalls == 1 && brokenInputs.count == 2, "transport failure never replays execution")
         let failureText = brokenInputs[1].last?.content ?? ""
         try c.expect(failureText.contains("outcome is unknown") && !failureText.contains("secret"),
@@ -240,6 +244,8 @@ enum MCPConversationChecks {
         let oddModel = Model([try call(), finish])
         let odd = try await run(oddModel, Executor([.object(["isError": .string("false")])]))
         try c.expect(odd.stopReason == .finished && odd.steps.first?.isError == true, "a malformed isError never claims success")
+        try c.expect(odd.steps.first?.diagnostic == .init(category: .protocolFailure, outcomeUnknown: true),
+                     "malformed isError is a protocol problem, not a claimed tool error")
         count += try await expect(.modelResponseTooLarge) { _ = try await run(Model([String(repeating: "x", count: MCPConversationRunner.maximumModelResponseBytes + 1)]), Executor()) }
         count += try await expect(.invalidCatalog) { _ = try await run(Model([finish]), Executor(), tools: [tool, tool]) }
         count += try await expect(.invalidLimits) { _ = try await run(Model([finish]), Executor(), limits: .init(maximumModelCalls: 61)) }

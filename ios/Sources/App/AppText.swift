@@ -128,6 +128,11 @@ enum AppText: Equatable {
     case shellMessageDraft
     case shellStop
     case shellReturnToLatest
+    case chatHistoryEarliest
+    case chatHistoryEarlier
+    case chatHistoryNewer
+    case chatHistoryLatest
+    case chatHistoryRange(first: Int, last: Int, total: Int)
     case shellSend
     case appearanceTitle
     case appearanceFollowSystem
@@ -1058,6 +1063,16 @@ enum AppText: Equatable {
     case documentMissing
     case documentPreviewFailed
     case documentProtectedCells(count: Int)
+    case mcpDiagnosticUnclassified
+    case mcpDiagnosticHTTP(code: Int)
+    case mcpDiagnosticRPC(code: Int)
+    case mcpDiagnosticTimeout
+    case mcpDiagnosticCancelled
+    case mcpDiagnosticTransport
+    case mcpDiagnosticProtocol
+    case mcpDiagnosticOther
+    case mcpDiagnosticOutcomeUnknown
+    case mcpResultsTransient
 
     var key: String {
         switch self {
@@ -1186,6 +1201,11 @@ enum AppText: Equatable {
         case .shellMessageDraft: return "shell.messageDraft"
         case .shellStop: return "shell.stop"
         case .shellReturnToLatest: return "shell.returnToLatest"
+        case .chatHistoryEarliest: return "chat.history.earliest"
+        case .chatHistoryEarlier: return "chat.history.earlier"
+        case .chatHistoryNewer: return "chat.history.newer"
+        case .chatHistoryLatest: return "chat.history.latest"
+        case .chatHistoryRange: return "chat.history.range"
         case .shellSend: return "shell.send"
         case .appearanceTitle: return "appearance.title"
         case .appearanceFollowSystem: return "appearance.followSystem"
@@ -2116,6 +2136,16 @@ enum AppText: Equatable {
         case .documentMissing: return "document.missing"
         case .documentPreviewFailed: return "document.previewFailed"
         case .documentProtectedCells: return "document.protectedCells"
+        case .mcpDiagnosticUnclassified: return "mcp.diagnostic.unclassified"
+        case .mcpDiagnosticHTTP: return "mcp.diagnostic.http"
+        case .mcpDiagnosticRPC: return "mcp.diagnostic.rpc"
+        case .mcpDiagnosticTimeout: return "mcp.diagnostic.timeout"
+        case .mcpDiagnosticCancelled: return "mcp.diagnostic.cancelled"
+        case .mcpDiagnosticTransport: return "mcp.diagnostic.transport"
+        case .mcpDiagnosticProtocol: return "mcp.diagnostic.protocol"
+        case .mcpDiagnosticOther: return "mcp.diagnostic.other"
+        case .mcpDiagnosticOutcomeUnknown: return "mcp.diagnostic.outcomeUnknown"
+        case .mcpResultsTransient: return "mcp.results.transient"
         }
     }
 
@@ -2126,6 +2156,7 @@ enum AppText: Equatable {
         case .learningUpdatedWas(let value, let was): return [value, was]
         case .learningForgotItem(let value): return [value]
         case .learningPendingProcedure(let value): return [value]
+        case .chatHistoryRange(let first, let last, let total): return [Int64(first), Int64(last), Int64(total)]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
@@ -2231,6 +2262,8 @@ enum AppText: Equatable {
         case .chatSkillNoteLearned(let description): return [description]
         case .chatSkillNoteVerified(let name): return [name]
         case .documentProtectedCells(let count): return [Int64(count)]
+        case .mcpDiagnosticHTTP(let code): return [Int64(code)]
+        case .mcpDiagnosticRPC(let code): return [Int64(code)]
         default: return []
         }
     }
@@ -2363,6 +2396,11 @@ enum AppText: Equatable {
         case .shellMessageDraft: return "訊息草稿"
         case .shellStop: return "停止"
         case .shellReturnToLatest: return "回到最新訊息"
+        case .chatHistoryEarliest: return "最早訊息"
+        case .chatHistoryEarlier: return "較早訊息"
+        case .chatHistoryNewer: return "較新訊息"
+        case .chatHistoryLatest: return "最新訊息"
+        case .chatHistoryRange: return "第 %1$lld–%2$lld 則，共 %3$lld 則"
         case .shellSend: return "傳送"
         case .appearanceTitle: return "外觀"
         case .appearanceFollowSystem: return "跟隨系統"
@@ -2435,7 +2473,7 @@ enum AppText: Equatable {
         case .mcpReadResource: return "讀取 MCP 資源"
         case .mcpToolError: return "工具回報錯誤"
         case .mcpToolResult: return "已收到工具結果"
-        case .mcpResultsTitle: return "本次 MCP 工具結果"
+        case .mcpResultsTitle: return "本次 MCP 結果紀錄"
         case .mcpResultUnavailable: return "結果無法顯示"
         case .mcpProtocol: return "協定版本：%1$@"
         case .mcpKeychainStatus: return "MCP Keychain 存取失敗（系統代碼 %1$@）。"
@@ -3208,7 +3246,7 @@ enum AppText: Equatable {
         case .storedChatMemorySavedReplyTimeout: return "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。"
         case .storedChatWaitTimeout: return "等待超過 %1$lld 秒，已停止等待。"
         case .storedChatProfileSavedReplyTimeout: return "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒。"
-        case .storedChatMcpActivity: return "MCP 嘗試呼叫 %1$lld 次；已收到 %2$lld 次結果；工具錯誤 %3$lld 次。"
+        case .storedChatMcpActivity: return "MCP 嘗試呼叫 %1$lld 次；結果紀錄 %2$lld 筆；異常 %3$lld 筆。"
         case .storedResearchModelHTTP: return "模型服務回報 HTTP %1$lld，研究未完成；請檢查服務與存取設定。"
         case .storedSuffixDraftKept: return "草稿已保留。"
         case .storedSuffixToolResultsKept: return "已收到的工具結果保留；沒有自動重送操作。"
@@ -3293,6 +3331,16 @@ enum AppText: Equatable {
         case .documentMissing: return "暫存檔已不存在，請重新產生文件。"
         case .documentPreviewFailed: return "無法預覽文件，請關閉預覽後重試。"
         case .documentProtectedCells: return "已將 %lld 個疑似公式的儲存格加上單引號，避免當成公式執行。"
+        case .mcpDiagnosticUnclassified: return "未記錄結果分類"
+        case .mcpDiagnosticHTTP: return "HTTP 錯誤 %1$lld"
+        case .mcpDiagnosticRPC: return "RPC 錯誤 %1$lld"
+        case .mcpDiagnosticTimeout: return "MCP 呼叫逾時"
+        case .mcpDiagnosticCancelled: return "MCP 呼叫已取消"
+        case .mcpDiagnosticTransport: return "MCP 傳輸失敗"
+        case .mcpDiagnosticProtocol: return "MCP 回應或協定異常"
+        case .mcpDiagnosticOther: return "MCP 呼叫異常"
+        case .mcpDiagnosticOutcomeUnknown: return "是否已套用變更未知。若操作會修改資料，請勿重送；請先以唯讀操作確認。"
+        case .mcpResultsTransient: return "僅顯示本次送出訊息的紀錄；下次送出時會清除，不會隨對話儲存。"
         }
     }
 }

@@ -137,7 +137,7 @@ final class MCPLearningUITests: XCTestCase {
 
     private func assertActivity(attempts: Int, results: Int, modelCalls: Int, failure: String) {
         let activity = app.staticTexts["chat.mcpActivity"].firstMatch
-        assertLabel(activity, "MCP 嘗試呼叫 \(attempts) 次；已收到 \(results) 次結果；工具錯誤 0 次。")
+        assertLabel(activity, "MCP 嘗試呼叫 \(attempts) 次；結果紀錄 \(results) 筆；異常 0 筆。")
         let raw = activity.value as? String ?? ""
         var fields: [String: String] = [:]
         for field in raw.split(separator: ";") {

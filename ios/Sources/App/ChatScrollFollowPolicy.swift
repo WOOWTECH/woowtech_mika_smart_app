@@ -1,5 +1,86 @@
 import Foundation
 
+/// Presentation only. The session/archive retain every entry and its absolute index.
+/// Completed turns are user/assistant pairs; an in-flight user occupies the last slot.
+struct ChatTranscriptPage: Equatable {
+    static let maximumMessages = 80
+    enum Destination: Equatable { case earliest, earlier, newer, latest }
+    enum Landing: Equatable { case start, end, tail }
+
+    private var conversationID: String?
+    private var pinnedRange: Range<Int>?
+    private var revision = 0
+    private var requestedLanding = Landing.tail
+
+    func range(conversationID: String, messageCount: Int) -> Range<Int> {
+        let count = max(0, messageCount)
+        if self.conversationID == conversationID, let pinnedRange {
+            return min(pinnedRange.lowerBound, count)..<min(pinnedRange.upperBound, count)
+        }
+        // Round up to a user boundary. 79 entries + one streaming reply still fit
+        // the 80-message window; completion restores 40 full turns.
+        let lower = max(0, count - Self.maximumMessages)
+        return (lower + lower % 2)..<count
+    }
+
+    func basis(conversationID: String, messageCount: Int) -> ChatTranscriptPageBasis {
+        ChatTranscriptPageBasis(conversationID: conversationID,
+                                firstIndex: range(conversationID: conversationID, messageCount: messageCount).lowerBound,
+                                requestRevision: self.conversationID == conversationID ? revision : 0)
+    }
+
+    func landing(conversationID: String) -> Landing {
+        self.conversationID == conversationID ? requestedLanding : .tail
+    }
+
+    mutating func pin(conversationID: String, messageCount: Int) {
+        let current = range(conversationID: conversationID, messageCount: messageCount)
+        if self.conversationID != conversationID { revision = 0; requestedLanding = .tail }
+        self.conversationID = conversationID
+        pinnedRange = current
+    }
+
+    mutating func trackLatest(conversationID: String) {
+        if self.conversationID != conversationID { revision = 0; requestedLanding = .tail }
+        self.conversationID = conversationID
+        pinnedRange = nil
+    }
+
+    mutating func navigate(_ destination: Destination, conversationID: String, messageCount: Int) {
+        let current = range(conversationID: conversationID, messageCount: messageCount)
+        let count = max(0, messageCount)
+        self.conversationID = conversationID
+        switch destination {
+        case .earliest:
+            pinnedRange = 0..<min(Self.maximumMessages, count)
+            requestedLanding = .start
+        case .earlier:
+            guard current.lowerBound > 0 else { return }
+            pinnedRange = max(0, current.lowerBound - Self.maximumMessages)..<current.lowerBound
+            requestedLanding = .end
+        case .newer:
+            guard current.upperBound < count else { return }
+            // A pinned page can end in the formerly in-flight user. Include that
+            // user again with its now-completed reply, never an orphan answer.
+            let lower = current.upperBound - current.upperBound % 2
+            pinnedRange = lower..<min(lower + Self.maximumMessages, count)
+            requestedLanding = .start
+        case .latest:
+            pinnedRange = nil
+            requestedLanding = .tail
+        }
+        revision += 1
+    }
+}
+
+/// Only a changed origin or an explicit navigation changes the geometry basis.
+/// Ordinary appends/streaming on the same page keep the existing follow policy.
+struct ChatTranscriptPageBasis: Equatable {
+    let conversationID: String
+    let firstIndex: Int
+    let requestRevision: Int
+}
+
 /// Geometry is measured in the transcript ScrollView's visible coordinate space.
 /// Content growth and a reader's movement can happen in the same layout pass.
 /// The content's offset from the visible origin separates those two changes.
@@ -201,4 +282,14 @@ struct ChatScrollFollowPolicy {
     }
 
     mutating func userSubmitted() { conversationChanged() }
+
+    /// A different page has unrelated content-height/offset coordinates. Called
+    /// once, only after geometry stamped with that page's basis arrives. This is
+    /// not a content update and must not compare against the previous page.
+    mutating func presentationChanged(to position: ChatTranscriptViewport?, followsTail: Bool) {
+        conversationChanged()
+        self.followsTail = followsTail
+        deliberatelyReadingEarlier = !followsTail
+        previous = position.flatMap { $0.isValid ? $0 : nil }
+    }
 }

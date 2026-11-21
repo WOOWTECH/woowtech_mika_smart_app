@@ -205,11 +205,10 @@ private struct MCPServerAddForm: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button(localizer.text(.keyboardDone)) { focused = nil }
-                    .accessibilityIdentifier("mcp.dismissKeyboard")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if focused != nil {
+                MikaKeyboardDoneBar(title: localizer.text(.keyboardDone),
+                                    identifier: "mcp.dismissKeyboard") { focused = nil }
             }
         }
         // Leaving the form or the app clears what was typed.
@@ -391,11 +390,10 @@ private struct MCPServerDetail: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button(localizer.text(.keyboardDone)) { focused = nil }
-                    .accessibilityIdentifier("mcp.dismissKeyboard")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if focused != nil {
+                MikaKeyboardDoneBar(title: localizer.text(.keyboardDone),
+                                    identifier: "mcp.dismissKeyboard") { focused = nil }
             }
         }
         .confirmationDialog(localizer.text(.mcpDeleteServerQuestion), isPresented: $confirmDelete, titleVisibility: .visible) {

@@ -807,7 +807,8 @@ private struct MemoryEditor: View {
     #else
     private var copy: MemoryDataCopy { MemoryDataCopy(language: .traditionalChinese) }
     #endif
-    @FocusState private var contentFocused: Bool
+    private enum Field { case content, keywords }
+    @FocusState private var focusedField: Field?
     @State private var kind: MemoryKind
     @State private var content: String
     @State private var keywords: String
@@ -832,9 +833,10 @@ private struct MemoryEditor: View {
             }
             Section(copy.text(.memoryEditorContent)) {
                 TextEditor(text: $content).frame(minHeight: 100)
-                    .focused($contentFocused).autocorrectionDisabled()
+                    .focused($focusedField, equals: .content).autocorrectionDisabled()
                     .accessibilityIdentifier("memory.editor.content")
                 TextField(copy.text(.memoryEditorKeywords), text: $keywords)
+                    .focused($focusedField, equals: .keywords)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("memory.editor.keywords")
             }
@@ -857,12 +859,14 @@ private struct MemoryEditor: View {
                     .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.available)
                     .accessibilityIdentifier("memory.editor.save")
             }
-            ToolbarItemGroup(placement: .keyboard) {
-                Button(copy.text(.clearContent)) { content = "" }
-                    .accessibilityIdentifier("memory.editor.clear")
-                Spacer()
-                Button(copy.text(.doneTyping)) { contentFocused = false }
-                    .accessibilityIdentifier("memory.editor.done")
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if focusedField != nil {
+                MikaKeyboardDoneBar(title: copy.text(.doneTyping), identifier: "memory.editor.done",
+                                    leadingAction: .init(title: copy.text(.clearContent),
+                                                         identifier: "memory.editor.clear", perform: { content = "" })) {
+                    focusedField = nil
+                }
             }
         }
         .interactiveDismissDisabled(!content.isEmpty)
@@ -932,10 +936,14 @@ private struct SkillEditor: View {
                 .disabled(markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.available)
                 .accessibilityIdentifier("skills.editor.save")
             }
-            ToolbarItemGroup(placement: .keyboard) {
-                Button(copy.text(.clearFullText)) { markdown = "" }.accessibilityIdentifier("skills.editor.clear")
-                Spacer()
-                Button(copy.text(.doneTyping)) { editing = false }.accessibilityIdentifier("skills.editor.done")
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if editing {
+                MikaKeyboardDoneBar(title: copy.text(.doneTyping), identifier: "skills.editor.done",
+                                    leadingAction: .init(title: copy.text(.clearFullText),
+                                                         identifier: "skills.editor.clear", perform: { markdown = "" })) {
+                    editing = false
+                }
             }
         }
         .interactiveDismissDisabled(!markdown.isEmpty)

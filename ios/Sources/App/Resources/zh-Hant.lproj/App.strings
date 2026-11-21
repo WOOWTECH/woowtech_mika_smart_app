@@ -124,6 +124,11 @@
 "shell.messageDraft" = "訊息草稿";
 "shell.stop" = "停止";
 "shell.returnToLatest" = "回到最新訊息";
+"chat.history.earliest" = "最早訊息";
+"chat.history.earlier" = "較早訊息";
+"chat.history.newer" = "較新訊息";
+"chat.history.latest" = "最新訊息";
+"chat.history.range" = "第 %1$lld–%2$lld 則，共 %3$lld 則";
 "shell.send" = "傳送";
 "appearance.title" = "外觀";
 "appearance.followSystem" = "跟隨系統";
@@ -196,7 +201,7 @@
 "mcp.read.resource" = "讀取 MCP 資源";
 "mcp.tool.error" = "工具回報錯誤";
 "mcp.tool.result" = "已收到工具結果";
-"mcp.results.title" = "本次 MCP 工具結果";
+"mcp.results.title" = "本次 MCP 結果紀錄";
 "mcp.result.unavailable" = "結果無法顯示";
 "mcp.protocol" = "協定版本：%1$@";
 "mcp.keychain.status" = "MCP Keychain 存取失敗（系統代碼 %1$@）。";
@@ -961,7 +966,7 @@
 "stored.chat.memorySavedReplyTimeout" = "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。";
 "stored.chat.waitTimeout" = "等待超過 %1$lld 秒，已停止等待。";
 "stored.chat.profileSavedReplyTimeout" = "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒。";
-"stored.chat.mcpActivity" = "MCP 嘗試呼叫 %1$lld 次；已收到 %2$lld 次結果；工具錯誤 %3$lld 次。";
+"stored.chat.mcpActivity" = "MCP 嘗試呼叫 %1$lld 次；結果紀錄 %2$lld 筆；異常 %3$lld 筆。";
 "stored.research.modelHTTP" = "模型服務回報 HTTP %1$lld，研究未完成；請檢查服務與存取設定。";
 "stored.suffix.draftKept" = "草稿已保留。";
 "stored.suffix.toolResultsKept" = "已收到的工具結果保留；沒有自動重送操作。";
@@ -1044,3 +1049,13 @@
 "document.generationFailed" = "文件產生失敗，請重試或縮小內容。";
 "document.missing" = "暫存檔已不存在，請重新產生文件。";
 "document.previewFailed" = "無法預覽文件，請關閉預覽後重試。";
+"mcp.diagnostic.unclassified" = "未記錄結果分類";
+"mcp.diagnostic.http" = "HTTP 錯誤 %1$lld";
+"mcp.diagnostic.rpc" = "RPC 錯誤 %1$lld";
+"mcp.diagnostic.timeout" = "MCP 呼叫逾時";
+"mcp.diagnostic.cancelled" = "MCP 呼叫已取消";
+"mcp.diagnostic.transport" = "MCP 傳輸失敗";
+"mcp.diagnostic.protocol" = "MCP 回應或協定異常";
+"mcp.diagnostic.other" = "MCP 呼叫異常";
+"mcp.diagnostic.outcomeUnknown" = "是否已套用變更未知。若操作會修改資料，請勿重送；請先以唯讀操作確認。";
+"mcp.results.transient" = "僅顯示本次送出訊息的紀錄；下次送出時會清除，不會隨對話儲存。";

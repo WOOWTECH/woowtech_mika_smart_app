@@ -35,6 +35,7 @@ public actor MCPClient {
     }
 
     public func initialize() async throws -> MCPServerInfo {
+        guard !Task.isCancelled else { throw MCPError.cancelled }
         if !inFlight, let server = server { return server }
         return try await perform { deadline in try await self.initializeSession(deadline: deadline) }
     }

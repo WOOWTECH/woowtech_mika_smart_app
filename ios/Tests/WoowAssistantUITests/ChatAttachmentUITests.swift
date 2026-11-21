@@ -9,6 +9,93 @@ final class ChatAttachmentUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
     override func tearDownWithError() throws { app.terminate() }
 
+    func testSettingsAndChatKeyboardDoneInIsolatedTranscriptFixture() {
+        exerciseSettingsAndChatDone()
+    }
+
+    func testSettingsAndChatKeyboardDoneAtAccessibilityTextSize() {
+        exerciseSettingsAndChatDone(largeText: true)
+    }
+
+    /// Run on a physical device with a connected hardware keyboard. This case
+    /// does not configure or detect the keyboard connection; retain screenshots
+    /// and the device setup record as evidence of that prerequisite.
+    func testSettingsAndChatDoneWithConnectedHardwareKeyboard() {
+        exerciseSettingsAndChatDone(requiresSoftwareKeyboard: false)
+    }
+
+    private func exerciseSettingsAndChatDone(largeText: Bool = false, requiresSoftwareKeyboard: Bool = true) {
+        launch(transcriptFixture: true,
+               preferredContentSizeCategory: largeText ? "UICTContentSizeCategoryAccessibilityXXXL" : nil)
+        assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        func exerciseKeyboard(_ field: XCUIElement, phase: String, doneID: String, doneLabel: String, scroll: Bool) {
+            XCTContext.runActivity(named: "Keyboard warning probe: \(phase) focus and Done") { _ in
+                if scroll { revealLearningElement(field, in: app) }
+                ready(field)
+                let done = app.buttons[doneID].firstMatch
+                XCTAssertFalse(done.exists, "Done is visible only while its field is focused")
+                print("KEYBOARD_WARNING_PHASE \(phase) begin epoch=\(Date().timeIntervalSince1970)")
+                field.tap()
+                if requiresSoftwareKeyboard {
+                    XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+                    dismissIntroduction()
+                }
+                XCTAssertTrue(done.waitForExistence(timeout: 5))
+                ready(done)
+                XCTAssertEqual(done.label, doneLabel)
+                XCTAssertTrue(done.isHittable)
+                XCTAssertGreaterThanOrEqual(done.frame.height, 44)
+                if largeText {
+                    XCTAssertGreaterThan(done.frame.height, 44, "Accessibility text must grow the bar")
+                }
+                XCTAssertGreaterThanOrEqual(done.frame.minY, app.frame.minY)
+                XCTAssertLessThanOrEqual(done.frame.maxY, app.frame.maxY)
+                let keyboard = app.keyboards.firstMatch
+                if requiresSoftwareKeyboard {
+                    XCTAssertLessThanOrEqual(done.frame.maxY, keyboard.frame.minY + 1,
+                                             "Done must be above the docked software keyboard")
+                }
+                if phase == "chat" {
+                    XCTAssertLessThanOrEqual(field.frame.maxY, done.frame.minY + 1,
+                                             "The Done bar must not cover the composer")
+                }
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "keyboard-done-\(phase)-largeText-\(largeText)-softwareRequired-\(requiresSoftwareKeyboard)"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+                print("KEYBOARD_DONE_GEOMETRY phase=\(phase) done=\(done.frame) field=\(field.frame) keyboardExists=\(keyboard.exists)")
+                print("KEYBOARD_WARNING_PHASE \(phase) doneTap epoch=\(Date().timeIntervalSince1970)")
+                done.tap()
+                let absent = XCTNSPredicateExpectation(
+                    predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+                XCTAssertEqual(XCTWaiter.wait(for: [absent], timeout: 5), .completed,
+                               "\(doneID) must dismiss the native keyboard")
+                let doneGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: done)
+                XCTAssertEqual(XCTWaiter.wait(for: [doneGone], timeout: 5), .completed,
+                               "Done clears focus even when no software keyboard is showing")
+                print("KEYBOARD_WARNING_PHASE \(phase) end epoch=\(Date().timeIntervalSince1970)")
+            }
+        }
+
+        navigate("settings")
+        openModelSettings(in: app)
+        // The transcript fixture already has a provider, so explicitly expose
+        // the unsaved add-provider form. No credentials or model test needed.
+        tap("models.addProvider", scroll: true)
+        tap("setup.preset.custom", scroll: true)
+        let baseURL = app.textFields["settings.baseURL"].firstMatch
+        XCTAssertTrue(baseURL.waitForExistence(timeout: 5))
+        exerciseKeyboard(baseURL, phase: "settings", doneID: "settings.dismissKeyboard", doneLabel: "完成輸入", scroll: true)
+        returnFromModelSettings(in: app)
+        navigate("chat")
+        exerciseKeyboard(chatDraftControl(in: app), phase: "chat", doneID: "chat.dismissKeyboard", doneLabel: "完成", scroll: false)
+        assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
+        print("KEYBOARD_WARNING_PROBE completed settingsDone=1 chatDone=1 epoch=\(Date().timeIntervalSince1970)")
+    }
+
+
     func testPlusOpensAttachPanelWithAndroidTilesAndClosesBackToKeyboard() {
         launch()
         let toggle = app.buttons["chat.attach.toggle"].firstMatch
@@ -16,6 +103,7 @@ final class ChatAttachmentUITests: XCTestCase {
         XCTAssertEqual(toggle.label, "新增附件")
         toggle.tap()
         XCTAssertTrue(app.otherElements["chat.attach.panel"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["chat.dismissKeyboard"].firstMatch.exists)
         for (id, label) in [("chat.attach.camera", "相機"), ("chat.attach.album", "相簿"), ("chat.attach.files", "檔案")] {
             let tile = app.buttons[id].firstMatch
             XCTAssertTrue(tile.exists && tile.isHittable, id)
@@ -28,6 +116,7 @@ final class ChatAttachmentUITests: XCTestCase {
         let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
                                              object: app.otherElements["chat.attach.panel"])
         XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 15), .completed)
+        XCTAssertTrue(app.buttons["chat.dismissKeyboard"].firstMatch.waitForExistence(timeout: 5))
     }
 
     func testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone() {
@@ -195,7 +284,8 @@ final class ChatAttachmentUITests: XCTestCase {
 
     // MARK: - Helpers (same native paths as ChatStreamingUITests)
 
-    private func launch(reset: Bool = true, attachments: Bool = false, transcriptFixture: Bool = false) {
+    private func launch(reset: Bool = true, attachments: Bool = false, transcriptFixture: Bool = false,
+                        preferredContentSizeCategory: String? = nil) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
@@ -203,6 +293,9 @@ final class ChatAttachmentUITests: XCTestCase {
         if reset { app.launchArguments.append("-UITestResetStorage") }
         if attachments { app.launchArguments.append("-UITestAttachments") }
         if transcriptFixture { app.launchArguments.append("-UITestTranscriptFixture") }
+        if let preferredContentSizeCategory {
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName", preferredContentSizeCategory]
+        }
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.exists)

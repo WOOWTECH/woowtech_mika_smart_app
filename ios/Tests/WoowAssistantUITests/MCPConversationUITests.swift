@@ -74,7 +74,7 @@ final class MCPConversationUITests: XCTestCase {
         // The turn still finishes after the change.
         navigateMikaSection("chat", in: app)
         let activity = app.staticTexts["chat.mcpActivity"]
-        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "已收到 1 次結果"), object: activity)
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "結果紀錄 1 筆"), object: activity)
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 15), .completed)
         XCTAssertTrue(app.staticTexts["chat.message.1.assistant"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
@@ -117,6 +117,13 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertTrue(result.label.contains("FIXTURE_CALL_1: hello"))
         XCTAssertEqual(app.staticTexts["mcp.result.0.server"].label, "Fixture A", "the results name the server")
         XCTAssertFalse(app.staticTexts["mcp.result.1"].exists)
+        let category = app.staticTexts["mcp.result.0.category"]
+        XCTAssertTrue(category.waitForExistence(timeout: 5))
+        XCTAssertEqual(category.label, "已收到工具結果")
+        XCTAssertFalse(app.staticTexts["mcp.result.0.unknownOutcome"].exists)
+        let scope = app.staticTexts["mcp.results.transient"]
+        XCTAssertTrue(scope.waitForExistence(timeout: 5))
+        XCTAssertEqual(scope.label, "僅顯示本次送出訊息的紀錄；下次送出時會清除，不會隨對話儲存。")
     }
 
     /// Like the Play build, discovered resources are offered without a picker
@@ -218,6 +225,15 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertTrue(result.waitForExistence(timeout: 5))
         XCTAssertTrue(result.label.contains("FIXTURE_CALL_1: error"))
         XCTAssertTrue(result.label.contains("\"isError\" : true"))
+        let category = app.staticTexts["mcp.result.0.category"]
+        XCTAssertTrue(category.waitForExistence(timeout: 5))
+        XCTAssertEqual(category.label, "工具回報錯誤")
+        let unknown = app.staticTexts["mcp.result.0.unknownOutcome"]
+        XCTAssertTrue(unknown.waitForExistence(timeout: 5))
+        XCTAssertEqual(unknown.label, "是否已套用變更未知。若操作會修改資料，請勿重送；請先以唯讀操作確認。")
+        let scope = app.staticTexts["mcp.results.transient"]
+        XCTAssertTrue(scope.waitForExistence(timeout: 5))
+        XCTAssertEqual(scope.label, "僅顯示本次送出訊息的紀錄；下次送出時會清除，不會隨對話儲存。")
     }
 
     /// Like Android: two servers offer the same tool name and each call goes to

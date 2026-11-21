@@ -11,6 +11,8 @@ import Foundation
 // -UITestResetStorage: clear only that test namespace at launch; omit to test relaunch.
 // -UITestTranscriptFixture: preconfigure a synthetic model and consent; requires -UITestMode
 // and the valid UUID namespace above. Does not seed or enable MCP.
+// -UITestLongHistoryFixture -UITestLongHistoryTurns <999|1000>: seed a bounded synthetic
+// encrypted archive on reset; relaunch without reset before opening it through the drawer.
 // -UITestKeychainWriteFailure: fail writes before changing the test Keychain/config.
 // Prompts: [fixture:wait] waits cancellably; [fixture:error-once] fails once per launch.
 // Every other prompt returns "測試回覆：<prompt>". Keys entered by tests are dummy strings.
@@ -20,7 +22,10 @@ enum UITestModelFixture {
     static func withoutPlainChatRules(_ messages: [ModelMessage]) -> [ModelMessage] {
         messages.first == AISafetyRules.message ? Array(messages.dropFirst()) : messages
     }
-    static func repository(arguments: [String]) -> ModelSettingsRepository {
+    @MainActor static func repository(arguments: [String]) -> ModelSettingsRepository {
+        let longHistory: UITestLongHistoryFixture.Configuration?
+        do { longHistory = try UITestLongHistoryFixture.resolve(arguments: arguments) }
+        catch { preconditionFailure("Long-history fixture requires isolated transcript UI-test arguments") }
         guard let flag = arguments.firstIndex(of: "-UITestNamespace"),
               arguments.indices.contains(flag + 1),
               let namespace = UUID(uuidString: arguments[flag + 1]) else {
@@ -56,6 +61,10 @@ enum UITestModelFixture {
                 try repository.recordConsentForMain()
             }
             catch { preconditionFailure("Cannot configure isolated transcript model fixture") }
+        }
+        if let longHistory {
+            do { try UITestLongHistoryFixture.prepare(longHistory, arguments: arguments, repository: repository) }
+            catch { preconditionFailure("Cannot prepare isolated synthetic long-history archive") }
         }
         return repository
     }

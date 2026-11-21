@@ -312,3 +312,33 @@ struct LearningScrollDrag {
             && [frame.origin.x, frame.origin.y, frame.size.width, frame.size.height].allSatisfy { $0.isFinite }
     }
 }
+
+/// Checks the real in-page button before an existing native Done action.
+func assertKeyboardDoneIsUsable(_ identifier: String, in app: XCUIApplication,
+                                file: StaticString = #filePath, line: UInt = #line) {
+    let keyboard = app.keyboards.firstMatch
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 5), file: file, line: line)
+    let done = app.buttons[identifier].firstMatch
+    XCTAssertTrue(done.waitForExistence(timeout: 5), file: file, line: line)
+    XCTAssertTrue(done.isHittable, identifier, file: file, line: line)
+    XCTAssertGreaterThanOrEqual(done.frame.height, 44, file: file, line: line)
+    XCTAssertLessThanOrEqual(done.frame.maxY, keyboard.frame.minY + 1,
+                             "Done stays above the docked keyboard", file: file, line: line)
+    print("KEYBOARD_DONE_CHECK id=\(identifier) frame=\(done.frame) epoch=\(Date().timeIntervalSince1970)")
+}
+
+func assertKeyboardDoneDismisses(_ identifier: String, in app: XCUIApplication,
+                                file: StaticString = #filePath, line: UInt = #line) {
+    assertKeyboardDoneIsUsable(identifier, in: app, file: file, line: line)
+    app.buttons[identifier].firstMatch.tap()
+    if #available(iOS 18.0, *) {
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), file: file, line: line)
+    } else {
+        let absent = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in app.keyboards.count == 0 }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [absent], timeout: 5), .completed, file: file, line: line)
+    }
+    let doneGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                            object: app.buttons[identifier].firstMatch)
+    XCTAssertEqual(XCTWaiter.wait(for: [doneGone], timeout: 5), .completed,
+                   "Done must clear the field's focus", file: file, line: line)
+}

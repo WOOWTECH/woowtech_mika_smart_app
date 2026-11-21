@@ -36,3 +36,48 @@ extension View {
         background { color.ignoresSafeArea(.container) }
     }
 }
+
+/// Done stays in the page layout, avoiding SwiftUI's InputAccessoryBar frame.
+/// Focus owns visibility, including when a hardware keyboard is connected.
+struct MikaKeyboardDoneBar: View {
+    struct Action {
+        let title: String
+        let identifier: String
+        let perform: () -> Void
+    }
+
+    let title: String
+    let identifier: String
+    var leadingAction: Action? = nil
+    let dismiss: () -> Void
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if let leadingAction {
+                actionButton(leadingAction.title, identifier: leadingAction.identifier, action: leadingAction.perform)
+            }
+            Spacer(minLength: 0)
+            actionButton(title, identifier: identifier, action: dismiss)
+        }
+        .frame(maxWidth: .infinity)
+        .background {
+            if reduceTransparency { Color(uiColor: .systemBackground) }
+            else { Rectangle().fill(.regularMaterial) }
+        }
+    }
+
+    private func actionButton(_ title: String, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
+        .accessibilityIdentifier(identifier)
+    }
+}

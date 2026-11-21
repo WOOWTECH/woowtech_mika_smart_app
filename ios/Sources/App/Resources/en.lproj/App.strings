@@ -124,6 +124,11 @@
 "shell.messageDraft" = "Message draft";
 "shell.stop" = "Stop";
 "shell.returnToLatest" = "Jump to latest";
+"chat.history.earliest" = "First messages";
+"chat.history.earlier" = "Earlier messages";
+"chat.history.newer" = "Newer messages";
+"chat.history.latest" = "Latest messages";
+"chat.history.range" = "Messages %1$lld–%2$lld of %3$lld";
 "shell.send" = "Send";
 "appearance.title" = "Appearance";
 "appearance.followSystem" = "Follow the system";
@@ -196,7 +201,7 @@
 "mcp.read.resource" = "Read MCP resource";
 "mcp.tool.error" = "Tool reported an error";
 "mcp.tool.result" = "Tool result received";
-"mcp.results.title" = "MCP results for this conversation";
+"mcp.results.title" = "MCP result records for this submission";
 "mcp.result.unavailable" = "Result cannot be displayed";
 "mcp.protocol" = "Protocol version: %1$@";
 "mcp.keychain.status" = "MCP Keychain access failed (system code %1$@).";
@@ -961,7 +966,7 @@
 "stored.chat.memorySavedReplyTimeout" = "The memory change was saved, but the reply took more than %1$lld seconds. Check the saved result or undo it.";
 "stored.chat.waitTimeout" = "Stopped waiting after %1$lld seconds.";
 "stored.chat.profileSavedReplyTimeout" = "The profile was saved, but the reply took more than %1$lld seconds.";
-"stored.chat.mcpActivity" = "MCP calls tried: %1$lld; results received: %2$lld; tool errors: %3$lld.";
+"stored.chat.mcpActivity" = "MCP calls attempted: %1$lld; result records: %2$lld; errors: %3$lld.";
 "stored.research.modelHTTP" = "The model service returned HTTP %1$lld; research didn’t finish. Check the service and access settings.";
 "stored.suffix.draftKept" = "Your draft is kept.";
 "stored.suffix.toolResultsKept" = "The tool results received are kept; nothing was sent again automatically.";
@@ -1044,3 +1049,13 @@
 "document.generationFailed" = "Could not create the file. Retry or reduce the content.";
 "document.missing" = "The temporary file is missing. Generate it again.";
 "document.previewFailed" = "Unable to preview the document. Close the preview and try again.";
+"mcp.diagnostic.unclassified" = "Result classification unavailable";
+"mcp.diagnostic.http" = "HTTP error %1$lld";
+"mcp.diagnostic.rpc" = "RPC error %1$lld";
+"mcp.diagnostic.timeout" = "MCP call timed out";
+"mcp.diagnostic.cancelled" = "MCP call cancelled";
+"mcp.diagnostic.transport" = "MCP transport failure";
+"mcp.diagnostic.protocol" = "MCP response or protocol error";
+"mcp.diagnostic.other" = "MCP call error";
+"mcp.diagnostic.outcomeUnknown" = "Whether changes were applied is unknown. Do not resend an operation that changes data; check with a read-only operation first.";
+"mcp.results.transient" = "These records cover this submission only. They reset on the next submission and are not saved with the conversation.";

@@ -628,8 +628,11 @@ private struct BrowserInteractionView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(localizer.text(.commonClose)) { browser.cancelInteraction(); dismiss() }.accessibilityIdentifier("browser.interaction.close")
                 }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer(); Button(localizer.text(.keyboardDone)) { editing = false }.accessibilityIdentifier("browser.interaction.done")
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if editing {
+                    MikaKeyboardDoneBar(title: localizer.text(.keyboardDone),
+                                        identifier: "browser.interaction.done") { editing = false }
                 }
             }
             .task { if browser.controlSnapshot == nil && browser.interactionProposal == nil { browser.refreshControls() } }
@@ -706,9 +709,11 @@ private struct BrowserResearchView: View {
                 .navigationTitle(localizer.text(.browserResearchTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.commonDone)) { dismiss() }.accessibilityIdentifier("browser.research.close") }
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button(localizer.text(.keyboardDone)) { goalFocused = false }.accessibilityIdentifier("browser.goal.done")
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if goalFocused {
+                        MikaKeyboardDoneBar(title: localizer.text(.keyboardDone),
+                                            identifier: "browser.goal.done") { goalFocused = false }
                     }
                 }
         }

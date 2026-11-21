@@ -303,6 +303,7 @@ public struct MCPConversationRunner: Sendable {
             let diagnosticStart = Date()
             Self.logDispatch(id: diagnosticID, phase: "started", category: "none", elapsedMilliseconds: 0)
             var result: JSONValue
+            var failureDiagnostic: MCPExecutionDiagnostic?
             do {
                 switch proposal.action {
                 case .callTool(let name, let arguments):
@@ -320,6 +321,7 @@ public struct MCPConversationRunner: Sendable {
                 // reads. Three failures in a row mean the server is not usable.
                 failedDispatches += 1
                 guard failedDispatches < Self.maximumFailedDispatches else { throw MCPConversationError.executionFailed }
+                failureDiagnostic = .failed(error)
                 result = Self.failureResult(error)
             }
             try check()
@@ -333,7 +335,8 @@ public struct MCPConversationRunner: Sendable {
             }
             let preview = Self.modelPayload(result, isError: isError, server: executor.serverName(of: proposal.action),
                                             encode: { try json($0) })
-            let step = MCPConversationStep(proposal: proposal, result: Self.kept(result, encode: { try json($0) }), isError: isError)
+            let step = MCPConversationStep(proposal: proposal, result: Self.kept(result, encode: { try json($0) }),
+                isError: isError, diagnostic: failureDiagnostic ?? .returned(isError: result["isError"]))
             steps.append(step)
             await onEvent(.completed(step)); try check()
             messages.append(ModelMessage(role: "assistant", content: raw))
@@ -414,21 +417,28 @@ public struct MCPConversationRunner: Sendable {
     /// The error result the model reads when a request fails. Server text and
     /// transport details are never included; a JSON-RPC code is.
     static func failureResult(_ error: Error) -> JSONValue {
+        let unknownWriteGuard = "If the call changes data, do not send it again; check with a read-only call or tell the user."
         let text: String
         switch error as? MCPError {
         case .rpcFailure(let code)?:
-            let meaning: String
+            let meaning: String?
             switch code {
             case -32602: meaning = "invalid params: check the tool's inputSchema and fix the arguments"
             case -32601: meaning = "method not found"
             case -32600: meaning = "invalid request"
-            case -32603: meaning = "internal server error"
-            default: meaning = "the server rejected the request"
+            default:
+                // Internal/custom RPC failures may follow a committed write.
+                // A matched error response proves neither rejection nor rollback.
+                meaning = nil
             }
-            text = "MCP server request failed: JSON-RPC error \(code) (\(meaning)). Nothing was returned."
+            if let meaning {
+                text = "MCP server request failed: JSON-RPC error \(code) (\(meaning)). Nothing was returned."
+            } else {
+                text = "MCP server returned JSON-RPC error \(code). Whether changes were applied is unknown. "
+                    + unknownWriteGuard
+            }
         default:
-            text = "MCP server request failed before a result arrived, so its outcome is unknown. "
-                + "If the call changes data, do not send it again; check with a read-only call or tell the user."
+            text = "MCP server request failed before a result arrived, so its outcome is unknown. " + unknownWriteGuard
         }
         return .object(["isError": .bool(true),
                         "content": .array([.object(["type": .string("text"), "text": .string(text)])])])

@@ -1042,7 +1042,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["mcp.error"].label.contains("HTTPS"))
         revealMCP(app.buttons["mcp.add.clearDraft"], in: app, upward: false)
         app.buttons["mcp.add.clearDraft"].tap()
-        addMCPServer(name: "Test server", endpoint: "https://mcp.example.invalid/fixture-private", in: app)
+        addMCPServer(name: "Test server", endpoint: "https://mcp.example.invalid/fixture-private", in: app, checkKeyboardDone: true)
         // Saving opens the new server's page; nothing was sent yet.
         let status = app.staticTexts["mcp.status"]
         let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "端點已儲存，尚未驗證連線"), object: status)
@@ -1054,6 +1054,7 @@ final class WoowAssistantUITests: XCTestCase {
         let token = app.secureTextFields["mcp.token"]
         revealMCP(token, in: app, upward: false)
         enter("two words", into: token)
+        assertKeyboardDoneDismisses("mcp.dismissKeyboard", in: app)
         revealMCP(app.buttons["mcp.save"], in: app)
         app.buttons["mcp.save"].tap()
         revealMCP(app.staticTexts["mcp.error"], in: app)
@@ -1134,7 +1135,7 @@ final class WoowAssistantUITests: XCTestCase {
     }
 
     /// The 新增伺服器 form: a name, then the endpoint; saving checks both first.
-    private func addMCPServer(name: String, endpoint: String, in app: XCUIApplication) {
+    private func addMCPServer(name: String, endpoint: String, in app: XCUIApplication, checkKeyboardDone: Bool = false) {
         if !app.textFields["mcp.add.name"].exists {
             let add = app.buttons["mcp.addServer"]
             revealMCP(add, in: app)
@@ -1144,6 +1145,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
         revealMCP(nameField, in: app, upward: false)
         enter(name, into: nameField)
+        if checkKeyboardDone { assertKeyboardDoneDismisses("mcp.dismissKeyboard", in: app) }
         let endpointField = app.secureTextFields["mcp.add.endpoint"]
         revealMCP(endpointField, in: app)
         enter(endpoint, into: endpointField)
@@ -1154,6 +1156,7 @@ final class WoowAssistantUITests: XCTestCase {
             object: endpointField
         )
         XCTAssertEqual(XCTWaiter.wait(for: [typed], timeout: 10), .completed, "The endpoint field keeps every typed character")
+        if checkKeyboardDone { assertKeyboardDoneDismisses("mcp.dismissKeyboard", in: app) }
         revealMCP(app.buttons["mcp.add.save"], in: app)
         app.buttons["mcp.add.save"].tap()
     }

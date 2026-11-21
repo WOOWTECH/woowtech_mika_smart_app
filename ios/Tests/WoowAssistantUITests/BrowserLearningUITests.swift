@@ -285,6 +285,7 @@ final class BrowserLearningUITests: XCTestCase {
         tap("browser.research")
         XCTAssertTrue(app.buttons["browser.start"].waitForExistence(timeout: 5))
         enter(text, into: goalField)
+        assertKeyboardDoneIsUsable("browser.goal.done", in: app)
         tap("browser.goal.done")
         // SE 74's video shows dismissal at 53.280s, before the 54.12s
         // predicate check; its exists query retried until the waiter expired.
@@ -298,6 +299,7 @@ final class BrowserLearningUITests: XCTestCase {
                 predicate: NSPredicate { [self] _, _ in app.keyboards.count == 0 }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [keyboardAbsent], timeout: 5), .completed)
         }
+        XCTAssertFalse(app.buttons["browser.goal.done"].exists, "Done clears the goal field's focus")
         reveal(app.buttons["browser.start"])
         XCTAssertEqual(goalField.value as? String, text)
     }

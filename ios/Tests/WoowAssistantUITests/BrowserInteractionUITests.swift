@@ -36,7 +36,7 @@ final class BrowserInteractionUITests: XCTestCase {
         choose("Public note")
         let value = "Approved note"
         enter(value, into: editor)
-        tap("browser.interaction.done")
+        assertKeyboardDoneDismisses("browser.interaction.done", in: app)
         tap("browser.interaction.proposeType")
         XCTAssertEqual(app.staticTexts["browser.interaction.previewText"].label, value)
         approve()

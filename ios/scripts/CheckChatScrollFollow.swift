@@ -231,6 +231,75 @@ enum CheckChatScrollFollow {
         progressive.userRequestedLatest()
         expect(progressive.observe(sample(3320, 2600), contentRevision: 5))
 
+        // Bounded presentation never changes the archive/session. Walk both
+        // directions to prove every absolute message index remains reachable.
+        for count in [8, 80, 81, 1998, 2000, 2001, 2002] {
+            var page = ChatTranscriptPage()
+            func range() -> Range<Int> { page.range(conversationID: "archive", messageCount: count) }
+            var visited = Set(range())
+            expect(range().count <= 80)
+            expect(range().lowerBound % 2 == 0)
+            while range().lowerBound > 0 {
+                let previousStart = range().lowerBound
+                page.navigate(.earlier, conversationID: "archive", messageCount: count)
+                expect(range().upperBound == previousStart)
+                expect(page.landing(conversationID: "archive") == .end)
+                expect(range().count <= 80)
+                visited.formUnion(range())
+            }
+            expect(visited == Set(0..<count))
+            page.navigate(.earliest, conversationID: "archive", messageCount: count)
+            expect(range().lowerBound == 0)
+            expect(page.landing(conversationID: "archive") == .start)
+            visited = Set(range())
+            while range().upperBound < count {
+                let previousEnd = range().upperBound
+                page.navigate(.newer, conversationID: "archive", messageCount: count)
+                expect(range().lowerBound == previousEnd - previousEnd % 2)
+                expect(page.landing(conversationID: "archive") == .start)
+                expect(range().count <= 80)
+                visited.formUnion(range())
+            }
+            expect(visited == Set(0..<count))
+            page.navigate(.latest, conversationID: "archive", messageCount: count)
+            expect(range().upperBound == count)
+            expect(range().count <= 80)
+            expect(page.landing(conversationID: "archive") == .tail)
+        }
+
+        var page = ChatTranscriptPage()
+        expect(page.range(conversationID: "a", messageCount: 8) == 0..<8)
+        expect(page.range(conversationID: "a", messageCount: 1998) == 1918..<1998)
+        expect(page.range(conversationID: "a", messageCount: 1999) == 1920..<1999)
+        expect(page.range(conversationID: "a", messageCount: 2000) == 1920..<2000)
+        page.pin(conversationID: "a", messageCount: 1999)
+        let pinnedBasis = page.basis(conversationID: "a", messageCount: 1999)
+        expect(page.range(conversationID: "a", messageCount: 2000) == 1920..<1999)
+        expect(page.basis(conversationID: "a", messageCount: 2000) == pinnedBasis)
+        page.navigate(.newer, conversationID: "a", messageCount: 2000)
+        expect(page.range(conversationID: "a", messageCount: 2000) == 1998..<2000) // no orphan reply
+        expect(page.basis(conversationID: "a", messageCount: 2000) != pinnedBasis)
+        expect(page.range(conversationID: "b", messageCount: 8) == 0..<8) // another conversation resets the page
+        page.navigate(.earliest, conversationID: "a", messageCount: 2000)
+        expect(page.range(conversationID: "a", messageCount: 2002) == 0..<80) // new reply does not replace old page
+        page.navigate(.latest, conversationID: "a", messageCount: 2002)
+        expect(page.range(conversationID: "a", messageCount: 2002) == 1922..<2002)
+
+        var pagedFollow = ChatScrollFollowPolicy()
+        expect(pagedFollow.observe(sample(60000, 500), contentRevision: 10))
+        pagedFollow.beginDrag()
+        pagedFollow.endDrag()
+        let staleSettle = pagedFollow.pendingSettleRevision!
+        pagedFollow.presentationChanged(to: sample(2500, 2500), followsTail: false)
+        expect(!pagedFollow.settle(expectedRevision: staleSettle))
+        expect(!pagedFollow.followsTail)
+        expect(!pagedFollow.observe(sample(2500, 500), contentRevision: 10))
+        expect(!pagedFollow.observe(sample(2700, 700, 350), contentRevision: 11))
+        pagedFollow.presentationChanged(to: sample(3000, 3000, 350), followsTail: true)
+        expect(pagedFollow.followsTail)
+        expect(!pagedFollow.observe(sample(3000, 350, 350), contentRevision: 11))
+        expect(pagedFollow.observe(sample(3100, 450, 350), contentRevision: 12))
+
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }

@@ -1880,7 +1880,7 @@ final class ChatSession: ObservableObject {
                 }
             }
         }
-        mcpActivity = "MCP 嘗試呼叫 \(mcpSentCount) 次；已收到 \(mcpSteps.count) 次結果；工具錯誤 \(mcpSteps.filter(\.isError).count) 次。"
+        mcpActivity = "MCP 嘗試呼叫 \(mcpSentCount) 次；結果紀錄 \(mcpSteps.count) 筆；異常 \(mcpSteps.filter(\.isError).count) 筆。"
         updateMCPDiagnostics()
     }
 

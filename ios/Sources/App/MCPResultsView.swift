@@ -1,9 +1,9 @@
 import SwiftUI
 import AssistantMCP
 
-/// What this conversation's MCP calls returned, in order. Like the Play build,
+/// This submission's MCP result records, including local failures. Like the Play build,
 /// selected tools run without a per-call approval; this list is where a person
-/// sees each call and its result, with the server it went to.
+/// sees each call record and its selected server.
 struct MCPResultsView: View {
     @Environment(\.appLocalizer) private var localizer
     let steps: [MCPConversationStep]
@@ -22,11 +22,23 @@ struct MCPResultsView: View {
                         Text(verbatim: owners[step.proposal.id]?.target ?? name).font(.headline)
                     }
                     if case .readResource = step.proposal.action { Text(localizer.text(.mcpReadResource)).font(.headline) }
-                    Text(step.isError ? localizer.text(.mcpToolError) : localizer.text(.mcpToolResult))
+                    Text(localizer.text(categoryText(step.diagnostic)))
+                        .accessibilityIdentifier("mcp.result.\(index).category")
+                    if step.diagnostic?.outcomeUnknown == true {
+                        Text(localizer.text(.mcpDiagnosticOutcomeUnknown))
+                            .font(.caption)
+                            .accessibilityIdentifier("mcp.result.\(index).unknownOutcome")
+                    }
                     Text(verbatim: resultText(step.result))
                         .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                         .privacySensitive().accessibilityIdentifier("mcp.result.\(index)")
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Text(localizer.text(.mcpResultsTransient))
+                    .font(.footnote).foregroundStyle(.secondary).padding()
+                    .frame(maxWidth: .infinity).background(.regularMaterial)
+                    .accessibilityIdentifier("mcp.results.transient")
             }
             .navigationTitle(localizer.text(.mcpResultsTitle))
             .toolbar {
@@ -35,6 +47,24 @@ struct MCPResultsView: View {
                         .accessibilityIdentifier("mcp.results.close")
                 }
             }
+        }
+    }
+    private func categoryText(_ diagnostic: MCPExecutionDiagnostic?) -> AppText {
+        guard let diagnostic else { return .mcpDiagnosticUnclassified }
+        switch diagnostic.category {
+        case .result: return .mcpToolResult
+        case .toolError: return .mcpToolError
+        case .http:
+            guard let code = diagnostic.code else { return .mcpDiagnosticUnclassified }
+            return .mcpDiagnosticHTTP(code: code)
+        case .rpc:
+            guard let code = diagnostic.code else { return .mcpDiagnosticUnclassified }
+            return .mcpDiagnosticRPC(code: code)
+        case .timeout: return .mcpDiagnosticTimeout
+        case .cancelled: return .mcpDiagnosticCancelled
+        case .transport: return .mcpDiagnosticTransport
+        case .protocolFailure: return .mcpDiagnosticProtocol
+        case .other: return .mcpDiagnosticOther
         }
     }
     private func resultText(_ value: JSONValue) -> String {

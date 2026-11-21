@@ -161,11 +161,10 @@ struct MikaModelSettingsDetailView: View {
         .navigationDestination(item: $openedProvider) { route in
             ModelProviderDetailView(session: session, languages: languages, providerID: route.id)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button(localizer.text(.keyboardDone)) { field = nil }
-                    .accessibilityIdentifier("settings.dismissKeyboard")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if field != nil {
+                MikaKeyboardDoneBar(title: localizer.text(.keyboardDone),
+                                    identifier: "settings.dismissKeyboard") { field = nil }
             }
         }
     }

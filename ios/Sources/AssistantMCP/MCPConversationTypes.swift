@@ -37,11 +37,60 @@ public struct MCPConversationProposal: Codable, Equatable, Sendable, Identifiabl
     }
 }
 
+/// Host-derived display metadata, separate from untrusted tool data. It contains
+/// only fixed categories, protocol/status numbers and an uncertainty flag.
+public struct MCPExecutionDiagnostic: Equatable, Sendable {
+    public enum Category: String, Sendable {
+        case result, toolError, http, rpc, timeout, cancelled, transport, protocolFailure, other
+    }
+    public let category: Category
+    public let code: Int?
+    /// An error or missing/unusable result can leave applied changes uncertain,
+    /// even when a response arrived. false never promises rollback or no effects.
+    public let outcomeUnknown: Bool
+
+    init(category: Category, code: Int? = nil, outcomeUnknown: Bool) {
+        self.category = category; self.code = code; self.outcomeUnknown = outcomeUnknown
+    }
+
+    static func returned(isError: JSONValue?) -> Self {
+        switch isError {
+        case nil, .bool(false)?: return .init(category: .result, outcomeUnknown: false)
+        case .bool(true)?: return .init(category: .toolError, outcomeUnknown: true)
+        default: return .init(category: .protocolFailure, outcomeUnknown: true)
+        }
+    }
+
+    static func failed(_ error: Error) -> Self {
+        if error is CancellationError { return .init(category: .cancelled, outcomeUnknown: true) }
+        guard let error = error as? MCPError else { return .init(category: .other, outcomeUnknown: true) }
+        switch error {
+        case .httpStatus(let code): return .init(category: .http, code: code, outcomeUnknown: true)
+        case .rpcFailure(let code):
+            return .init(category: .rpc, code: code, outcomeUnknown: ![-32600, -32601, -32602].contains(code))
+        case .timedOut: return .init(category: .timeout, outcomeUnknown: true)
+        case .cancelled: return .init(category: .cancelled, outcomeUnknown: true)
+        case .transportFailure: return .init(category: .transport, outcomeUnknown: true)
+        case .invalidResponse, .unsupportedVersion, .responseIDMismatch, .unsupportedServerRequest,
+             .paginationLimit, .responseTooLarge, .redirectRejected:
+            return .init(category: .protocolFailure, outcomeUnknown: true)
+        default: return .init(category: .other, outcomeUnknown: true)
+        }
+    }
+}
+
 public struct MCPConversationStep: Equatable, Sendable {
     public let proposal: MCPConversationProposal
-    /// Exact bounded server result, including content/structuredContent/isError.
+    /// Bounded server result or a locally synthesized failure result.
     public let result: JSONValue
     public let isError: Bool
+    /// nil means no classification was recorded. Never infer it from result text.
+    public let diagnostic: MCPExecutionDiagnostic?
+
+    init(proposal: MCPConversationProposal, result: JSONValue, isError: Bool,
+         diagnostic: MCPExecutionDiagnostic? = nil) {
+        self.proposal = proposal; self.result = result; self.isError = isError; self.diagnostic = diagnostic
+    }
 }
 
 public enum MCPConversationEvent: Sendable, Equatable {
