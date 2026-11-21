@@ -41,7 +41,7 @@
 
 ## 驗證與尚未完成項
 
-以下為 2026-11-20 `/Users/woowtech` 本輪真實輸出，原始 log、來源前後雜湊、receipt、xcresult、JUnit XML 與 PDF 保存在 `Documents/WOOWTECH-iOS-validation/documents-20261120`。合成內容、模擬器與單元測試均不代表商用／實機驗收。
+以下為 2026-11-20／21 `/Users/woowtech` 本輪真實輸出，原始 log、來源前後雜湊、receipt、xcresult、JUnit XML 與 PDF 保存在 `Documents/WOOWTECH-iOS-validation/documents-20261120`。合成內容、模擬器與單元測試均不代表商用／實機驗收。
 
 | 實際執行 | 來源 | 結果與範圍 |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ iOS PDF 原始 8 頁的結尾文字視覺完整，但系統 UI 字型讓 PDFKit 
 
 Android 原始 PDF 的「文 U+6587」被寫成可擷取的「⽂ U+2F42」。原生 sans-serif／serif／monospace 對照均重現，ToUnicode 表亦吻合；不是表格末端遭裁切。`e5f970aa` 新增 165,380 bytes 的 **Apporo Document Aliases** 文件字型：來自固定來源 Noto Sans TC，867 個共用字形字碼各用不同 glyph ID，未覆蓋字元仍用系統 fallback。SIL OFL 1.1／版權／來源 SHA／重建工具保留在 `app/src/main/assets/fonts` 與 `tools/build_document_alias_font.py`；重建使用 fonttools 4.60.2，不是 App 或 Gradle 執行依賴。不正規化／改寫原文字碼，也不引入 PDF 引擎或隱藏 API。修補後長表格為 11 頁，已檢視第 5 頁與末頁，標頭、列號、中文末端及第 5–6 欄完整；不同字型度量改變頁數，未承諾與舊版逐頁相同。覆蓋範圍外仍受平台字型影響。
 
-原 CI [44699145821](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44699145821) 的 `b9662745` 原始 log 已取得：可攜式 **253/253**、腳本 **337/337**，原生 UI **4/5**；唯一失敗為同一 CSV selector，不能以舊 `06a4b812` 結果混算。限定 CI [44708429933](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44708429933) 的 `40f9c9cf` 為 4/5、0 skip。已取得該失敗的原始畫面／AX：iOS26.2 Files 的「儲存」按鈕沒有 `DOCPicker.actionButton` 識別碼；`eaeee5ed` 在真實 Files 導覽列內同時辨識可見標籤與識別碼，保留真實取消及狀態斷言。artifact `14618267598` 只取需要的 ZIP entries，逐項 CRC 與 SHA-256 已核；沒有宣稱已驗整包 SHA。修補後 CI [44715367632](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44715367632) 綁定 `eaeee5ed66458a1a10a21098c5ef087bdaffe8f5`：原始 log、xcresult summary 與逐案完成檢查均為 **5/5、0 skip**，兩個文件案例通過；整體 job 仍為 failure，因模擬器準備、測試與收尾共用的 20 分鐘步驟超時，不能把 job 說成成功。`5c7c88cb` 將準備拆成獨立、上限 10 分鐘的步驟；原測試時限、逐案上限、5 個 selector、斷言、錯誤處理與 job 70 分鐘上限不變。YAML／bash 語法、workflow 生成同步與既有範圍保護 4 項檢查通過。新 CI [44721012515](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44721012515) 僅驗這項流程修補，來源 `5c7c88cb5aedd8720f33c0a53d1e8dcec02a5667`，尚待結果；正常既有隊列未重觸發或中止。
+原 CI [44699145821](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44699145821) 的 `b9662745` 原始 log 已取得：可攜式 **253/253**、腳本 **337/337**，原生 UI **4/5**；唯一失敗為同一 CSV selector，不能以舊 `06a4b812` 結果混算。限定 CI [44708429933](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44708429933) 的 `40f9c9cf` 為 4/5、0 skip。已取得該失敗的原始畫面／AX：iOS26.2 Files 的「儲存」按鈕沒有 `DOCPicker.actionButton` 識別碼；`eaeee5ed` 在真實 Files 導覽列內同時辨識可見標籤與識別碼，保留真實取消及狀態斷言。artifact `14618267598` 只取需要的 ZIP entries，逐項 CRC 與 SHA-256 已核；沒有宣稱已驗整包 SHA。修補後 CI [44715367632](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44715367632) 綁定 `eaeee5ed66458a1a10a21098c5ef087bdaffe8f5`：原始 log、xcresult summary 與逐案完成檢查均為 **5/5、0 skip**，兩個文件案例通過；整體 job 仍為 failure，因模擬器準備、測試與收尾共用的 20 分鐘步驟超時，不能把 job 說成成功。`5c7c88cb` 將準備拆成獨立、上限 10 分鐘的步驟；原測試時限、逐案上限、5 個 selector、斷言、錯誤處理與 job 70 分鐘上限不變。YAML／bash 語法、workflow 生成同步與既有範圍保護 4 項檢查通過。新 CI [44721012515](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44721012515) 僅驗這項流程修補，來源 `5c7c88cb5aedd8720f33c0a53d1e8dcec02a5667`，整體成功；原始 log 與逐案完成 gate 均為 **5/5、0 fail、0 skip**（3 個附件、2 個文件 UI 案例）。模型仍為 fixture，不算真實供應商驗收；正常既有隊列未重觸發或中止。
 
 Android 原生安全預覽、FileProvider 讀取／禁止寫入、分享 Intent 權限、取消狀態等在 `40f9c9cf` 的兩個案例已通過。Intent 或元件狀態不是接收端收到檔案；Android 真實 CSV 對話框產檔與 FileViewer 預覽已通過；HTML／PDF 的完整畫面操作、系統儲存／取消／分享與接收端仍待驗。API35 以下文字擷取案例會明示 skip，不算通過。
 
@@ -98,13 +98,29 @@ swift test --package-path ios --jobs 2 --filter AssistantDocumentsTests
 
 本工作區的原生測試與共用測試均使用去識別的合成文件；模型 fixture 只能證明本機串接，不能當成商用模型或真實業務驗收。
 
-本機裝置包已準備：版本 `0.1.0 (248)`，Release／arm64，來源 `3f2e2f0094fb990908dbd5b5cbe7dbc1c21d52fd`；93.07 秒、exit 0、來源前後相同。現有開發描述檔與簽章身份相符，9 個 framework 與 App 的嚴格簽章驗證通過。IPA 內 `source-commit.txt`、`document-build.json`、版本與 Mach-O 雜湊逐項核對，ZIP CRC 通過。這是 MacBook 本機產物，並非 GitHub 產出的裝置包；檔案 `WoowAssistant-documents-248-local.ipa`，SHA-256 `5abe4c929ca4056fd6bf08e69d4d4f894bafadfeccf53d5281c8615960045f37`。已依使用者新增的 iPad 授權安裝；系統回讀為 248 版，尚未完成文件實機驗收。
+2026-11-21 實機已從 248 升級到 **0.1.0 (249)**，USB iPad 第 9 代／iPadOS 26.6.1，未卸載、重置或清除原資料。使用者完成 XCTest 授權後，已執行真實 UI 與已設定模型的請求，未使用模型 fixture。先前 Touch ID 阻礙已解除；`ipad-04` 起的操作紀錄可證，不應再以舊阻礙回報等待。
 
-使用者明確回覆「可以去用ipad」後，已在 USB iPad（第 9 代，iPadOS 26.6.1）將原 223 版直接升級為 248 版，未卸載或重置資料；`devicectl` 安裝、版本回讀與啟動均成功。實際畫面可見正常首頁及「模型已設定」，尚未發出模型請求。獨立操作 runner 使用現有開發簽章、未更新開發者入口網站；初次設定的手動／自動簽章衝突已在測試工具修正。`ipad-03` 的 runner 能啟動，但在第一個步驟前出現 `Timed out while enabling automation mode`，exit 65、74.43 秒、來源未變。xcresult 的 1 個 failure 是 runner 初始化失敗，不能當作已執行的文件案例。另以 pymobiledevice3 11.61.0 的 USB userspace 通道唯讀擷取畫面，已親見系統要求「將 Touch ID 用於『XCTest』／Enable UI Automation」；這是已確認的人工生物辨識阻礙，並非推測裝置鎖定或 USB 斷線。等待使用者在 iPad 指紋確認，不反覆重開 runner，未使用替代輸入繞過提示。畫面、原始 log、xcresult、安裝與啟動 receipts 保留在 `ipad-248-progress.json` 所列證據中。文件產生、預覽、Files 儲存／取消、分享與接收端此輪仍為未測。POCO C85 雖 USB 可見，但尚未列入 ADB；原 iPhone 未出現，其對話故障不能由 iPad 驗收代替。
+248 的實測發現 HTML／PDF 會將來源的首個 H1 與推定文件標題各顯示一次。`b2fbb9dc85aeca4a11c9813613776a0fd503ef83` 同步修正 Swift／Kotlin：只合併與文件標題完全相同的第一個 H1；保留來源資料、後續同名標題、不同標題與 H2。iOS 文件核心與實際 PDFKit 整合 **25/25、0 skip**；Android 文件測試 **19/19、0 failure/error/skip**，兩品牌 Kotlin／AndroidTest 編譯通過，此輪沒有執行 Android 儀器測試。兩輪來源前後一致，原始結果為 `native-12-title`、`android-title`。
 
+249 為該乾淨提交的 MacBook Release／arm64 產物，134.79 秒、exit 0；9 個 framework 與 App 嚴格簽章驗證通過，描述檔含本 iPad。IPA SHA-256：`3cd2a132b924a91144f2b5e02d3c67b19d013fdde8ab3ea19be171a008cccbcd`；binary UUID：`21BB7F98-C724-3E93-BD7B-A82EE2BFE733`。包內來源、版本、SHA 與安裝後 249 回讀均已核對；不是 GitHub 產物。`device-249-artifact.json`、安裝 receipt 與來源 manifest 保留。
+
+| iPad 實際執行 | 版本 | 可證明結果 |
+| --- | --- | --- |
+| 真模型產生中文表格 → CSV／HTML／PDF | 248 | 預覽可讀；CSV 有 BOM、CRLF、前導零 `00123`、公式保護字元；HTML 的 script 字串為文字，未執行 |
+| Files 取消 → 儲存 | 248 | 取消顯示取消；實際保存 CSV、PDF，CSV 回讀 bytes 完全一致 |
+| 系統分享面板 → 取消 | 248 | iPad popover 正常，取消未誤報成功；未送給外部接收端 |
+| 100 列中文長報告 → PDF | 248／249 | 均為 5 頁，100 個列尾標記與結尾完整；249 PDF、HTML 畫面及檔案均只含一次文件標題 |
+| PDF 匯入新對話 → 真模型讀取 | 248 | 沒有原報告上下文的新對話正確回覆 `100`、`END_100`、`FINAL_LONG_IPAD248`；重啟後從歷史重開，附件仍可預覽 |
+| 損壞 PDF | 248 | 80 bytes 無效 PDF 的真模型回覆明確表示不能讀取，未編造內容；UI 流程 99.7 秒，中途有自動化等待，不據此斷言 App 卡死 |
+| 201 MiB 附件 → 拒收 → 正常 CSV | 249 | 真 Files 匯入顯示 200 MB 上限提示，沒有加入附件；隨後同一對話成功讀取較小 CSV，保留 `00123` 與 `'=1+1` |
+| 淺色／深色、橫向鍵盤、背景返回 | 248／249 部分 | 所保存畫面中輸入區、附件／錯誤提示可讀；背景返回草稿仍在；尚未完成大字體／降低透明度的完整矩陣 |
+
+詳細逐項結果與畫面位於 `ipad-248-commercial-partial-results.json`、`ipad-249-commercial-partial-results.json`；真 UI 步驟 receipt 與模型回覆分開核對，沒有把自動化傳輸 exit 0 當成功。原 248 的 `ipad-remote-01` 因結果區在折疊外而查找失敗；`ipad-remote-16` 使用錯誤移除按鈕標籤而失敗，均保留為工具操作失敗，後續使用實際畫面／識別碼操作。實機不使用測試 namespace、重設旗標或模擬模型。
+
+新發現限制：終止 App 後回到新對話，未送出草稿未恢復；目前 `ChatDraft` 只存在記憶體。保存的對話與附件另已確認可從歷史重開，不能把兩者混為資料遺失或宣稱草稿保存通過。原 iPhone A31 高 CPU 對話未在本機重現／修復，iPad 的成功不能替代它。
 
 需要保留的驗證證據：Swift/Kotlin 測試退出碼、iOS/Android 編譯結果、PDF 頁數與末端文字、HTML 靜態內容、CSV 引號與公式防護、系統儲存/分享取消與實際接收端開啟。執行結果保存在 MacBook `Documents/WOOWTECH-iOS-validation/documents-20261120`，未執行的項目不得列為通過。
 
-仍需兩平台實機驗證：中文/長表格閱讀、深淺色與大字體、背景返回、低儲存空間、實際文件提供者、外部接收端可讀性、取消與重試。另需用目標試算表檢查 CSV 中文、公式防護、日期與前導零的實際呈現。
+仍需完成：Android 實機文件／SAF／分享完整流程、iPad 大字體／降低透明度、相機實拍及相簿選取、低儲存空間與外部文件提供者、外部接收端可讀性、多供應商與網路中斷／逾時、原 MCP 錯誤與舊 iPhone 卡死。iPad 沒有已安裝的 Numbers／Books 可供接收端對照；CSV 仍需目標試算表驗證中文、公式防護、日期與前導零的實際呈現。
 
 本輪不操作原 iPhone 對話或附件，也不修改原工作區的 `UserProfileChatFlow.swift` 與 `UserProfileChatFlowTests.swift` 未提交內容。
