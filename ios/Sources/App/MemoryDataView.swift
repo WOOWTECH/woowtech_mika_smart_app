@@ -230,7 +230,8 @@ struct MemoryDataView: View {
                         cardDivider
                         NavigationLink { SavedRoutesView(store: store) } label: {
                             dataRow(copy.text(.routeTitle), systemImage: "point.topleft.down.curvedto.point.bottomright.up",
-                                    value: copy.text(.routeCount, Int64(store.routes.routes.count)))
+                                    value: copy.text(.routeCount, Int64(store.routes.routes.count)),
+                                    showsDisclosure: false)
                         }
                         .disabled(!store.available)
                         .accessibilityIdentifier("memory.routes")
@@ -661,7 +662,8 @@ struct MemoryDataView: View {
         copy.text(count == 1 ? .signInsCountOne : .signInsCount, Int64(count))
     }
 
-    private func dataRow(_ title: String, systemImage: String, value: String? = nil) -> some View {
+    private func dataRow(_ title: String, systemImage: String, value: String? = nil,
+                         showsDisclosure: Bool = true) -> some View {
         HStack(spacing: 14) {
             Image(systemName: systemImage)
                 .font(.body)
@@ -671,10 +673,13 @@ struct MemoryDataView: View {
             Text(title).font(.body)
             Spacer(minLength: 0)
             if let value { Text(value).foregroundStyle(palette.ink3) }
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.ink3)
-                .accessibilityHidden(true)
+            // NavigationLink supplies its own disclosure; plain buttons need ours.
+            if showsDisclosure {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.ink3)
+                    .accessibilityHidden(true)
+            }
         }
         .foregroundStyle(palette.ink)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
