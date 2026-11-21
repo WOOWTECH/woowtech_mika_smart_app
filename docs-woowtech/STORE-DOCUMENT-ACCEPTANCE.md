@@ -38,7 +38,41 @@ This branch adds channel integration checks and uses the same Android viewer tes
   a macOS `/var` versus `/private/var` canonical-path assertion. Both corrected; the original failure evidence is retained.
 - Corrected channel run: 18/18 passed (`WorkspaceFilesTest`: 6; `WoowtechManifestTest`: 12).
 - Canonical compiler-download CI fixes from `0216f899`/`8f6b5974` are reused; their 10 Python tests pass.
-- Brand JVM tests passed: WOOWTECH 5/5 (file-only port, transport, AI rules, payment policy); Apporo Play 3/3 (transport, AI rules, payment policy). APK builds, physical-device tests and real conversation acceptance are still in progress.
+- Brand JVM tests passed: WOOWTECH 5/5 (file-only port, transport, AI rules, payment policy); Apporo Play 3/3 (transport, AI rules, payment policy). Additional MCP/provider-policy checks passed 3/3 on each brand.
+- Both debug APKs and both test APKs built successfully. Runtime source is `c9fbb5d8`; the later test-only correction attaches the same lazy browser surface used by Play tasks. Document execution must not initialize it.
+- POCO C85, Android 15: both existing store packages were updated with matching local acceptance signatures, preserving first-install timestamps. Pulled installed APK bytes exactly match the built artifacts. These are store-channel debug acceptance APKs installed through ADB, not Google Play delivery.
+- WOOWTECH: initial run 13/14 passed; the new workflow test omitted the required browser surface. Corrected that fixture and reran its single failing case successfully. The other 13 cases were not repeated. Apporo: 14/14 passed in one run with the corrected fixture.
+- Device cases cover native HTML/PDF/CSV generation through the real file-only port/tool executor, readable exported attachment URIs, Chinese multipage PDF, oversize failure, previews, actual system Save a copy writes, cancel, unsupported-file handling, and three external-share receiver cases. Shared bytes were read in a separate test-APK process and compared exactly; no contact or cloud service received files.
+- MIUI blocked background test-activity starts. The host brought only the test activity forward and recorded these interventions; background permissions were not relaxed. Both test APKs were removed after execution. The six format/brand preview screenshots were visually checked for readable Chinese content.
+- Full CI core JVM and both brand builds passed; Apporo startup smoke passed API 30/32/35/36. CI still fails existing translation resource consistency checks and the English accessibility test that expects a service removed from the Play manifest. These are not counted as document acceptance passes. Failed logs and the API 35 instrumentation artifact are retained.
+
+## Ordinary conversations and actual attachment delivery
+
+Both brands completed the same ordinary request for a Traditional Chinese report with two rows, an HTML attachment,
+a PDF attachment and a CSV attachment. The request did not name `create_document` or `share_file`.
+Each task trace shows three successful native `create_document` calls followed by three successful `share_file`
+calls, with no executable runtime tools. Existing logins and model settings were retained.
+
+| Brand | Conversation | Result | Elapsed | Generated HTML / PDF / CSV |
+| --- | --- | --- | --- | --- |
+| Apporo Play | `b01a3a09-dbbe-4dfa-b0b1-b37f38a1f44c` | succeeded / done | 52 seconds | 930 / 68,967 / 83 bytes |
+| WOOWTECH Play | `f2705b38-9cbf-4fb7-b00e-571a072139d7` | succeeded / done | 2 minutes 40 seconds | 958 / 67,135 / 83 bytes |
+
+All six actual conversation cards were opened on POCO and their previews visually checked. Chinese text and both
+table rows were readable in the PDF and HTML; CSV retained the comma-containing note as one field. Each actual
+attachment then went through Android's system Save a copy picker. All six pulled saved copies were byte-for-byte
+equal to their original attachments. The files remain in Downloads as `doc-qa-20261121-1708.*` (Apporo) and
+`doc-qa-20261121-1710.*` (WOOWTECH), as well as their original brand download folders.
+
+Evidence: `{apporo,woowtech}-conversation/verification.json`, task events, original and saved files, and
+`{apporo,woow}-chat-{html,pdf,csv}-preview.png` under the private evidence directory. The external-share receiver
+checks above used separate synthetic sample files; these real conversation files were previewed and saved, not
+sent to an external contact. PDF rendering on this phone does not guarantee every other reader's font compatibility.
+
+One preliminary Apporo request was corrupted by the Chinese keyboard during automated text entry. The model asked
+for clarification, and that test was cancelled. After temporarily selecting the English keyboard and verifying the
+entire typed request before sending, both accepted conversations completed. This failed input attempt is not counted
+as document acceptance. The original keyboard, orientation and app locales are restored after testing.
 
 Local evidence is in `build/store-document-acceptance/` (private, ignored by Git). No real credentials belong in
 this report or the repository. Source fingerprints, build logs and test XML identify the exact accepted inputs.

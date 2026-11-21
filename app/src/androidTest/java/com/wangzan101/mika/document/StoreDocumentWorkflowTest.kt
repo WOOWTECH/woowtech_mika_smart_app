@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.cap.sandbox.AndroidSandbox
 import com.wangzan101.mika.cap.sandbox.SandboxDirs
+import com.wangzan101.mika.cap.web.LazyWebPort
 import com.wangzan101.mika.chat.SharedFile
 import com.wangzan101.mika.core.action.ActionExecutor
 import com.wangzan101.mika.core.action.ActionOutcome
@@ -39,7 +40,10 @@ class StoreDocumentWorkflowTest {
         val workspace = "store-document-test-${UUID.randomUUID()}"
         val cards = mutableListOf<SharedFile>()
         val port = AndroidSandbox.filesOnly(context, onShared = { cards.add(it) })
-        val dispatcher = toolDispatcher(sandbox = port, workspace = { workspace })
+        // Play tasks retain an in-app browser surface, initialized only if a tool needs it.
+        // Document generation must not initialize that browser or navigate anywhere.
+        val web = LazyWebPort { error("Document generation must not initialize a browser") }
+        val dispatcher = toolDispatcher(web = web, sandbox = port, workspace = { workspace })
         val executor = ActionExecutor(dispatcher, OperationGuards(), null, gate = {},
             recorder = ActionRecorder(RunSink.NONE))
         var sequence = 0
