@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">مرتفع</string>
     <string name="model_reasoning_xhigh">مرتفع جداً</string>
     <string name="model_reasoning_max">أقصى حد</string>
+    <string name="viewer_save_as">حفظ نسخة</string>
+    <string name="viewer_saved">تم حفظ الملف</string>
+    <string name="viewer_save_cancelled">تم إلغاء الحفظ</string>
+    <string name="viewer_save_failed">تعذر حفظ الملف. تحقق من مساحة التخزين وحاول مرة أخرى.</string>
 </resources>

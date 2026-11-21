@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_report_action">檢舉 AI 回覆</string>
+    <string name="chat_report_title">檢舉這則回覆</string>
+    <string name="chat_report_delivery_notice">檢舉內容會傳送給開發者。伺服器確認收到前，會保留在這台裝置上等待傳送。</string>
+    <string name="chat_report_reference">回覆編號：%1$s / %2$s</string>
+    <string name="chat_report_offensive">冒犯性內容</string>
+    <string name="chat_report_unsafe">不安全內容</string>
+    <string name="chat_report_other">其他問題</string>
+    <string name="chat_report_note">補充說明（選填）</string>
+    <string name="chat_report_submit">送出檢舉</string>
+    <string name="chat_report_save_failed">無法儲存檢舉，請重試。</string>
+    <string name="chat_report_loading">正在查詢先前的檢舉…</string>
+    <string name="chat_report_load_failed">無法讀取已儲存的檢舉，請重試。</string>
+    <string name="chat_report_ambiguous">無法確認先前的檢舉是否屬於這則回覆。新建檢舉可能與已收到的檢舉重複，舊紀錄會保留。是否繼續？</string>
+    <string name="chat_report_no_identity">這則回覆沒有穩定的編號，無法確認是否已有檢舉。新建檢舉可能與已收到的檢舉重複，舊紀錄會保留。是否繼續？</string>
+    <string name="chat_report_unidentified">有一份舊檢舉無法讀取，也無法確認屬於哪則回覆。繼續可能重複傳送開發者已收到的檢舉。要繼續處理這則回覆嗎？</string>
+    <string name="chat_report_continue_risk">了解風險並繼續</string>
+    <string name="chat_report_continue_notice">你已選擇繼續。無法讀取的紀錄存在期間，其他檢舉不會自動傳送。</string>
+    <string name="chat_report_new_warning">舊檢舉尚未確認送達，也可能已經收到。新檢舉會使用新編號和目前時間，可能重複；舊紀錄會保留。是否繼續？</string>
+    <string name="chat_report_create_new">新建檢舉</string>
+    <string name="chat_report_manual_notice">這份新檢舉只會在你按下送出或重試時傳送，可能相關的舊檢舉不會自動重送。</string>
+    <string name="chat_report_history">查看本機新建的檢舉</string>
+    <string name="chat_report_history_notice">以下檢舉來自本對話，可能屬於其他回覆。請選取前核對回覆內容與編號。</string>
+    <string name="chat_report_history_empty">沒有本機新建的檢舉。</string>
+    <string name="chat_report_selected_manual">已選取本機檢舉；下方顯示當時的回覆。</string>
+    <string name="chat_report_review_existing">已有內容不同的新檢舉，請在重試前先核對下方內容。</string>
+    <string name="chat_report_back">返回</string>
+    <string name="chat_report_pending">等待傳送。編號：%1$s</string>
+    <string name="chat_report_acknowledged">開發者已收到。編號：%1$s</string>
+    <string name="chat_report_needs_retry">尚未確認送達。編號：%1$s</string>
+    <string name="chat_report_expired">尚未確認送達。伺服器只接受建立時間在七天內的檢舉，請檢查裝置日期與時間。編號：%1$s</string>
+    <string name="chat_report_retry">重新傳送</string>
+    <string name="chat_report_cancel">取消</string>
+    <string name="chat_report_close">關閉</string>
+    <string name="chat_report_delete">刪除檢舉</string>
+    <string name="chat_report_delete_title">刪除這份檢舉？</string>
+    <string name="chat_report_delete_confirm">已送達的檢舉會從開發者伺服器和本機刪除；未傳送的檢舉會從本機刪除。如果無法確認送達，檢舉會保留。</string>
+    <string name="chat_report_deleted">檢舉已刪除。</string>
+    <string name="chat_report_delete_failed">無法確認刪除，檢舉已保留。請稍後重試。</string>
+    <string name="chat_report_delete_unverified">這份檢舉可能已送達，但沒有有效的刪除憑證，因此已保留。請依隱私權政策聯絡開發者並提供檢舉編號。</string>
+    <string name="settings_privacy_policy">隱私權政策</string>
+</resources>

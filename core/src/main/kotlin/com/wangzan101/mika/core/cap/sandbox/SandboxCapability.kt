@@ -34,7 +34,9 @@ internal class SandboxCapability(
     /** 设备支持沙箱(工具已提供,可能还在准备)。 */
     fun available(): Boolean = runner?.available() == true
 
-    override val folds = true
+    // File-only editions have no command entry to open this group. Keep their small file-tool set
+    // visible, including reading existing files, after adding create_document as an entry tool.
+    override val folds: Boolean get() = port?.runsCommands != false
 
     override fun status(): CapabilityStatus = when (val s = port?.status()) {
         null -> CapabilityStatus.Unavailable("no sandbox")

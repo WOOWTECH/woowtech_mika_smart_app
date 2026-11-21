@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">高</string>
     <string name="model_reasoning_xhigh">非常に高い</string>
     <string name="model_reasoning_max">最大</string>
+    <string name="viewer_save_as">コピーを保存</string>
+    <string name="viewer_saved">ファイルを保存しました</string>
+    <string name="viewer_save_cancelled">保存をキャンセルしました</string>
+    <string name="viewer_save_failed">ファイルを保存できません。空き容量を確認して再試行してください。</string>
 </resources>
