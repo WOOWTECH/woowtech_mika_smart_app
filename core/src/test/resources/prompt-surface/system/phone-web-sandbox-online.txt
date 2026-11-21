@@ -452,7 +452,7 @@ Besides the phone, you have a Linux sandbox (Alpine with Python 3 and Node). Use
 - Use only `mika phone` to reach the task's virtual display from a command. Do not try to read other apps' data or reach the internet when the network is off.
 - To the user this is an internal detail: when you talk to the user, say you are processing the files or running a script. Do not mention a sandbox, Linux, Alpine or PRoot.
 
-==== tools (64) ====
+==== tools (65) ====
 wait #8ed080dc3f35
 ask_user #9aba9bc58f9e
 request_confirmation #010f6f355b93
@@ -516,4 +516,5 @@ run_bundled_script #54259e6ba008
 read_file #e444edafa8ea
 write_file #6ee88b0765ca
 search_files #9ca7b1f1e9d4
+create_document #b9ceef341ed5
 share_file #6315fd7b0c4d

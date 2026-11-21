@@ -77,4 +77,5 @@
     <string name="tool_find_visually">Find by looking at the screen</string>
     <string name="tool_do_steps">Several steps in a row</string>
     <string name="tool_forget_memory">Forget a memory</string>
+    <string name="tool_create_document">Create document</string>
 </resources>

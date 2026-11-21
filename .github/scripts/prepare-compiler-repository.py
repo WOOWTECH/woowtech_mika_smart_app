@@ -50,11 +50,20 @@ def download(target, url, api=False):
     args = ['curl', '-q', '--fail', '--silent', '--location', '--proto', '=https',
             '--proto-redir', '=https', '--max-redirs', '5', '--connect-timeout', '20',
             '--max-time', '150', '--write-out', '%{http_code}', '--output', str(target)]
+    config = None
     if api:
         args += ['--header', 'Accept: application/octet-stream', '--header', 'X-GitHub-Api-Version: 2022-11-28']
+        token = os.environ.get('COMPILER_DOWNLOAD_TOKEN', '')
+        if token:
+            if url != API_URL or not re.fullmatch(r'[A-Za-z0-9._~+/-]+=*', token):
+                raise RuntimeError('Invalid compiler download authentication configuration')
+            # stdin keeps the credential out of process arguments and receipts.
+            # curl strips Authorization on cross-host redirects; never use location-trusted.
+            args += ['--config', '-']
+            config = ('header = "Authorization: Bearer ' + token + '"\n').encode('ascii')
     args.append(url)
     try:
-        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=160)
+        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=config, timeout=160)
     except subprocess.TimeoutExpired:
         receipt(stage='GET', artifact=target.name, outcome='timeout')
         raise RuntimeError('Official GET exceeded160s; stopping') from None

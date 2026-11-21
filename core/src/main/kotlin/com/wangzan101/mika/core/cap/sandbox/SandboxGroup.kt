@@ -157,6 +157,24 @@ internal object SearchFiles : SandboxTool {
     }
 }
 
+internal object CreateDocument : SandboxTool {
+    override val verb = Verb.WriteFile
+    override val label = "生成文档"
+    override val entry = Entry.Opens
+    override val risk = Risk.Write
+    override val def = com.wangzan101.mika.core.document.documentToolDefinition(
+        "Then call share_file with the returned path to show an attachment for preview/save/share. No external transmission occurs.")
+    override suspend fun execute(a: Args, ctx: ToolContext) = ctx.sandboxRunner!!.run { ws, _ ->
+        tree.shared { withContext(Dispatchers.IO) { createDocument(a, ws) } }
+    }
+    override fun observations(o: JsonObject, r: ToolExecution, log: EvidenceLog): List<Observation> {
+        if (!ok(r)) return emptyList()
+        val path = res(r, "path") ?: return emptyList()
+        log.writtenPaths += path
+        return listOf(output("文件已產生: $path"))
+    }
+}
+
 internal object ShareFile : SandboxTool {
     override val verb = Verb.ShareFile
     override val label = "导出文件"
@@ -181,5 +199,5 @@ private fun output(text: String, place: Place? = null, authored: String? = null)
     Observation(ObsKind.Output, text, source = SANDBOX, place = place, authored = authored)
 
 internal object SandboxGroup {
-    val tools: List<AgentTool> = listOf(RunCommand, RunBundledScript, ReadFile, WriteFile, SearchFiles, ShareFile)
+    val tools: List<AgentTool> = listOf(RunCommand, RunBundledScript, ReadFile, WriteFile, SearchFiles, CreateDocument, ShareFile)
 }
