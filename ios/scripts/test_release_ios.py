@@ -51,8 +51,13 @@ def profile():
 
 
 def copy_privacy_manifest(app):
-    source = Path(__file__).resolve().parents[1] / "Sources/App/PrivacyInfo.xcprivacy"
-    (app / "PrivacyInfo.xcprivacy").write_bytes(source.read_bytes())
+    sources = Path(__file__).resolve().parents[1] / "Sources"
+    (app / "PrivacyInfo.xcprivacy").write_bytes((sources / "App/PrivacyInfo.xcprivacy").read_bytes())
+    for name in ("AssistantModels", "AssistantSkills"):
+        framework = app / "Frameworks" / (name + ".framework")
+        framework.mkdir(parents=True, exist_ok=True)
+        (framework / "PrivacyInfo.xcprivacy").write_bytes((sources / name / "PrivacyInfo.xcprivacy").read_bytes())
+        (framework / "Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": name}))
 
 
 def secret_env():
@@ -64,12 +69,12 @@ def secret_env():
 
 class PrivacyManifestTests(unittest.TestCase):
     def test_packaged_resource_accepts_xml_and_binary(self):
-        source = Path(__file__).resolve().parents[1] / "Sources/App/PrivacyInfo.xcprivacy"
-        payload = plistlib.loads(source.read_bytes())
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory)
+            copy_privacy_manifest(app)
             for fmt in [plistlib.FMT_XML, plistlib.FMT_BINARY]:
-                (app / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(payload, fmt=fmt))
+                for manifest in app.rglob("PrivacyInfo.xcprivacy"):
+                    manifest.write_bytes(plistlib.dumps(plistlib.loads(manifest.read_bytes()), fmt=fmt))
                 release.verify_required_reasons(app)
 
     def test_missing_corrupt_wrong_reason_and_duplicate_entries_fail(self):
@@ -92,6 +97,7 @@ class PrivacyManifestTests(unittest.TestCase):
                     plistlib.dumps(duplicate), plistlib.dumps([]), plistlib.dumps(missing_selected_file), plistlib.dumps(wrong_selected_file)]
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory)
+            copy_privacy_manifest(app)
             target = app / "PrivacyInfo.xcprivacy"
             for index, data in enumerate(variants):
                 with self.subTest(index=index):
@@ -99,6 +105,52 @@ class PrivacyManifestTests(unittest.TestCase):
                     elif target.exists(): target.unlink()
                     with self.assertRaises(release.ReleaseError):
                         release.verify_required_reasons(app)
+
+
+    def test_attachment_write_space_and_cache_timestamp_reasons_are_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory)
+            copy_privacy_manifest(app)
+            target = app / "PrivacyInfo.xcprivacy"
+            original = plistlib.loads(target.read_bytes())
+            for suffix, reasons in [("DiskSpace", None), ("DiskSpace", ["85F4.1"]),
+                                    ("FileTimestamp", ["3B52.1"])]:
+                with self.subTest(category=suffix, reasons=reasons):
+                    payload = copy.deepcopy(original)
+                    category = "NSPrivacyAccessedAPICategory" + suffix
+                    if reasons is None:
+                        payload["NSPrivacyAccessedAPITypes"] = [entry for entry in payload["NSPrivacyAccessedAPITypes"]
+                            if entry["NSPrivacyAccessedAPIType"] != category]
+                    else:
+                        for entry in payload["NSPrivacyAccessedAPITypes"]:
+                            if entry["NSPrivacyAccessedAPIType"] == category:
+                                entry["NSPrivacyAccessedAPITypeReasons"] = reasons
+                    target.write_bytes(plistlib.dumps(payload))
+                    with self.assertRaisesRegex(release.ReleaseError, category):
+                        release.verify_required_reasons(app)
+
+    def test_app_reason_cannot_cover_missing_or_invalid_framework_manifest(self):
+        for name in ("AssistantModels", "AssistantSkills"):
+            with tempfile.TemporaryDirectory() as directory:
+                app = Path(directory)
+                copy_privacy_manifest(app)
+                target = app / "Frameworks" / (name + ".framework") / "PrivacyInfo.xcprivacy"
+                original = plistlib.loads(target.read_bytes())
+                wrong = copy.deepcopy(original)
+                wrong["NSPrivacyAccessedAPITypes"][0]["NSPrivacyAccessedAPITypeReasons"] = ["1C8F.1"]
+                duplicate = copy.deepcopy(original)
+                duplicate["NSPrivacyAccessedAPITypes"] *= 2
+                malformed = copy.deepcopy(original)
+                malformed["NSPrivacyAccessedAPITypes"][0]["NSPrivacyAccessedAPITypeReasons"] = "CA92.1"
+                for data in (None, b"not-a-plist", plistlib.dumps({}), plistlib.dumps(wrong),
+                             plistlib.dumps(duplicate), plistlib.dumps(malformed)):
+                    with self.subTest(framework=name, variant=data):
+                        if data is None:
+                            target.unlink()
+                        else:
+                            target.write_bytes(data)
+                        with self.assertRaisesRegex(release.ReleaseError, name):
+                            release.verify_required_reasons(app)
 
 
 class ProfileTests(unittest.TestCase):

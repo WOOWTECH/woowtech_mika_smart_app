@@ -17,7 +17,9 @@ class DocumentFocusedScopesTests(unittest.TestCase):
         groups = ios17.validate_document_scopes(catalog)
         self.assertEqual(set(groups), {"documents-chat"})
         self.assertEqual(set(groups["documents-chat"]), expected)
-        self.assertEqual(len(expected), 5)
+        self.assertEqual(len(expected), 9)
+        self.assertIn("WoowAssistantUITests/ChatAttachmentUITests/testSixEntryTranscriptAcceptsFourthTurnWithKeyboardAttachmentsAndMemory",
+                      expected)
         self.assertIn("WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
                       expected)
         self.assertEqual(catalog["document_focused_scopes"], groups)

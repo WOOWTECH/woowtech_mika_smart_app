@@ -205,22 +205,35 @@ def verify_macho(output):
 
 
 def verify_required_reasons(app):
-    # Audit the packaged file, not merely the repository resource. These are
-    # the two directly used categories: app settings and elapsed-time timers.
-    try:
-        privacy = plistlib.loads((app / "PrivacyInfo.xcprivacy").read_bytes())
-    except (OSError, ValueError, plistlib.InvalidFileException):
-        raise ReleaseError("App 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
-    entries = privacy.get("NSPrivacyAccessedAPITypes") if isinstance(privacy, dict) else None
-    if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
-        raise ReleaseError("App 的 required-reason API 宣告格式不正確。")
-    for category, reason in [("NSPrivacyAccessedAPICategoryUserDefaults", "CA92.1"),
-                             ("NSPrivacyAccessedAPICategorySystemBootTime", "35F9.1"),
-                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "3B52.1")]:
-        matches = [entry for entry in entries if entry.get("NSPrivacyAccessedAPIType") == category]
-        reasons = matches[0].get("NSPrivacyAccessedAPITypeReasons") if len(matches) == 1 else None
-        if not isinstance(reasons, list) or reason not in reasons or any(not isinstance(value, str) for value in reasons):
-            raise ReleaseError("App 缺少正確且唯一的 required-reason API 宣告：" + category)
+    # Audit packaged resources in each bundle that directly uses these APIs.
+    # App: settings, elapsed timers, selected-file metadata, generated-cache
+    # timestamps, and attachment write-space checks. Frameworks: own settings.
+    required = {
+        ".": {
+            "UserDefaults": ("CA92.1",),
+            "SystemBootTime": ("35F9.1",),
+            "FileTimestamp": ("3B52.1", "C617.1"),
+            "DiskSpace": ("E174.1",),
+        },
+        "Frameworks/AssistantModels.framework": {"UserDefaults": ("CA92.1",)},
+        "Frameworks/AssistantSkills.framework": {"UserDefaults": ("CA92.1",)},
+    }
+    for relative, categories in required.items():
+        label = "App" if relative == "." else relative
+        try:
+            privacy = plistlib.loads((app / relative / "PrivacyInfo.xcprivacy").read_bytes())
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            raise ReleaseError(label + " 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
+        entries = privacy.get("NSPrivacyAccessedAPITypes") if isinstance(privacy, dict) else None
+        if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+            raise ReleaseError(label + " 的 required-reason API 宣告格式不正確。")
+        for suffix, expected in categories.items():
+            category = "NSPrivacyAccessedAPICategory" + suffix
+            matches = [entry for entry in entries if entry.get("NSPrivacyAccessedAPIType") == category]
+            reasons = matches[0].get("NSPrivacyAccessedAPITypeReasons") if len(matches) == 1 else None
+            if (not isinstance(reasons, list) or any(not isinstance(value, str) for value in reasons)
+                    or not set(expected).issubset(reasons)):
+                raise ReleaseError(label + " 缺少正確且唯一的 required-reason API 宣告：" + category)
 
 
 def verify_app(app, signed=False, identity=None, expected_build_number=None):
