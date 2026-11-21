@@ -10,6 +10,8 @@
 
 本輪不包含 Excel/Word、網站發布、雲端產檔、跨 App 控制、文件歷史庫或自動傳送。原有 iPhone 舊對話卡死、MCP 工具錯誤及玻璃輸入區實機驗收仍為獨立未完成項。
 
+iPad 後續的版面修補、受控卡死重現、267 安裝來源、實機結果與剩餘限制，另見 [iPad 版面與視覺回歸](IPAD_VISUAL_VALIDATION.md)。iPad 結果不取代原 iPhone A31 對話或跨平台商用驗收。
+
 ## 實作選擇
 
 | 層次 | iOS | Android |
