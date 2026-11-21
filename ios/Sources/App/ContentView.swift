@@ -1167,9 +1167,10 @@ private struct ChatView: View {
     /// accessibility size five lines would make the input bar about 350 pt tall,
     /// over half of an iPhone SE screen and nearly all the room above its
     /// keyboard, so at accessibility sizes the draft scrolls after three.
-    private var draftLineLimit: ClosedRange<Int> { dynamicTypeSize.isAccessibilitySize ? 1...3 : 1...5 }
-
-    private func composer(draft: Binding<String>) -> some View {
+    private func composer(draft: Binding<String>, availableHeight: CGFloat) -> some View {
+        // With a docked keyboard in landscape, three accessibility-sized lines
+        // can consume the whole viewport. Keep editing scrollable in one line.
+        let lines = dynamicTypeSize.isAccessibilitySize ? (availableHeight < 400 ? 1...1 : 1...3) : 1...5
         // Same pill at one line; bounded corners leave room for multiline text.
         let shape = RoundedRectangle(cornerRadius: 32, style: .continuous)
         return HStack(alignment: .bottom, spacing: 4) {
@@ -1177,7 +1178,7 @@ private struct ChatView: View {
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
                       text: draft, axis: .vertical)
-                .lineLimit(draftLineLimit)
+                .lineLimit(lines)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .focused($isEditingDraft)
@@ -1249,16 +1250,38 @@ private struct ChatView: View {
 
     private var photoPickerLimit: Int { max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count) }
 
-    private var chatColumn: some View {
+    private var composerContext: some View {
+        VStack(spacing: 12) {
+            chatStatus
+            quoteChip
+            attachmentRows
+        }
+    }
+
+    @ViewBuilder private func composerContext(availableHeight: CGFloat) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            // Keep long notices reachable without pushing their dismiss action
+            // above the navigation bar. The normal text size keeps its layout.
+            ViewThatFits(in: .vertical) {
+                composerContext.fixedSize(horizontal: false, vertical: true)
+                ScrollView { composerContext }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .accessibilityIdentifier("chat.composerContext")
+            }
+            .frame(maxHeight: max(64, availableHeight * 0.35))
+        } else {
+            composerContext
+        }
+    }
+
+    private func chatColumn(availableHeight: CGFloat) -> some View {
         VStack(spacing: 12) {
             chatHeader
             transcript
             VStack(spacing: 12) {
-                chatStatus
-                quoteChip
-                attachmentRows
+                composerContext(availableHeight: availableHeight)
                 ChatDraftObserver(draft: session.draftModel) { draft in
-                    composer(draft: draft)
+                    composer(draft: draft, availableHeight: availableHeight)
                 }
                 attachPanel
             }
@@ -1273,6 +1296,12 @@ private struct ChatView: View {
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
+    }
+
+    private var chatColumn: some View {
+        GeometryReader { viewport in
+            chatColumn(availableHeight: viewport.size.height)
+        }
         // This app's own docked keyboard lifts the composer (see ChatKeyboardDock);
         // the attach panel takes the keyboard's place, so it drops that space at once.
         .chatKeyboardReserve(keyboardDock, replaced: showsAttachPanel)
