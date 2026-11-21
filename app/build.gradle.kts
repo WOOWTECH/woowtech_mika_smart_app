@@ -145,8 +145,8 @@ android {
             dimension = "brand"
             // Play edition lives beside the direct-download app instead of replacing its data or signature.
             applicationId = "io.woowtech.assistant"
-            versionCode = 3
-            versionName = "${defaultConfig.versionName}-play.3"
+            versionCode = 4
+            versionName = "${defaultConfig.versionName}-play.4"
             buildConfigField("boolean", "BETA", "false")
             buildConfigField("boolean", "PLAY_EDITION", "true")
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
@@ -161,8 +161,8 @@ android {
         create("apporoplay") {
             dimension = "brand"
             applicationId = "com.apporo.assistant.play"
-            versionCode = 1
-            versionName = "${defaultConfig.versionName}-play.1"
+            versionCode = 2
+            versionName = "${defaultConfig.versionName}-play.2"
             buildConfigField("boolean", "BETA", "false")
             buildConfigField("boolean", "PLAY_EDITION", "true")
             // Same languages as woowtech (see the comment there), including --exclude-configs zh in onVariants.
