@@ -92,8 +92,10 @@ final class ChatAttachmentUITests: XCTestCase {
 
     /// Synthetic PNG/TXT attachments and fixed model replies through the real UI/session.
     /// This covers the six-entry boundary, not the physical iPad PDF/CSV reproduction.
+    /// DEBUG-only synthetic model settings and consent skip unrelated model setup UI.
     func testSixEntryTranscriptAcceptsFourthTurnWithKeyboardAttachmentsAndMemory() {
-        launch(attachments: true); configure()
+        launch(attachments: true, transcriptFixture: true)
+        assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
         addFixtureAttachments()
         let files = sendFixtureTurn("Boundary files", userIndex: 0)
         assertContains(files, "收到附件 1 個（圖片 0）")
@@ -193,13 +195,14 @@ final class ChatAttachmentUITests: XCTestCase {
 
     // MARK: - Helpers (same native paths as ChatStreamingUITests)
 
-    private func launch(reset: Bool = true, attachments: Bool = false) {
+    private func launch(reset: Bool = true, attachments: Bool = false, transcriptFixture: Bool = false) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launchArguments.append("-UITestTranscriptDiagnostics")
         if reset { app.launchArguments.append("-UITestResetStorage") }
         if attachments { app.launchArguments.append("-UITestAttachments") }
+        if transcriptFixture { app.launchArguments.append("-UITestTranscriptFixture") }
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.exists)

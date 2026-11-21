@@ -9,6 +9,8 @@ import Foundation
 // -UITestMode: replace HTTPChatModelClient; never contact a model provider.
 // -UITestNamespace <UUID>: dedicated defaults suite, Keychain service and providers file for this test.
 // -UITestResetStorage: clear only that test namespace at launch; omit to test relaunch.
+// -UITestTranscriptFixture: preconfigure a synthetic model and consent; requires -UITestMode
+// and the valid UUID namespace above. Does not seed or enable MCP.
 // -UITestKeychainWriteFailure: fail writes before changing the test Keychain/config.
 // Prompts: [fixture:wait] waits cancellably; [fixture:error-once] fails once per launch.
 // Every other prompt returns "測試回覆：<prompt>". Keys entered by tests are dummy strings.
@@ -45,6 +47,15 @@ enum UITestModelFixture {
                 try repository.recordConsentForMain()
             }
             catch { preconditionFailure("Cannot configure isolated MCP conversation fixture") }
+        } else if arguments.contains("-UITestMode"), arguments.contains("-UITestTranscriptFixture") {
+            // Synthetic transcript-test setup only: dummy endpoint/key and synthetic consent
+            // in the validated namespace. UITestChatModelClient supplies replies in-process;
+            // this is not evidence of a real provider connection or user consent.
+            do {
+                _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key")
+                try repository.recordConsentForMain()
+            }
+            catch { preconditionFailure("Cannot configure isolated transcript model fixture") }
         }
         return repository
     }
