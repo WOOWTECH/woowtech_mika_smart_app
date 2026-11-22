@@ -1,6 +1,6 @@
 # iOS／Android 驗收缺口（2026-11-22）
 
-**272仍為原iPhone實裝版本；273已上傳但17:57仍未出現在TestFlight。** 短HTML／PDF已有實證，原A31兩個獨立送出批次皆模型限流、正常回答0；後一批159筆連續CPU未見持續100%，不證原卡死根因已修。Android MCP修補已推送且精確單元／品牌編譯通過，實機／真服務仍待。270遮字、295串流等待及301拖曳失敗保留；完整商用驗收未完成。
+**272仍為原iPhone最後已核實裝版本；273、274已上傳，274尚未證實可安裝。** 短HTML／PDF已有實證，原A31兩個獨立送出批次皆模型限流、正常回答0；後一批159筆連續CPU未見持續100%，不證原卡死根因已修。Android MCP修補已推送且精確單元／品牌編譯通過，實機／真服務仍待。270遮字、295串流等待及301拖曳失敗保留；完整商用驗收未完成。
 
 證據根目錄 R：`/Users/woowtech/Documents/WOOWTECH-iOS-validation/documents-20261120`；T：`R/testflight-20261122`。主要依據：
 
@@ -16,6 +16,8 @@
 - **[H]** [Android MCP執行修補](ANDROID_MCP_EXECUTION_CONTRACT_20261122.md)：初批62/62、三transport安全診斷92/92；對話步驟unknown／截斷consumer及語系40/40、兩品牌compile成功。含文件八語系38 keys補齊及PDF256頁文案修正；實機／真服務仍待，不將unit當商用驗收。
 - **[E]** [241既存兩筆MCP錯誤取證](MCP_241_STORED_ERRORS_REVIEW_20261122.md)：找回4／4／2及8條dispatch；completed在isError檢查前記錄，缺精確結果locator／code，細分類仍未知，沒有重放工具。
 - **[L]** [iOS分類後安全日誌修補](IOS_MCP_RESULT_DIAGNOSTIC_20261122.md)：native303精確22/22，實際Simulator日誌222事件／111組完整關聯；返回結果／工具錯誤／協定異常與拋錯分開。新來源尚未裝原iPhone，不能回填241舊錯誤原因。
+- **[T]** [TestFlight274發佈](TESTFLIGHT_274_RELEASE.md)：來源`611d6bfa`，archive／signed IPA／Apple Validation及Upload成功，actual archive全payload gate留證；與273及手機272分開，不將上傳算可下載／已驗收。
+- **[C]** [272附件大檔／PDF恢復](IPHONE_272_ATTACHMENT_RECOVERY_20261122.md)：真201MiB拒收、小PDF匯入完整bytes、系統三頁Quick Look、取消／移除與限定清理；保留待送卡片預覽缺口及原生首頁徽章限制，不算App產生多頁PDF或CPU驗收。
 - **[U]** [回尾／鍵盤修補驗證](CHAT_RETURN_CONTROL_VALIDATION_20261122.md)：同runtime五個native案例分批通過，保留287 AX逾時及288單案重驗；尚非271實機驗收。
 - **[M]** [iPhone270手動記憶CRUD](IPHONE_270_MEMORY_CRUD.md)：新增／同ID修改、關鍵字重啟讀回、限定刪除及第二次重啟限定PASS；38檔獨立核對與原資料保留另有證據。模型記憶／技能語意仍未測，不增加24輪正常完成數。
 - **[F]** [TestFlight 270 發佈與原 iPhone 實測](TESTFLIGHT_270_RELEASE.md)，尤其「原 iPhone 實裝與部分驗證」；機器摘要為 T/`iphone270-validation-summary.json`，觀察時間 `2026-11-22T02:13:49Z`。私密原始工具輸出留在 T，不複製進本文件。
@@ -30,7 +32,7 @@
 | 原 iPhone **249** | [F] 保留該分支手動記憶新增／修改／重啟的歷史結果；本次摘要未附其完整來源 hash／逐案結果 | 不能移植成270 CRUD通過，也不能與同號 **iPad249** 混算 |
 | 原 iPhone **270** | iPhone16,1／iOS26.5；0.1.0(270)、`TestFlight Beta Distribution`；來源鏈 `7026c468`。更新時原 conversation／learning bytes 相同、原照片保留；短篇 PDF／HTML實際產生、預覽、存檔、系統重開 [F] | 未完成CSV正向、多頁PDF、外部分享接收、MCP最終結果或A31穩定回歸 |
 | 原 iPhone **271** | 同機同OS，來源交接`28deae96`；TestFlight原地更新、18則A31與兩筆記憶保留；中文／四行草稿、原圖預覽、穩定回尾與短PDF／HTML實際保存 [I] | 原AX不是全PASS；正常兩則不能代替兩／四則錯誤終態。沒有原送出、真模型／MCP完成或完整商用矩陣 |
-| 原 iPhone **272** | 來源`21a884b8`、TestFlight簽章及更新保留；文件批短HTML／PDF實存／取消／清理、A31單次send與CPU／互動已執行 [N,J] | A31模型限流、正常0，未取得MCP最終結果；15秒手勢逾時及後續外觀／多頁／CSV／接收端等仍缺 |
+| 原 iPhone **272** | 來源`21a884b8`、TestFlight簽章及更新保留；短HTML／PDF實存、兩批A31 send／CPU，另有201MiB附件拒收及三頁PDF系統預覽／匯入／取消／清理 [N,J,C] | A31皆模型限流、正常0，無MCP最終結果；15秒手勢逾時根因、新版字級、產生多頁PDF／CSV／接收端等仍缺。系統預覽不等於App待送卡片預覽 |
 | 正式 iPad **248–251** | 第9代／iPadOS26.6.1；已設定真模型，文件、記憶、技能等依[D]各版本結果 | 不是iPhone249，也不是269／270重新驗完 |
 | 正式 iPad **269** | `b81ff349`，runtime同`84e012a4`；真模型短答、16個原對話ID保留、主題／鍵盤／減少透明度；MCP未設定 [P] | 畫面能開啟不代表MCP成功；真模型短答不代表全供應商／技能／工具通過 |
 | 隔離 QA iPad **269** | 獨立bundle／Keychain，DEBUG合成1000輪資料；可見回覆及27.7秒操作序列、有限窗CPU／footprint證據 [P] | 雖在實體iPad執行，資料與模型仍為fixture；不是原A31或正式商用流量 |
@@ -58,8 +60,8 @@
 | HTML／PDF基本文件 | **272短篇限定通過**：既有39字回覆→生成／預覽重開／系統保存，HTML1271、PDF18442 bytes與cache逐byte一致；PDFKit1頁完整來源、實際取消及4檔限定清理 [J]。舊iPad100列5頁留原版本 [D] | 下一個未測情境為中文寬／長表多頁PDF、系統閱讀器與實際接收端；不重跑短篇充數。不挪用舊iPad多頁結果補272 |
 | 文件錯誤與預覽邊界 | **已實作／本機限定通過**：`21a884b8`來源錯誤／UTF-8／quota修補，native28940/40、Android2908/8與兩品牌編譯 [D,N]；272短篇文件／系統取消有真機證據 [J]。PDF Publishing本次定位並修duration-only發布，299紅→300三案綠，尚不在272 [K] | 272未驗無效來源／64KiB／生成中取消；新鍵盤修補待Release／實機。hosted preference、294 AX及295串流失敗仍各留；Android新修補instrumentation／真機、CSV接收端／ENOSPC仍缺 |
 | CSV正向與接收端 | **270未測；其他環境部分通過**：iPad248真CSV保存與精確bytes、公式防護／前導零；Android API36真觸控CSV與POCO文件證據 [D,P] | 在iPhone選一張含中文／引號／換行／前導零／公式字串的表，保存並比對完整bytes。目標試算表開啟需實際接收App（舊iPad缺Numbers）；與系統預覽分開判定 |
-| 文件分享、異常與生命週期 | **部分驗證**：iOS真取消不報成功；Android FileProvider與外部test-process讀取有儀器證據。iPad249曾拒收201MiB附件並恢復小檔操作 [D,P] | 外部接收者／接收App、外部文件提供者、低儲存及交付中檔案壽命仍缺。先選一個本機接收App檢查實際開啟，不把分享面板／activity completed當送達；涉及對外寄送另依明確授權 |
-| 相機／相簿／附件 | **部分驗證**：270原照片仍可讀且hash保留；iPad舊版PDF／CSV真匯入與重啟；native合成PNG／TXT與附件第4輪有回歸 [F,D,P] | 原照片保留不證明新拍照／相簿選取。需真機實拍、限定相簿選取、取消／拒權→恢復→送出／預覽，先以一張自有QA影像完成；不宣稱fixture覆蓋相機硬體 |
+| 文件分享、異常與生命週期 | **部分驗證**：iOS真取消不報成功；Android FileProvider與外部test-process讀取有儀器證據 [D,P]。272真201MiB附件拒收→小PDF完整匯入／picker取消／正式移除、精確清理已驗 [C] | 外部接收者／接收App、外部文件提供者、低儲存及交付中檔案壽命仍缺。附件拒收不是產檔quota／ENOSPC通過；不把分享面板／activity completed當送達，對外寄送另依明確授權 |
+| 相機／相簿／附件 | **部分驗證**：原照片保留及舊iPad／native結果各留原版本 [F,D,P]。272自有三頁PDF正式匯入、實際copy／SHA、系統Quick Look與取消／移除留證；待送卡片無直接預覽是兩平台共同缺口 [C] | 新拍照／相簿資產選取仍缺。相機／相簿取消批正由唯一操作者執行，未封存前不計PASS；實拍需自有QA場景、選取需可識別自有asset，不以系統PDF預覽或fixture替代 |
 | 未送出草稿重啟恢復 | **尚無持久化實作**：`ChatDraft`只存記憶體，iPad248/249終止後草稿不恢復 [D；來源見下] | 如納入本輪實作，先定保存範圍、敏感資料保護及清除時機，再做一案真terminate／launch；不要把已保存對話／附件保留混寫成草稿已保存 |
 | Android同步與跨平台差異 | **部分實測／新來源已修**：POCO舊版文件及instrumentation留原版本 [P]；Android `cde78672`／`b9d3c9bb`／`d6513bd4`已補不盲重送、category/code/outcomeUnknown及步驟警告，62／92／40精確測試分開通過，兩品牌編譯成功 [H]。Android匯出來源可編輯，iOS仍是唯讀snapshot | 新修補未裝Android真機；待單一操作者時段再補同情境視覺／鍵盤／接收端及真MCP，不以編譯替代。來源可編輯是產品差異，不為湊測試擅加iOS編輯器；iOS分頁與Android LazyColumn不同，不據此推定誰更快 |
 
