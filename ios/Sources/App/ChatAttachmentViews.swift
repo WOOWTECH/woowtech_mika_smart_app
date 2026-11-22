@@ -134,6 +134,7 @@ struct ChatAttachmentTray: View {
     let colors: ChatAttachmentColors
     let text: ChatAttachmentText
     let canRemove: Bool
+    let onOpen: (ChatAttachmentItem) -> Void
     let onRemove: (UUID) -> Void
 
     var body: some View {
@@ -141,7 +142,16 @@ struct ChatAttachmentTray: View {
             HStack(spacing: 10) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     ZStack(alignment: .topTrailing) {
-                        content(item)
+                        // Sibling buttons keep Remove independent of preview, including
+                        // for VoiceOver. Never wrap the whole ZStack in a Button.
+                        Button { onOpen(item) } label: {
+                            content(item).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canRemove)
+                        .accessibilityLabel(item.name)
+                        .accessibilityValue(ChatAttachmentFormat.byteString(item.byteCount))
+                        .accessibilityIdentifier("chat.attach.open.\(index)")
                         Button { onRemove(item.id) } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 9, weight: .bold))
@@ -345,23 +355,38 @@ struct ChatSentAttachments: View {
 
 // MARK: - Preview
 
-/// A sent attachment opens in Quick Look, the iOS counterpart of Android's viewer.
+/// Pending and sent attachments use the same viewer. The URL is the store's own
+/// persistent copy; preview and dismissal never take ownership of or delete it.
 struct ChatAttachmentPreview: UIViewControllerRepresentable {
     let url: URL
+    let onDismiss: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(url: url) }
+    func makeCoordinator() -> Coordinator { Coordinator(url: url, onDismiss: onDismiss) }
 
     func makeUIViewController(context: Context) -> UINavigationController {
         let controller = QLPreviewController()
         controller.dataSource = context.coordinator
+        controller.view.accessibilityIdentifier = "chat.attach.preview"
+        // Embedded Quick Look needs an explicit, accessible way back to the draft.
+        let done = UIBarButtonItem(barButtonSystemItem: .done, target: context.coordinator,
+                                   action: #selector(Coordinator.close))
+        done.accessibilityIdentifier = "chat.attach.preview.close"
+        controller.navigationItem.leftBarButtonItem = done
         return UINavigationController(rootViewController: controller)
     }
 
     func updateUIViewController(_ controller: UINavigationController, context: Context) {}
 
-    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+    @MainActor final class Coordinator: NSObject, QLPreviewControllerDataSource {
         let url: URL
-        init(url: URL) { self.url = url }
+        private let onDismiss: () -> Void
+
+        init(url: URL, onDismiss: @escaping () -> Void) {
+            self.url = url
+            self.onDismiss = onDismiss
+        }
+
+        @objc func close() { onDismiss() }
         func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
         func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem { url as NSURL }
     }
@@ -395,7 +420,9 @@ struct ChatAttachPresentations: ViewModifier {
                 }, onCancel: { showsCamera = false })
                 .ignoresSafeArea()
             }
-            .sheet(item: $preview) { target in ChatAttachmentPreview(url: target.url).ignoresSafeArea() }
+            .sheet(item: $preview) { target in
+                ChatAttachmentPreview(url: target.url, onDismiss: { preview = nil }).ignoresSafeArea()
+            }
     }
 
     @ViewBuilder private func sheet(_ kind: ChatAttachPicker) -> some View {
