@@ -1,6 +1,6 @@
 # iOS／Android 驗收缺口（2026-11-22）
 
-**272仍為原iPhone最後已核實裝版本；273、274已上傳，274尚未證實可安裝。** 短HTML／PDF已有實證，原A31兩個獨立送出批次皆模型限流、正常回答0；後一批159筆連續CPU未見持續100%，不證原卡死根因已修。Android MCP修補已推送且精確單元／品牌編譯通過，實機／真服務仍待。270遮字、295串流等待及301拖曳失敗保留；完整商用驗收未完成。
+**原iPhone已核實裝274受控Development簽章Release；官方273、274已上傳，19:12 TestFlight仍只見272。** 274首次啟動前45檔完整，原22前綴及安裝前24則、兩記憶／設定讀回保留，UI回歸仍進行。短HTML／PDF已有實證，原A31兩個獨立送出批次皆模型限流、正常回答0；後一批159筆連續CPU未見持續100%，不證原卡死根因已修。Android MCP修補已推送且精確單元／品牌編譯通過，實機／真服務仍待。270遮字、295串流等待及301拖曳失敗保留；完整商用驗收未完成。
 
 證據根目錄 R：`/Users/woowtech/Documents/WOOWTECH-iOS-validation/documents-20261120`；T：`R/testflight-20261122`。主要依據：
 
@@ -19,7 +19,7 @@
 - **[T]** [TestFlight274發佈](TESTFLIGHT_274_RELEASE.md)：來源`611d6bfa`，archive／signed IPA／Apple Validation及Upload成功，actual archive全payload gate留證；與273及手機272分開，不將上傳算可下載／已驗收。
 - **[C]** [272附件大檔／PDF恢復](IPHONE_272_ATTACHMENT_RECOVERY_20261122.md)：真201MiB拒收、小PDF匯入完整bytes、系統三頁Quick Look、取消／移除與限定清理；保留待送卡片預覽缺口及原生首頁徽章限制，不算App產生多頁PDF或CPU驗收。
 - **[O]** [相簿取消逾時及原生回歸](PHOTO_PICKER_CANCELLATION_20261122.md)：272真機首次兩次15秒等待headers逾時；另一次受控重現15.0525秒並有故障窗各30筆CPU（App19.56%／WDA72.28%），stack因TypeError無可用檔、根因未知。native304真系統picker精確1/1屬另一版本／環境，不回填手機FAIL。
-- **[G]** [274受控原地更新準備](IPHONE_274_CONTROLLED_UPDATE_20261122.md)：同Team既存合格profile、真正272／274公開signature與default group關聯、新IPA實體及雙重review通過；原授權安裝／資料保留及UI回歸已交單一操作者，尚待真結果，非TestFlight通過。
+- **[G]** [274受控原地更新](IPHONE_274_CONTROLLED_UPDATE_20261122.md)：同Team既存profile及新IPA實體雙重核驗；唯一安裝callback錯誤後直接讀回274，無重送；首次啟動前45檔及啟動後原對話／記憶／設定保留。UI仍執行、24則增加來源待對齊，非TestFlight通過。
 - **[U]** [回尾／鍵盤修補驗證](CHAT_RETURN_CONTROL_VALIDATION_20261122.md)：同runtime五個native案例分批通過，保留287 AX逾時及288單案重驗；尚非271實機驗收。
 - **[M]** [iPhone270手動記憶CRUD](IPHONE_270_MEMORY_CRUD.md)：新增／同ID修改、關鍵字重啟讀回、限定刪除及第二次重啟限定PASS；38檔獨立核對與原資料保留另有證據。模型記憶／技能語意仍未測，不增加24輪正常完成數。
 - **[F]** [TestFlight 270 發佈與原 iPhone 實測](TESTFLIGHT_270_RELEASE.md)，尤其「原 iPhone 實裝與部分驗證」；機器摘要為 T/`iphone270-validation-summary.json`，觀察時間 `2026-11-22T02:13:49Z`。私密原始工具輸出留在 T，不複製進本文件。
@@ -35,6 +35,7 @@
 | 原 iPhone **270** | iPhone16,1／iOS26.5；0.1.0(270)、`TestFlight Beta Distribution`；來源鏈 `7026c468`。更新時原 conversation／learning bytes 相同、原照片保留；短篇 PDF／HTML實際產生、預覽、存檔、系統重開 [F] | 未完成CSV正向、多頁PDF、外部分享接收、MCP最終結果或A31穩定回歸 |
 | 原 iPhone **271** | 同機同OS，來源交接`28deae96`；TestFlight原地更新、18則A31與兩筆記憶保留；中文／四行草稿、原圖預覽、穩定回尾與短PDF／HTML實際保存 [I] | 原AX不是全PASS；正常兩則不能代替兩／四則錯誤終態。沒有原送出、真模型／MCP完成或完整商用矩陣 |
 | 原 iPhone **272** | 來源`21a884b8`、TestFlight簽章及更新保留；短HTML／PDF實存、兩批A31 send／CPU，另有201MiB附件拒收及三頁PDF系統預覽／匯入／取消／清理 [N,J,C] | A31皆模型限流、正常0，無MCP最終結果；15秒手勢逾時根因、新版字級、產生多頁PDF／CSV／接收端等仍缺。系統預覽不等於App待送卡片預覽 |
+| 原 iPhone **274** | 來源`611d6bfa`、同Team **Development簽章Release**，非TestFlight；唯一安裝回應TypeError後直接讀回274，45檔首次啟動前一致，原22前綴及安裝前24則／兩記憶／選擇metadata保留 [G] | 20:17安裝前已24則，較19:19多兩則的操作來源待對齊；不能自動算成功。UI仍執行，真MCP／原卡死及最大字級可讀性尚未關閉；不能把此包說成TestFlight可下載 |
 | 正式 iPad **248–251** | 第9代／iPadOS26.6.1；已設定真模型，文件、記憶、技能等依[D]各版本結果 | 不是iPhone249，也不是269／270重新驗完 |
 | 正式 iPad **269** | `b81ff349`，runtime同`84e012a4`；真模型短答、16個原對話ID保留、主題／鍵盤／減少透明度；MCP未設定 [P] | 畫面能開啟不代表MCP成功；真模型短答不代表全供應商／技能／工具通過 |
 | 隔離 QA iPad **269** | 獨立bundle／Keychain，DEBUG合成1000輪資料；可見回覆及27.7秒操作序列、有限窗CPU／footprint證據 [P] | 雖在實體iPad執行，資料與模型仍為fixture；不是原A31或正式商用流量 |
