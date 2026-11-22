@@ -23,6 +23,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlinx.coroutines.CancellationException
 import java.security.MessageDigest
 
 /** 传输层只须实现这两个操作；每个 Run 开局调用一次 tools，之后目录不变。 */
@@ -34,12 +35,12 @@ interface McpEndpoint {
     /** 连接时从服务端读到的资源目录;不支持就是空。 */
     fun resources(): List<McpResourceDescriptor> = emptyList()
     suspend fun readResource(uri: String): McpResult =
-        McpResult("MCP server does not support resources", isError = true)
+        mcpLocalRefusal()
 
     /** 连接时从服务端读到的提示词模板;不支持就是空。 */
     fun prompts(): List<McpPromptDescriptor> = emptyList()
     suspend fun getPrompt(name: String, arguments: JsonObject): McpResult =
-        McpResult("MCP server does not support prompts", isError = true)
+        mcpLocalRefusal()
 }
 
 data class McpAnnotations(
@@ -56,7 +57,12 @@ data class McpToolDescriptor(
     val estimatedCostUnits: Long = 0,
 )
 
-data class McpResult(val text: String, val isError: Boolean = false, val costUnits: Long = 0)
+data class McpResult(
+    val text: String,
+    val isError: Boolean = false,
+    val costUnits: Long = 0,
+    val diagnostic: McpDiagnostic? = null,
+)
 
 /** resources/list 的一项;v1 只用 uri/name/description 给模型看。 */
 data class McpResourceDescriptor(
@@ -239,11 +245,7 @@ internal fun assembleMcpTool(
     )
 }
 
-internal fun mcpAssemblyReason(e: Exception): String {
-    val type = e::class.simpleName ?: "Exception"
-    val detail = e.message?.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
-    return "$type$detail".replace(Regex("\\s+"), " ").take(500)
-}
+internal fun mcpAssemblyReason(e: Exception): String = McpDiagnostic.failed(e).failureText()
 
 internal const val MCP_TOOL_NAME_MAX = 64
 private const val MCP_INITIAL_HASH_CHARS = 8
@@ -315,6 +317,7 @@ private class McpFailedTool(
 
     override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution = ToolExecution(buildJsonObject {
         put("ok", false)
+        mcpDiagnostic(McpDiagnostic.localRefusal())
         put("error", "mcp_tool_assembly_failed")
         put("server", serverId)
         put("tool", descriptor.name)
@@ -414,17 +417,27 @@ private suspend fun mcpExecution(
     call: suspend () -> McpResult,
 ): ToolExecution {
     if (!budget.charge(costUnits)) return ToolExecution(buildJsonObject {
-        put("ok", false); put("error", "mcp_cost_limit")
+        put("ok", false); mcpDiagnostic(McpDiagnostic.localRefusal()); put("error", "mcp_cost_limit")
     })
-    val result = call()
+    val result = mcpRequestResult(call)
+    val diagnostic = result.diagnostic ?: McpDiagnostic.returned(result.isError)
     val long = result.text.length > previewChars
-    val ref = if (long) resultStore?.save(serverId, storeName, result.text) else null
+    val ref = try {
+        if (long) resultStore?.save(serverId, storeName, result.text) else null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        return ToolExecution(buildJsonObject {
+            put("ok", false); mcpDiagnostic(diagnostic); put("error", "mcp_result_store_failed")
+        })
+    }
     if (long && ref == null) return ToolExecution(buildJsonObject {
-        put("ok", false); put("error", "mcp_result_too_large")
+        put("ok", false); mcpDiagnostic(diagnostic); put("error", "mcp_result_too_large")
     })
     val preview = if (long) result.text.take(previewChars) else result.text
     return ToolExecution(buildJsonObject {
         put("ok", !result.isError)
+        mcpDiagnostic(diagnostic)
         put("text", Untrusted.wrap(preview))
         ref?.let { put("fullResult", it) }
         if (long) put("truncated", true)

@@ -23,10 +23,6 @@ internal fun mcpToolDescriptor(o: JsonObject): McpToolDescriptor {
     )
 }
 
-/** JSON-RPC error 的文字;只取服务端 message,不含正文。 */
-internal fun mcpErrorMessage(error: kotlinx.serialization.json.JsonElement?, fallback: String = "JSON-RPC error"): String =
-    (error as? JsonObject)?.get("message")?.let { (it as? JsonPrimitive)?.contentOrNull } ?: fallback
-
 internal fun mcpResourceDescriptor(o: JsonObject): McpResourceDescriptor = McpResourceDescriptor(
     uri = (o["uri"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
     name = (o["name"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
@@ -60,7 +56,7 @@ internal fun mcpResourceResult(result: JsonObject): McpResult {
         if (blob != null) "[blob: $mime, ${blob.length} base64 chars]"
         else (item["uri"] as? JsonPrimitive)?.contentOrNull
     }?.joinToString("\n").orEmpty()
-    return McpResult(text.ifEmpty { result.toString() })
+    return McpResult(text.ifEmpty { result.toString() }, diagnostic = McpDiagnostic.returned(false))
 }
 
 /** prompts/get 的 description + messages[];角色和文本拼成可读的一段。 */
@@ -83,14 +79,14 @@ internal fun mcpPromptResult(result: JsonObject): McpResult {
         }
     }?.joinToString("\n").orEmpty()
     return McpResult(listOfNotNull(description.takeIf { it.isNotBlank() }, body.takeIf { it.isNotBlank() })
-        .joinToString("\n"))
+        .joinToString("\n"), diagnostic = McpDiagnostic.returned(false))
 }
 
 /** tools/call 的 content[]、structuredContent 和成本;三种传输共用。 */
 internal fun mcpToolResult(result: JsonObject): McpResult {
     val isError = result["isError"]?.let { flag ->
         (flag as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
-            ?: throw McpClientException("MCP server returned an invalid isError flag")
+            ?: throw mcpProtocolFailure()
     } ?: false
     val content = result["content"] as? kotlinx.serialization.json.JsonArray
     val text = content?.mapNotNull { element ->
@@ -109,5 +105,5 @@ internal fun mcpToolResult(result: JsonObject): McpResult {
     val structured = result["structuredContent"]
     val full = if (text.isNotEmpty()) text else structured?.toString().orEmpty()
     val cost = (result["_meta"] as? JsonObject)?.get("costUnits")?.jsonPrimitive?.longOrNull ?: 0L
-    return McpResult(full, isError = isError, costUnits = cost)
+    return McpResult(full, isError = isError, costUnits = cost, diagnostic = McpDiagnostic.returned(isError))
 }

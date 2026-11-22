@@ -18,6 +18,7 @@ import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,10 +33,14 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 
 /** Real HTTP POSTs for both transports; the legacy reply remains on a live SSE stream. */
-private class ContractServer(
+internal class ContractServer(
     private val transport: String,
     private val firstCallStatus: Int? = null,
     private val result: JsonObject = toolResult(),
+    private val rpcError: JsonObject? = null,
+    private val http: OkHttpClient = OkHttpClient(),
+    private val noCallResponse: Boolean = false,
+    private val timeoutSec: Int = 5,
 ) : Closeable {
     data class Call(val method: String?, val id: String, val responseStatus: Int)
     val calls = CopyOnWriteArrayList<Call>()
@@ -52,7 +57,8 @@ private class ContractServer(
                 if (request.method != "POST") return MockResponse().setResponseCode(405)
                 val message = Json.parseToJsonElement(request.body.readUtf8()).jsonObject
                 val id = message["id"] ?: return MockResponse().setResponseCode(202)
-                val payload = when (message.getValue("method").jsonPrimitive.content) {
+                val method = message.getValue("method").jsonPrimitive.content
+                val payload = when (method) {
                     "initialize" -> buildJsonObject {
                         put("protocolVersion", if (sse == null) "2025-03-26" else "2024-11-05")
                         put("capabilities", buildJsonObject { put("tools", buildJsonObject {}) })
@@ -68,6 +74,9 @@ private class ContractServer(
                     "tools/call" -> {
                         val status = if (calls.isEmpty()) firstCallStatus ?: 200 else 200
                         calls += Call(request.method, id.toString(), status)
+                        if (noCallResponse) return MockResponse().apply {
+                            if (sse == null) setSocketPolicy(SocketPolicy.NO_RESPONSE) else setResponseCode(202)
+                        }
                         if (status != 200) return MockResponse().setResponseCode(status).apply {
                             if (status == 503) setHeader("Retry-After", "0")
                         }
@@ -76,7 +85,9 @@ private class ContractServer(
                     else -> return MockResponse().setResponseCode(400)
                 }
                 val reply = buildJsonObject {
-                    put("jsonrpc", "2.0"); put("id", id); put("result", payload)
+                    put("jsonrpc", "2.0"); put("id", id)
+                    if (method == "tools/call" && rpcError != null) put("error", rpcError)
+                    else put("result", payload)
                 }
                 if (sse != null) {
                     sse.send(reply)
@@ -90,9 +101,9 @@ private class ContractServer(
 
     suspend fun connect(): McpEndpoint {
         val opened = if (sse == null) {
-            HttpMcpEndpoint.connect("contract", server.url("/mcp").toString(), OkHttpClient(), timeoutSec = 5).getOrThrow()
+            HttpMcpEndpoint.connect("contract", server.url("/mcp").toString(), http, timeoutSec = timeoutSec).getOrThrow()
         } else {
-            LegacySseMcpEndpoint.connect("contract", sse.url, OkHttpClient(), timeoutSec = 5).getOrThrow()
+            LegacySseMcpEndpoint.connect("contract", sse.url, http, timeoutSec = timeoutSec).getOrThrow()
         }
         endpoint = opened
         return opened
@@ -144,7 +155,7 @@ private class ContractServer(
     }
 }
 
-private fun toolResult(errorFlag: String? = null): JsonObject = buildJsonObject {
+internal fun toolResult(errorFlag: String? = null): JsonObject = buildJsonObject {
     put("content", JsonArray(listOf(buildJsonObject {
         put("type", "text"); put("text", "synthetic tool content")
     })))

@@ -153,7 +153,8 @@ class McpClientTest {
         assertFalse(names.any { it.startsWith("mcp_broken__") })
         val diagnostics = tools.promptSections(tools.definitions()).joinToString("\n")
         assertTrue(diagnostics, "broken" in diagnostics)
-        assertTrue(diagnostics, "catalog exploded" in diagnostics)
+        assertFalse(diagnostics, "catalog exploded" in diagnostics)
+        assertTrue(diagnostics, "MCP request failed before a usable result arrived." in diagnostics)
         assertTrue(diagnostics, "other capabilities remain available" in diagnostics)
 
         val result = tools.execute(Part.ToolCall("c", "mcp_demo__search", "{}"), ActionPass())
@@ -168,7 +169,8 @@ class McpClientTest {
             throw IllegalStateException("schema adapter exploded")
         }
         assertEquals("mcp_demo__search", assembled.tool.name)
-        assertTrue(assembled.failure.orEmpty(), "schema adapter exploded" in assembled.failure.orEmpty())
+        assertFalse(assembled.failure.orEmpty(), "schema adapter exploded" in assembled.failure.orEmpty())
+        assertTrue(assembled.failure.orEmpty(), "MCP request failed before a usable result arrived." in assembled.failure.orEmpty())
         val result = assembled.tool.execute(
             Args(assembled.tool.def, buildJsonObject {}),
             toolDispatcher(FakeScreen()).ctx,
@@ -176,7 +178,8 @@ class McpClientTest {
         assertEquals("mcp_tool_assembly_failed", result.content["error"]?.jsonPrimitive?.content)
         assertEquals("demo", result.content["server"]?.jsonPrimitive?.content)
         assertEquals("search", result.content["tool"]?.jsonPrimitive?.content)
-        assertTrue(result.content["message"]?.jsonPrimitive?.content.orEmpty().contains("schema adapter exploded"))
+        assertFalse(result.content["message"]?.jsonPrimitive?.content.orEmpty().contains("schema adapter exploded"))
+        assertEquals(JsonPrimitive(false), result.content.getValue("diagnostic").jsonObject["outcomeUnknown"])
     }
 
     @Test fun syntheticToolAssemblyFailureDoesNotRemoveServerTools() {
@@ -186,7 +189,8 @@ class McpClientTest {
         assertTrue("mcp_demo__search" in names)
         assertFalse("mcp_demo__resource_read" in names)
         val diagnostics = tools.promptSections(tools.definitions()).joinToString("\n")
-        assertTrue(diagnostics, "resources exploded" in diagnostics)
+        assertFalse(diagnostics, "resources exploded" in diagnostics)
+        assertTrue(diagnostics, "MCP request failed before a usable result arrived." in diagnostics)
         assertTrue(diagnostics, "resource_read" in diagnostics)
     }
 

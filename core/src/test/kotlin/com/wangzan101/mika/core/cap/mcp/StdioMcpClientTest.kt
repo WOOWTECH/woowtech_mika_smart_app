@@ -20,7 +20,13 @@ import java.io.PipedOutputStream
 import kotlin.concurrent.thread
 
 class StdioMcpClientTest {
-    private class FakeProcess(private val strictIds: Boolean = false) : McpStdioProcess, Closeable {
+    internal class FakeProcess(
+        private val strictIds: Boolean = false,
+        private val callResult: JsonObject? = null,
+        private val callError: JsonObject? = null,
+        private val noCallResponse: Boolean = false,
+        private val toolName: String = "search",
+    ) : McpStdioProcess, Closeable {
         private val toServer = PipedOutputStream()
         private val fromClient = PipedInputStream(toServer)
         private val fromServer = PipedOutputStream()
@@ -41,6 +47,7 @@ class StdioMcpClientTest {
                         val message = json.parseToJsonElement(line) as? JsonObject ?: continue
                         val id = (message["id"] as? JsonPrimitive)?.contentOrNull ?: continue
                         val method = (message["method"] as? JsonPrimitive)?.contentOrNull ?: continue
+                        if (method == "tools/call" && noCallResponse) continue
                         val result = when (method) {
                             "initialize" -> buildJsonObject {
                                 put("protocolVersion", "2025-03-26")
@@ -55,7 +62,7 @@ class StdioMcpClientTest {
                             "tools/list" -> buildJsonObject {
                                 put("tools", kotlinx.serialization.json.JsonArray(listOf(
                                     buildJsonObject {
-                                        put("name", "search")
+                                        put("name", toolName)
                                         put("description", "Search")
                                         put("inputSchema", buildJsonObject { put("type", "object") })
                                     },
@@ -84,7 +91,7 @@ class StdioMcpClientTest {
                                     },
                                 )))
                             }
-                            "tools/call" -> buildJsonObject {
+                            "tools/call" -> callResult ?: buildJsonObject {
                                 put("content", kotlinx.serialization.json.JsonArray(listOf(
                                     buildJsonObject { put("type", "text"); put("text", "found") },
                                 )))
@@ -94,7 +101,8 @@ class StdioMcpClientTest {
                         val response = buildJsonObject {
                             put("jsonrpc", "2.0")
                             put("id", id.toLong())
-                            if (strictIds && !seen.add(id)) put("error", buildJsonObject {
+                            if (method == "tools/call" && callError != null) put("error", callError)
+                            else if (strictIds && !seen.add(id)) put("error", buildJsonObject {
                                 put("code", -32600); put("message", "request ID reused")
                             }) else put("result", result)
                         }

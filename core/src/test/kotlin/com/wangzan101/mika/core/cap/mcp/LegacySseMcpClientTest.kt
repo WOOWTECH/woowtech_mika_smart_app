@@ -192,10 +192,8 @@ class LegacySseMcpClientTest {
                 "no-endpoint", "http://127.0.0.1:${server.localPort}/mcp", OkHttpClient(), timeoutSec = 1,
             )
             org.junit.Assert.assertTrue(result.isFailure)
-            org.junit.Assert.assertTrue(
-                result.exceptionOrNull()?.message.orEmpty(),
-                result.exceptionOrNull()?.message.orEmpty().contains("did not provide an endpoint"),
-            )
+            val failure = result.exceptionOrNull() as McpClientException
+            assertEquals(McpDiagnostic(McpDiagnostic.Category.timeout, outcomeUnknown = true), failure.diagnostic)
         } finally {
             runCatching { server.close() }
             pool.shutdownNow()

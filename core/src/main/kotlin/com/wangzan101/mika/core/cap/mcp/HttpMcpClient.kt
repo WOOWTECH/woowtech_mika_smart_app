@@ -25,13 +25,18 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.Closeable
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** 连接外部 MCP server 失败(网络、HTTP、JSON-RPC 或协议不匹配)。消息不包含令牌/请求头。 */
-class McpClientException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class McpClientException(
+    message: String,
+    cause: Throwable? = null,
+    val diagnostic: McpDiagnostic? = null,
+) : Exception(message, cause)
 
 /**
  * 外部 MCP server 的最小 Streamable HTTP 客户端(2025-03-26)。
@@ -67,41 +72,24 @@ class HttpMcpEndpoint private constructor(
     override fun resources(): List<McpResourceDescriptor> = resources
     override fun prompts(): List<McpPromptDescriptor> = prompts
 
-    override suspend fun readResource(uri: String): McpResult = try {
+    override suspend fun readResource(uri: String): McpResult = mcpRequestResult {
         mcpResourceResult(rpc("resources/read", buildJsonObject { put("uri", uri) }))
-    } catch (e: McpClientException) {
-        McpResult(e.message.orEmpty(), isError = true)
-    } catch (e: IOException) {
-        McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
     }
 
-    override suspend fun getPrompt(name: String, arguments: JsonObject): McpResult = try {
+    override suspend fun getPrompt(name: String, arguments: JsonObject): McpResult = mcpRequestResult {
         mcpPromptResult(rpc("prompts/get", buildJsonObject {
             put("name", name)
             put("arguments", arguments)
         }))
-    } catch (e: McpClientException) {
-        McpResult(e.message.orEmpty(), isError = true)
-    } catch (e: IOException) {
-        McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
     }
 
     override suspend fun call(name: String, arguments: JsonObject): McpResult {
-        if (tools.none { it.name == name }) return McpResult("unknown MCP tool: $name", isError = true)
-        val result = try {
-            rpc("tools/call", buildJsonObject {
+        if (tools.none { it.name == name }) return mcpLocalRefusal()
+        return mcpRequestResult {
+            mcpToolResult(rpc("tools/call", buildJsonObject {
                 put("name", name)
                 put("arguments", arguments)
-            })
-        } catch (e: McpClientException) {
-            return McpResult(e.message.orEmpty(), isError = true)
-        } catch (e: IOException) {
-            return McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
-        }
-        return try {
-            mcpToolResult(result)
-        } catch (e: Exception) {
-            McpResult("MCP server returned an unreadable result: ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }))
         }
     }
 
@@ -131,15 +119,12 @@ class HttpMcpEndpoint private constructor(
             put("params", params)
         }
         val response = post(body.toString(), toolCall = method == "tools/call")
-        if (response.code !in 200..299) throw McpClientException("MCP server returned HTTP ${response.code} for $method")
+        if (response.code !in 200..299) throw mcpHttpFailure(response.code)
         val message = parseMessages(response.body).firstOrNull { it.matchesId(id) }
-            ?: throw McpClientException("MCP server returned no response for $method")
+            ?: throw mcpProtocolFailure()
         val error = message["error"]
-        if (error != null) {
-            val msg = (error as? JsonObject)?.get("message")?.jsonPrimitive?.contentOrNull ?: "JSON-RPC error"
-            throw McpClientException("MCP server rejected $method: $msg")
-        }
-        return message["result"] as? JsonObject ?: throw McpClientException("MCP server returned no result for $method")
+        if (error != null) throw mcpRpcFailure(error)
+        return message["result"] as? JsonObject ?: throw mcpProtocolFailure()
     }
 
     private suspend fun post(body: String, toolCall: Boolean): RawResponse {
@@ -204,7 +189,7 @@ class HttpMcpEndpoint private constructor(
             clientName: String = Brand.name,
             clientVersion: String = "1",
             protocolVersion: String = PROTOCOL_VERSION,
-        ): Result<HttpMcpEndpoint> = runCatching {
+        ): Result<HttpMcpEndpoint> = mcpConnect {
             val parsed = url.toHttpUrlOrNull() ?: throw McpClientException("invalid MCP server URL")
             require(timeoutSec in 1..600) { "timeoutSec must be 1..600" }
             val ids = AtomicLong(0)
@@ -223,16 +208,13 @@ class HttpMcpEndpoint private constructor(
                 }
             }
             val init = postRaw(parsed, initBody.toString(), headers, timeoutSec, http)
-            if (init.code !in 200..299) throw McpClientException("MCP initialize returned HTTP ${init.code}")
+            if (init.code !in 200..299) throw mcpHttpFailure(init.code)
             val initMsg = parseMessages(init.body).firstOrNull { it.matchesId(initId) }
-                ?: throw McpClientException("MCP initialize returned no response")
+                ?: throw mcpProtocolFailure()
             val initError = initMsg["error"]
-            if (initError != null) {
-                val msg = (initError as? JsonObject)?.get("message")?.jsonPrimitive?.contentOrNull ?: "JSON-RPC error"
-                throw McpClientException("MCP initialize rejected: $msg")
-            }
+            if (initError != null) throw mcpRpcFailure(initError)
             val initResult = initMsg["result"] as? JsonObject
-                ?: throw McpClientException("MCP initialize returned no result")
+                ?: throw mcpProtocolFailure()
             val negotiated = (initResult["protocolVersion"] as? JsonPrimitive)?.contentOrNull ?: protocolVersion
             val session = init.sessionId
             val serverInfo = initResult["serverInfo"] as? JsonObject
@@ -259,15 +241,12 @@ class HttpMcpEndpoint private constructor(
                     putJsonObject("params") { cursor?.let { put("cursor", it) } }
                 }
                 val response = postRaw(parsed, listBody.toString(), headers, timeoutSec, http, session, negotiated)
-                if (response.code !in 200..299) throw McpClientException("MCP tools/list returned HTTP ${response.code}")
+                if (response.code !in 200..299) throw mcpHttpFailure(response.code)
                 val message = parseMessages(response.body).firstOrNull { it.matchesId(requestId) }
-                    ?: throw McpClientException("MCP tools/list returned no response")
+                    ?: throw mcpProtocolFailure()
                 val error = message["error"]
-                if (error != null) {
-                    val msg = (error as? JsonObject)?.get("message")?.jsonPrimitive?.contentOrNull ?: "JSON-RPC error"
-                    throw McpClientException("MCP tools/list rejected: $msg")
-                }
-                val result = message["result"] as? JsonObject ?: throw McpClientException("MCP tools/list returned no result")
+                if (error != null) throw mcpRpcFailure(error)
+                val result = message["result"] as? JsonObject ?: throw mcpProtocolFailure()
                 (result["tools"] as? JsonArray)?.forEach { element ->
                     (element as? JsonObject)?.let { tools += mcpToolDescriptor(it) }
                 }
@@ -337,14 +316,14 @@ class HttpMcpEndpoint private constructor(
                     putJsonObject("params") { cursor?.let { put("cursor", it) } }
                 }
                 val response = postRaw(url, body.toString(), headers, timeoutSec, http, session, protocolVersion)
-                if (response.code !in 200..299) throw McpClientException("MCP resources/list returned HTTP ${response.code}")
+                if (response.code !in 200..299) throw mcpHttpFailure(response.code)
                 val message = parseMessages(response.body).firstOrNull { it.matchesId(requestId) }
-                    ?: throw McpClientException("MCP resources/list returned no response")
+                    ?: throw mcpProtocolFailure()
                 message["error"]?.let {
-                    throw McpClientException("MCP resources/list rejected: ${mcpErrorMessage(it)}")
+                    throw mcpRpcFailure(it)
                 }
                 val result = message["result"] as? JsonObject
-                    ?: throw McpClientException("MCP resources/list returned no result")
+                    ?: throw mcpProtocolFailure()
                 (result["resources"] as? JsonArray)?.forEach { element ->
                     (element as? JsonObject)?.let { resources += mcpResourceDescriptor(it) }
                 }
@@ -375,14 +354,14 @@ class HttpMcpEndpoint private constructor(
                     putJsonObject("params") { cursor?.let { put("cursor", it) } }
                 }
                 val response = postRaw(url, body.toString(), headers, timeoutSec, http, session, protocolVersion)
-                if (response.code !in 200..299) throw McpClientException("MCP prompts/list returned HTTP ${response.code}")
+                if (response.code !in 200..299) throw mcpHttpFailure(response.code)
                 val message = parseMessages(response.body).firstOrNull { it.matchesId(requestId) }
-                    ?: throw McpClientException("MCP prompts/list returned no response")
+                    ?: throw mcpProtocolFailure()
                 message["error"]?.let {
-                    throw McpClientException("MCP prompts/list rejected: ${mcpErrorMessage(it)}")
+                    throw mcpRpcFailure(it)
                 }
                 val result = message["result"] as? JsonObject
-                    ?: throw McpClientException("MCP prompts/list returned no result")
+                    ?: throw mcpProtocolFailure()
                 (result["prompts"] as? JsonArray)?.forEach { element ->
                     (element as? JsonObject)?.let { prompts += mcpPromptDescriptor(it) }
                 }
@@ -449,7 +428,7 @@ private suspend fun <T> Call.awaitBody(timeoutSec: Int, read: (Response) -> T): 
     continuation.invokeOnCancellation { cancel() }
     enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
-            if (continuation.isActive) continuation.resumeWithException(e)
+            if (continuation.isActive) continuation.resumeWithException(call.mcpNetworkFailure(e))
         }
 
         override fun onResponse(call: Call, response: Response) {
@@ -457,7 +436,9 @@ private suspend fun <T> Call.awaitBody(timeoutSec: Int, read: (Response) -> T): 
             val result = try {
                 response.use(read)
             } catch (e: Exception) {
-                if (continuation.isActive) continuation.resumeWithException(e)
+                if (continuation.isActive) continuation.resumeWithException(
+                    if (e is IOException) call.mcpNetworkFailure(e) else e,
+                )
                 return
             }
             if (continuation.isActive) continuation.resume(result)
@@ -471,7 +452,7 @@ internal suspend fun Call.await(timeoutSec: Int): Response = suspendCancellableC
     continuation.invokeOnCancellation { cancel() }
     enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
-            if (continuation.isActive) continuation.resumeWithException(e)
+            if (continuation.isActive) continuation.resumeWithException(call.mcpNetworkFailure(e))
         }
 
         override fun onResponse(call: Call, response: Response) {
@@ -479,6 +460,11 @@ internal suspend fun Call.await(timeoutSec: Int): Response = suspendCancellableC
         }
     })
 }
+
+private fun Call.mcpNetworkFailure(error: IOException): McpClientException =
+    // OkHttp cancels the Call when its deadline expires. Coroutine cancellation has
+    // already made the continuation inactive, and is never converted here.
+    if (error is InterruptedIOException && isCanceled()) mcpTimeoutFailure() else mcpFailureException(error)
 
 /** SSE 长连接不能设整次调用超时(会在一段时间后掐断流);只等响应头,之后的超时由协议层控制。 */
 internal suspend fun Call.awaitStream(): Response = suspendCancellableCoroutine { continuation ->

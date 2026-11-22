@@ -162,7 +162,9 @@ class HttpMcpEndpointTest {
         val endpoint = HttpMcpEndpoint.connect("err", server.url("/mcp").toString(), OkHttpClient(), timeoutSec = 5).getOrThrow()
         val result = endpoint.call("fail", buildJsonObject {})
         assertTrue(result.isError)
-        assertTrue(result.text.contains("boom"))
+        assertEquals("MCP request failed: JSON-RPC error -32000.", result.text)
+        assertFalse(result.text.contains("boom"))
+        assertEquals(McpDiagnostic(McpDiagnostic.Category.rpc, -32000, true), result.diagnostic)
     }
 
     @Test fun initializeHttpFailureIsReported() = runBlocking {

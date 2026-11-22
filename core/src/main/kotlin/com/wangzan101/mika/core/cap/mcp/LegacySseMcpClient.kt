@@ -60,41 +60,24 @@ class LegacySseMcpEndpoint private constructor(
     override fun resources(): List<McpResourceDescriptor> = resources
     override fun prompts(): List<McpPromptDescriptor> = prompts
 
-    override suspend fun readResource(uri: String): McpResult = try {
-        LegacyResultReader.resultToResource(rpc("resources/read", buildJsonObject { put("uri", uri) }))
-    } catch (e: McpClientException) {
-        McpResult(e.message.orEmpty(), isError = true)
-    } catch (e: IOException) {
-        McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
+    override suspend fun readResource(uri: String): McpResult = mcpRequestResult {
+        mcpResourceResult(rpc("resources/read", buildJsonObject { put("uri", uri) }))
     }
 
-    override suspend fun getPrompt(name: String, arguments: JsonObject): McpResult = try {
-        LegacyResultReader.resultToPrompt(rpc("prompts/get", buildJsonObject {
+    override suspend fun getPrompt(name: String, arguments: JsonObject): McpResult = mcpRequestResult {
+        mcpPromptResult(rpc("prompts/get", buildJsonObject {
             put("name", name)
             put("arguments", arguments)
         }))
-    } catch (e: McpClientException) {
-        McpResult(e.message.orEmpty(), isError = true)
-    } catch (e: IOException) {
-        McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
     }
 
     override suspend fun call(name: String, arguments: JsonObject): McpResult {
-        if (tools.none { it.name == name }) return McpResult("unknown MCP tool: $name", isError = true)
-        val result = try {
-            rpc("tools/call", buildJsonObject {
+        if (tools.none { it.name == name }) return mcpLocalRefusal()
+        return mcpRequestResult {
+            mcpToolResult(rpc("tools/call", buildJsonObject {
                 put("name", name)
                 put("arguments", arguments)
-            })
-        } catch (e: McpClientException) {
-            return McpResult(e.message.orEmpty(), isError = true)
-        } catch (e: IOException) {
-            return McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
-        }
-        return try {
-            LegacyResultReader.resultToMcpResult(result)
-        } catch (e: Exception) {
-            McpResult("MCP server returned an unreadable result: ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }))
         }
     }
 
@@ -110,12 +93,12 @@ class LegacySseMcpEndpoint private constructor(
                 putJsonObject("params") { params.forEach { (k, v) -> put(k, v) } }
             }
             post(body.toString(), method == "tools/call").use { response ->
-                if (response.code !in 200..299) throw McpClientException("MCP server returned HTTP ${response.code} for $method")
+                if (response.code !in 200..299) throw mcpHttpFailure(response.code)
             }
             val message = withTimeoutOrNull(timeoutSec * 1000L) { deferred.await() }
-                ?: throw McpClientException("MCP server did not answer $method in time")
-            message["error"]?.let { throw McpClientException("MCP server rejected $method: ${mcpErrorMessage(it)}") }
-            return message["result"] as? JsonObject ?: throw McpClientException("MCP server returned no result for $method")
+                ?: throw mcpTimeoutFailure()
+            message["error"]?.let { throw mcpRpcFailure(it) }
+            return message["result"] as? JsonObject ?: throw mcpProtocolFailure()
         } finally {
             pending.remove(id)
         }
@@ -142,7 +125,7 @@ class LegacySseMcpEndpoint private constructor(
             clientName: String = Brand.name,
             clientVersion: String = "1",
             protocolVersion: String = PROTOCOL_VERSION,
-        ): Result<LegacySseMcpEndpoint> = runCatching {
+        ): Result<LegacySseMcpEndpoint> = mcpConnect {
             val parsed = url.toHttpUrlOrNull() ?: throw McpClientException("invalid MCP server URL")
             require(timeoutSec in 1..600) { "timeoutSec must be 1..600" }
             val client = http.newBuilder().followRedirects(false).followSslRedirects(false).build()
@@ -154,16 +137,16 @@ class LegacySseMcpEndpoint private constructor(
             val response = sseCall.awaitStream()
             if (response.code !in 200..299) {
                 response.close()
-                throw McpClientException("legacy MCP SSE returned HTTP ${response.code}")
+                throw mcpHttpFailure(response.code)
             }
-            val body = response.body ?: throw McpClientException("legacy MCP SSE returned no body")
+            val body = response.body ?: throw mcpProtocolFailure()
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             val pending = ConcurrentHashMap<Long, CompletableDeferred<JsonObject>>()
             val endpointUrl = CompletableDeferred<HttpUrl>()
             val reader = scope.launch { readEvents(parsed, body, endpointUrl, pending) }
             try {
                 val postUrl = withTimeoutOrNull(minOf(timeoutSec * 1000L, 15_000L)) { endpointUrl.await() }
-                    ?: throw McpClientException("legacy MCP SSE did not provide an endpoint")
+                    ?: throw mcpTimeoutFailure()
                 val ids = AtomicLong(0)
                 suspend fun postRaw(text: String, toolCall: Boolean = false): Response {
                     val builder = Request.Builder().url(postUrl)
@@ -187,13 +170,13 @@ class LegacySseMcpEndpoint private constructor(
                             putJsonObject("params") { params.forEach { (k, v) -> put(k, v) } }
                         }.toString()
                         postRaw(text).use { r ->
-                            if (r.code !in 200..299) throw McpClientException("MCP server returned HTTP ${r.code} for $method")
+                            if (r.code !in 200..299) throw mcpHttpFailure(r.code)
                         }
                         val message = withTimeoutOrNull(timeoutSec * 1000L) { deferred.await() }
-                            ?: throw McpClientException("MCP server did not answer $method in time")
-                        message["error"]?.let { throw McpClientException("MCP server rejected $method: ${mcpErrorMessage(it)}") }
+                            ?: throw mcpTimeoutFailure()
+                        message["error"]?.let { throw mcpRpcFailure(it) }
                         return message["result"] as? JsonObject
-                            ?: throw McpClientException("MCP server returned no result for $method")
+                            ?: throw mcpProtocolFailure()
                     } finally {
                         pending.remove(id)
                     }

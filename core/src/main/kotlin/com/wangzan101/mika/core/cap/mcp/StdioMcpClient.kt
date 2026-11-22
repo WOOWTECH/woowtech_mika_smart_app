@@ -63,39 +63,25 @@ class StdioMcpEndpoint private constructor(
     override fun resources(): List<McpResourceDescriptor> = resources
     override fun prompts(): List<McpPromptDescriptor> = prompts
 
-    override suspend fun call(name: String, arguments: JsonObject): McpResult {
-        if (tools.none { it.name == name }) return McpResult("unknown MCP tool: $name", isError = true)
-        val result = try {
-            rpc("tools/call", buildJsonObject {
-                put("name", name)
-                put("arguments", arguments)
-            })
-        } catch (e: McpClientException) {
-            return McpResult(e.message.orEmpty(), isError = true)
-        } catch (e: IOException) {
-            return McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
-        }
-        return runCatching { mcpToolResult(result) }
-            .getOrElse { McpResult("MCP server returned an unreadable result: ${it.message ?: it.javaClass.simpleName}", isError = true) }
-    }
-
-    override suspend fun readResource(uri: String): McpResult = try {
+    override suspend fun readResource(uri: String): McpResult = mcpRequestResult {
         mcpResourceResult(rpc("resources/read", buildJsonObject { put("uri", uri) }))
-    } catch (e: McpClientException) {
-        McpResult(e.message.orEmpty(), isError = true)
-    } catch (e: IOException) {
-        McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
     }
 
-    override suspend fun getPrompt(name: String, arguments: JsonObject): McpResult = try {
+    override suspend fun getPrompt(name: String, arguments: JsonObject): McpResult = mcpRequestResult {
         mcpPromptResult(rpc("prompts/get", buildJsonObject {
             put("name", name)
             put("arguments", arguments)
         }))
-    } catch (e: McpClientException) {
-        McpResult(e.message.orEmpty(), isError = true)
-    } catch (e: IOException) {
-        McpResult("MCP server request failed: ${e.message ?: e.javaClass.simpleName}", isError = true)
+    }
+
+    override suspend fun call(name: String, arguments: JsonObject): McpResult {
+        if (tools.none { it.name == name }) return mcpLocalRefusal()
+        return mcpRequestResult {
+            mcpToolResult(rpc("tools/call", buildJsonObject {
+                put("name", name)
+                put("arguments", arguments)
+            }))
+        }
     }
 
     private suspend fun rpc(method: String, params: JsonObject): JsonObject {
@@ -110,9 +96,9 @@ class StdioMcpEndpoint private constructor(
                 put("params", params)
             }.toString())
             val message = withTimeoutOrNull(timeoutSec * 1000L) { deferred.await() }
-                ?: throw McpClientException("MCP server did not answer $method in time")
-            message["error"]?.let { throw McpClientException("MCP server rejected $method: ${mcpErrorMessage(it)}") }
-            return message["result"] as? JsonObject ?: throw McpClientException("MCP server returned no result for $method")
+                ?: throw mcpTimeoutFailure()
+            message["error"]?.let { throw mcpRpcFailure(it) }
+            return message["result"] as? JsonObject ?: throw mcpProtocolFailure()
         } finally {
             pending.remove(id)
         }
@@ -125,7 +111,7 @@ class StdioMcpEndpoint private constructor(
                 process.stdin.flush()
             }
         } catch (e: IOException) {
-            throw McpClientException("MCP stdio process is not accepting input: ${e.message ?: e.javaClass.simpleName}")
+            throw mcpFailureException(e)
         }
     }
 
@@ -163,7 +149,7 @@ class StdioMcpEndpoint private constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Result.failure(e)
+                Result.failure(mcpFailureException(e))
             }
         }
 
@@ -191,7 +177,7 @@ class StdioMcpEndpoint private constructor(
                             process.stdin.flush()
                         }
                     } catch (e: IOException) {
-                        throw McpClientException("MCP stdio process is not accepting input: ${e.message ?: e.javaClass.simpleName}")
+                        throw mcpFailureException(e)
                     }
                 }
                 suspend fun request(method: String, params: JsonObject): JsonObject {
@@ -206,10 +192,10 @@ class StdioMcpEndpoint private constructor(
                             put("params", params)
                         }.toString())
                         val message = withTimeoutOrNull(timeoutSec * 1000L) { deferred.await() }
-                            ?: throw McpClientException("MCP server did not answer $method in time")
-                        message["error"]?.let { throw McpClientException("MCP server rejected $method: ${mcpErrorMessage(it)}") }
+                            ?: throw mcpTimeoutFailure()
+                        message["error"]?.let { throw mcpRpcFailure(it) }
                         return message["result"] as? JsonObject
-                            ?: throw McpClientException("MCP server returned no result for $method")
+                            ?: throw mcpProtocolFailure()
                     } finally {
                         pending.remove(id)
                     }
@@ -259,10 +245,11 @@ class StdioMcpEndpoint private constructor(
                     val id = (message["id"] as? JsonPrimitive)?.contentOrNull?.toLongOrNull() ?: continue
                     pending.remove(id)?.complete(message)
                 }
-                throw McpClientException("MCP stdio server closed its output")
+                throw IOException("MCP stdio server closed its output")
             } catch (e: Throwable) {
                 pending.values.forEach { it.completeExceptionally(e) }
                 pending.clear()
+                if (e is CancellationException) throw e
             }
         }
 
@@ -270,7 +257,7 @@ class StdioMcpEndpoint private constructor(
             runCatching {
                 val reader = input.bufferedReader(Charsets.UTF_8)
                 while (readLine(reader) != null) Unit
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
         /** 读一行,最多 [MAX_LINE_CHARS];超过就报错,避免恶意 server 用一条超长行撑爆内存。 */
@@ -283,7 +270,7 @@ class StdioMcpEndpoint private constructor(
                 any = true
                 if (c == '\n'.code) return out.toString()
                 if (c != '\r'.code) {
-                    if (out.length >= MAX_LINE_CHARS) throw IOException("MCP stdio line too long")
+                    if (out.length >= MAX_LINE_CHARS) throw mcpProtocolFailure()
                     out.append(c.toChar())
                 }
             }
