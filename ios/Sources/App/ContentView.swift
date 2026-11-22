@@ -1064,20 +1064,24 @@ private struct ChatView: View {
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             ChatLayoutDiagnostics.shared.record(.scrollRequestEnd, fields: layoutDiagnosticFields)
         }
-        .overlay(alignment: .bottomTrailing) {
-            if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
-                Button {
-                    cancelScrollSettle()
-                    updateFollow { $0.userRequestedLatest() }
-                    scrollToTailRequest += 1
-                } label: {
-                    Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accent)
-                .accessibilityIdentifier("chat.returnToLatest")
-                .padding(12)
+    }
+
+    /// Reserve a separate row: an overlay covered the last reply/error text on
+    /// the physical iPhone. The transcript measures its actual remaining height.
+    @ViewBuilder private var returnToLatestControl: some View {
+        if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
+            Button {
+                cancelScrollSettle()
+                updateFollow { $0.userRequestedLatest() }
+                scrollToTailRequest += 1
+            } label: {
+                Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
             }
+            .buttonStyle(.borderedProminent)
+            .tint(palette.accent)
+            .accessibilityIdentifier("chat.returnToLatest")
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.horizontal, 12)
         }
     }
 
@@ -1268,6 +1272,7 @@ private struct ChatView: View {
         VStack(spacing: 12) {
             chatHeader
             transcript
+            returnToLatestControl
             VStack(spacing: 12) {
                 chatStatus
                 quoteChip
