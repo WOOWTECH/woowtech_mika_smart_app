@@ -36,4 +36,18 @@ native304 **1/1、failure／skip／expected failure皆0**，case57.166秒、外�
 
 環境為Xcode27／iPhone17／iOS27 Simulator，runtime含`611d6bfa`，受測基底`b1fb2c25`加本提交測試檔；與原手機iOS26.5／runtime272同時有版本及環境差異，**沒有單變量排除或修復根因**。原始`R/native-304-photo-cancel.*`、`R/Documents-304-photo-cancel.xcresult`及`T/resume-20261122/native304-*.json`保留。此為測試覆蓋新增，沒有新增產品runtime修補或重建已上傳274。
 
-接續原唯一操作者安排一次提前啟動觀測的受控重現，優先在失敗請求仍inflight時取樣；未取回封存報告前不宣稱重現／根因／修復。新版可安裝、真MCP及其他商用缺口依[驗收矩陣](ACCEPTANCE_GAPS_20261122.md)。
+上述批次沒有故障窗內的多程序觀測，後續一次受控重現另記下節。新版可安裝、真MCP及其他商用缺口依[驗收矩陣](ACCEPTANCE_GAPS_20261122.md)。
+
+## 19:17受控重現：已取得故障窗CPU，沒有可用故障堆疊
+
+同原手機／272／空draft及已知QA兩則，再走正式Photos→不選asset→Cancel一次。0 Send／模型／MCP／截圖／重啟。19:17:28.614573–29.144866取消tap返回；其後唯一source call於19:17:29.147076–44.199757逾時。Parent從原始HTTP重算wrapped call **15.052504292秒**，open→exception **15.042794916秒**，仍無headers／body／parse；不是server handler耗時。
+
+CPU與HTTP同一host process／monotonic。50行、首行warmup排除後49有效，原失敗請求窗各程序30筆：App3358最高**19.562875%**、WDA3290 **72.277508%**、Photos3453 **29.037690%**、Photos882 **0%**。觀測25.010260秒，≤30秒；實際最大host接收間隔**1.271978292秒**，不把設定0.5秒當連續無縫可見，也不能排除樣本間峰值。整段窗的較高App／Photos峰值含開picker前置，不混成故障窗數字。
+
+source等待open約2.079870秒仍inflight時，觸發一次stack；起訖均在失敗請求內（call後2.080203–3.500245秒），但留下**TypeError、無可用stack檔**。舊helper把取得、cleanup、projection及encode包在同一catch，沒有保存stage／traceback，無法證明取得本身失敗或UUID是唯一原因。純記憶體檢查只證原生UUID有序列化風險；沒有補抓事後stack或再送取消來填造。
+
+19:18:40一次有界恢復讀回成功，原QA兩則／空draft／pending0；19:19原A31完整22、兩memory、UserProfile收據及三原檔metadata均前後相同。沒有新資產須清理。Parent取得20項manifest原件，重算時間／CPU／保留字典；報告`T/resume-20261122/photos-cancel272-inflight-20261122/parent-independent-verification.json`。report／result／manifest SHA256依序 `7123b136b92a258b5f867927498610db999fe7a5eade87941c6bec50124c0e1b`、`5f1327f4bf1075f33fca276b3cd889fa4cd0f09d31659bc6e545eff14eac288e`、`5f31906ccb55813081f8b26107adbbb9aee5b69dd856e68db8aa2d71272674e8`。
+
+團隊獨立重算並以22項純記憶體檢查指出：應分stage保留已取得資料、使用UUID-only encoder、驗schema與必要App/WDA threads、保留不含例外內容的frame資訊、先encode再原子寫入、對完整capture lifecycle設界線。候選修補再有86項離線檢查，尚未部署／手機驗證；這些不是新增商用測試通過數。優先完成[274受控更新](IPHONE_274_CONTROLLED_UPDATE_20261122.md)；若新版本仍發生，再用已審候選進行一次有界故障窗取證，不重播舊case充數。
+
+目前只確立可重現的AX source header等待逾時，**仍無USB／App／XCTest的可檢驗根因結論，沒有據此修改產品程式**，原A31送出100%問題亦另列未關閉。
