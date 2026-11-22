@@ -43,6 +43,8 @@ def main():
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / 'Sources' / name).glob('*.swift'))] for name, _ in MODULES}
         apps = [copy('Sources/App/' + name + '.swift') for name in [*APPS, 'RecentConversationAccess', 'NewConversationProtection']]
+        apps.append(copy('Sources/App/ChatLayoutReplay.swift'))
+        replay_checks = copy('scripts/CheckChatLayoutReplay.swift')
         markdown = copy('Sources/App/ChatReplyMarkdown.swift')
         apps.append(markdown)
         markdown_checks = copy('scripts/CheckChatReplyMarkdown.swift')
@@ -78,7 +80,7 @@ def main():
             run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, harness, fixture, ui, ui_support])
             binary = out / (config + '-stream-app')
             run(config + '-compile', [*common, '-DCHAT_STREAM_APP_STANDALONE', *flags,
-                *['-l' + m for m, _ in MODULES], *link, *apps, fixture, harness, '-o', str(binary)])
+                *['-l' + m for m, _ in MODULES], *link, *apps, fixture, harness, replay_checks, '-o', str(binary)])
             run(config + '-execute', [str(binary)], 60)
             if config == 'Release':
                 data = binary.read_bytes()

@@ -1741,6 +1741,7 @@ private actor StreamMCP: MCPDiscovering {
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureInteractionWindows())
             #endif
+            groups.append(try await ChatLayoutReplayChecks.run())
             print("{\"groups\":\(groups.count),\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("STREAM_APP_FAILURE: \(error)"); exit(1) }
     }

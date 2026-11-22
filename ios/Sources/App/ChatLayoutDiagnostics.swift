@@ -3,10 +3,31 @@ import Foundation
 import OSLog
 #endif
 
+/// Pure, Release-compatible experiment switches; they never enable themselves.
+struct ChatLayoutExperiments {
+    let allEager: Bool
+    let skipAutoScroll: Bool
+    static let current = Self(arguments: ProcessInfo.processInfo.arguments)
+
+    init(arguments: [String]) {
+        let enabled = hasUniqueLayoutDiagnostics(arguments: arguments)
+        allEager = enabled && arguments.contains("-WoowLayoutAllEager")
+        skipAutoScroll = enabled && arguments.contains("-WoowLayoutSkipAutoScroll")
+    }
+}
+
+/// Ambiguous duplicate switches fail closed for both logging and experiments.
+private func hasUniqueLayoutDiagnostics(arguments: [String]) -> Bool {
+    let switches = ["-WoowLayoutDiagnostics", "-WoowLayoutAllEager", "-WoowLayoutSkipAutoScroll"]
+    return arguments.filter { $0 == switches[0] }.count == 1
+        && switches.dropFirst().allSatisfy { flag in arguments.filter { $0 == flag }.count <= 1 }
+}
+
 /// Temporary, opt-in observation only. Available in Release; never publishes UI state.
 /// Only a send tap arms a round. Hot events share ONE 250 ms output budget, with
 /// cumulative begin/end counts and the latest numeric sample per event. A delayed
 /// flush retains a final end event even when no more layout callbacks arrive.
+/// Large batches drain across hot slots, never as multiple lines in one slot.
 @MainActor
 final class ChatLayoutDiagnostics {
     enum Event: String, CaseIterable {
@@ -32,7 +53,8 @@ final class ChatLayoutDiagnostics {
     }
 
     // Closed vocabulary: no text, identifiers, errors, URLs or arbitrary field names.
-    enum Field: String {
+    enum Field: String, CaseIterable {
+        case allEager, skipAutoScroll
         case entries, revision, submitting, preview, editing, panel, lazyEnd
         case docked, keyboardTop, keyboardHeight, hiding, did, local, changed, duration
         case frameBottom, frameHeight, previousBottom, reportedBottom, reserve, padding, replaced
@@ -75,13 +97,17 @@ final class ChatLayoutDiagnostics {
     private var records = 0
     private var lastHot: Double?
     private var samples: [Event: Sample] = [:]
-    private var dirty: Set<Event> = []
+    // First-dirtied order prevents a busy event from starving another event's end.
+    private var dirty: [Event] = []
     private var flushTask: Task<Void, Never>?
+    // The observed relay adds 116 bytes of prefix/suffix: <=885 with newline.
+    // Keep headroom below 900, without relying on a particular OSLog truncation limit.
+    private static let maximumRecordBytes = 768
 
     // Clock/sink injection keeps rate, privacy and Release checks independent of OSLog.
     init(arguments: [String], now: @escaping () -> Double, emit: @escaping (String) -> Void,
          schedulesFlush: Bool = true) {
-        enabled = arguments.contains("-WoowLayoutDiagnostics")
+        enabled = hasUniqueLayoutDiagnostics(arguments: arguments)
         self.now = now
         self.emit = emit
         self.schedulesFlush = schedulesFlush
@@ -103,7 +129,7 @@ final class ChatLayoutDiagnostics {
         guard let time = activeTime() else { return }
         if event.isHot {
             samples[event] = Sample(count: (samples[event]?.count ?? 0) + 1, time: time, fields: fields())
-            dirty.insert(event)
+            if !dirty.contains(event) { dirty.append(event) }
             flushHot(at: time)
         } else {
             write(["event": event.rawValue, "fields": Self.json(fields())], at: time)
@@ -147,12 +173,24 @@ final class ChatLayoutDiagnostics {
         var events: [String: Any] = [:]
         for event in dirty {
             guard let sample = samples[event] else { continue }
-            events[event.rawValue] = ["count": sample.count, "t": sample.time,
-                                      "fields": Self.json(sample.fields)]
+            let fields = Self.json(sample.fields)
+            var value: [String: Any] = ["count": sample.count, "t": sample.time, "fields": fields]
+            var candidate = events
+            candidate[event.rawValue] = value
+            if (encoded(["event": "hot", "events": candidate], at: time)?.count ?? Int.max) > Self.maximumRecordBytes {
+                if !events.isEmpty { break }
+                // Defensive fallback for a single unusually large sample. Preserve
+                // event/count/time and explicitly report omitted fields, never truncate JSON.
+                value["fields"] = [String: Any]()
+                value["fieldsOmitted"] = fields.count
+            }
+            events[event.rawValue] = value
         }
-        dirty.removeAll(keepingCapacity: true)
+        dirty.removeFirst(events.count)
         lastHot = time
         write(["event": "hot", "events": events], at: time)
+        // Only schedules the next slot; the shared 250 ms guard still applies.
+        if !dirty.isEmpty, records < 300 { flushHot(at: time) }
     }
 
     private static func json(_ fields: [Field: Value]) -> [String: Any] {
@@ -161,13 +199,24 @@ final class ChatLayoutDiagnostics {
         return result
     }
 
-    private func write(_ payload: [String: Any], at time: Double) {
-        guard records < 300 else { return }
+    private func encoded(_ payload: [String: Any], at time: Double) -> Data? {
         var payload = payload
         payload["t"] = time
         payload["round"] = round
         payload["seq"] = records + 1
-        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+        return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+
+    private func write(_ payload: [String: Any], at time: Double) {
+        guard records < 300 else { return }
+        var payload = payload
+        var data = encoded(payload, at: time)
+        if (data?.count ?? Int.max) > Self.maximumRecordBytes, let fields = payload["fields"] as? [String: Any] {
+            payload["fields"] = [String: Any]()
+            payload["fieldsOmitted"] = fields.count
+            data = encoded(payload, at: time)
+        }
+        guard let data, data.count <= Self.maximumRecordBytes,
               let line = String(data: data, encoding: .utf8) else { return }
         records += 1
         emit(line)
