@@ -44,14 +44,28 @@ final class BrowserSearchUITests: XCTestCase {
         // the pill's value is the full search URL.
         let query = app.buttons["browser.addressPill"]
         let searched = NSPredicate(format: "exists == true AND label CONTAINS %@", "fixture cats & dogs/+%")
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: searched, object: query)], timeout: 75), .completed)
+        let status = app.staticTexts["browser.status"]
+        // The pill can show the requested URL before WebKit finishes. History
+        // is saved synchronously by didFinish, before the ready phase; wait
+        // for that boundary within the existing budget before testing relaunch.
+        let loadedSearch = NSPredicate { _, _ in
+            searched.evaluate(with: query) && status.exists
+                && (status.value as? String)?.hasPrefix("phase=ready;") == true
+        }
+        let loadedResult = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: loadedSearch, object: nil)], timeout: 75)
+        attachSearchContext("before-terminate")
+        XCTAssertEqual(loadedResult, .completed)
         XCTAssertTrue((query.value as? String)?.contains("q=fixture%20cats%20%26%20dogs%2F%2B%25") == true)
         XCTAssertFalse(app.buttons["browser.searchEngine.open"].exists, "The engine choice is on the start page, as Play's engine note is.")
+        XCTAssertFalse(app.staticTexts["browser.workspace.error"].exists,
+                       "Completed navigation must save history without a workspace error before relaunch")
         launch()
         // Like the Play build, a relaunch opens the start page, and recent pages
         // (no library sheet) keep the search.
         let history = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.start.history.open.")).firstMatch
-        XCTAssertTrue(history.waitForExistence(timeout: 10))
+        let historyExists = history.waitForExistence(timeout: 10)
+        attachSearchContext("after-relaunch")
+        XCTAssertTrue(historyExists)
         XCTAssertFalse(query.exists)
         revealLearningElement(history, in: app)
         XCTAssertTrue(history.label.contains("搜尋：fixture cats & dogs/+%"))
@@ -66,6 +80,57 @@ final class BrowserSearchUITests: XCTestCase {
         XCTAssertEqual(app.buttons["browser.searchEngine.select.google"].value as? String, "已選取")
         tap(app.buttons["browser.searchEngine.close"])
         XCTAssertTrue(settings.label.contains("Google"))
+    }
+
+    /// One read-only AX snapshot per boundary, including failed waits. Emit only
+    /// this test's fixed QA values; never attach a hierarchy or arbitrary text.
+    private func attachSearchContext(_ stage: String) {
+        let args = app.launchArguments
+        guard args.contains("-UITestMode"), !args.contains("-UITestBrowserNetwork"),
+              let index = args.firstIndex(of: "-UITestNamespace"), args.indices.contains(index + 1),
+              args[index + 1] == namespace else { return }
+        var context: [String: Any] = ["stage": stage, "synthetic": true, "namespace": namespace,
+                                     "epoch": Date().timeIntervalSince1970]
+        do {
+            let snapshot = try app.snapshot()
+            var pending = [snapshot]
+            var nodes: [String: XCUIElementSnapshot] = [:]
+            var history: [XCUIElementSnapshot] = []
+            let wanted: Set<String> = ["browser.status", "browser.addressPill", "browser.workspace.error",
+                                       "browser.start.history.empty", "browser.searchEngine.open"]
+            while let node = pending.popLast() {
+                if wanted.contains(node.identifier) { nodes[node.identifier] = node }
+                if node.identifier.hasPrefix("browser.start.history.open.") { history.append(node) }
+                pending.append(contentsOf: node.children)
+            }
+            context["snapshot"] = "obtained"
+            context["rootChildren"] = snapshot.children.count
+            let status = nodes["browser.status"]?.value as? String
+            let pattern = #"\Aphase=(idle|requested|started|committed|finished|observing|ready|failed|terminated);requested=[0-9]{1,10};started=[0-9]{1,10};committed=[0-9]{1,10};finished=[0-9]{1,10};observed=[0-9]{1,10};failed=[0-9]{1,10};terminated=[0-9]{1,10};elapsed_ms=[0-9]{1,10};failure=(none|cancelled|navigation_failed|navigation_timeout|observation_failed|observation_timeout|page_changed|policy_rejected|response_rejected|process_terminated)\z"#
+            context["statusExists"] = nodes["browser.status"] != nil
+            if let status {
+                context["statusValue"] = status.utf8.count <= 512 && status.range(of: pattern, options: .regularExpression) != nil
+                    ? status : "<unexpected-redacted>"
+            } else { context["statusValue"] = NSNull() }
+            let expectedURL = "https://research.example.invalid/search?q=fixture%20cats%20%26%20dogs%2F%2B%25&lang=en"
+            context["pillExists"] = nodes["browser.addressPill"] != nil
+            if let value = nodes["browser.addressPill"]?.value as? String {
+                context["pillValue"] = value == expectedURL ? value : "<unexpected-redacted>"
+            } else { context["pillValue"] = NSNull() }
+            context["workspaceErrorExists"] = nodes["browser.workspace.error"] != nil
+            context["historyCount"] = history.count
+            context["historyMatchesFixtureQuery"] = history.contains { $0.label.contains("搜尋：fixture cats & dogs/+%") }
+            context["emptyHistoryExists"] = nodes["browser.start.history.empty"] != nil
+            context["engineExists"] = nodes["browser.searchEngine.open"] != nil
+            if let label = nodes["browser.searchEngine.open"]?.label {
+                context["engineLabel"] = label == "搜尋引擎：Fixture Search" ? label : "<unexpected-redacted>"
+            } else { context["engineLabel"] = NSNull() }
+        } catch { context["snapshot"] = "unavailable" } // Never include Error/NSError text.
+        let data = try! JSONSerialization.data(withJSONObject: context, options: [.prettyPrinted, .sortedKeys])
+        let attachment = XCTAttachment(string: String(decoding: data, as: UTF8.self))
+        attachment.name = "browser-search-" + stage
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func launch() {

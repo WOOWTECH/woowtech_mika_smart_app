@@ -71,3 +71,16 @@ DEBUG COMPOSER／LAYOUT／SETTLE／REQUEST／FOCUS與既有TRACE暫留，均受 
 上述native案例使用UUID隔離資料、DEBUG合成模型／錯誤／長歷史fixture，驗的是實際ChatSession、存檔、分支、keyboard、gesture與rendering路徑；**不是非fixture商用驗收**，不證明真模型成功、原A31高CPU根因已修或MCP收到／完成請求。既有270實機模型限流、真MCP及文件等缺口仍依 [驗收矩陣](ACCEPTANCE_GAPS_20261122.md) 和 [270發佈證據](TESTFLIGHT_270_RELEASE.md) 追蹤。
 
 **VoiceOver未實測**：新layout settle在VoiceOver執行時不啟用，沿用原保守reader政策；不得寫成VO通過。硬體鍵盤、其他螢幕／字級及新271實機仍未由這批案例覆蓋。新版本須原地更新保留資料，實機重驗270曾遮字的短歷史、收放鍵盤及錯誤終態。發佈狀態另以有時間的TestFlight收據為準。
+
+## 長按選取補充回歸295／296：保留間歇失敗
+
+為檢查contentShape／回尾手勢未攔截原生文字選取，在runtime來源`21a884b8`補跑既有`ChatStreamingUITests/testSmallScrollAndLongPressDoNotJumpWhenLaterChunkArrives`，不是重做前述五案湊數。
+
+- **native295：0/1、failure1、skip0，201.299秒。** 小幅捲動與原生長按選取選單已出現；65秒等待SCROLL_SECOND_END逾時，helper line453失敗。原45秒第二段／25秒結束fixture時序及斷言未改。xcresult／錄影／末端AX持續為第一段的證據保留，尚無CPU或producer callback時間線可歸因。
+- **native296：1/1、failure0、skip0，217.883秒。** 僅加暫時DEBUG fixture產生／consumer預覽更新前後NSLog及外部1Hz own-Simulator觀測；沒有產品修補、改fixture delay／斷言／等待。14:57:15.369第二段yield前後、.373→.378 consumer assignment前後均可見；原選取、更新後選取及閱讀位置斷言通過。測試在第二段驗完後teardown，未等producer_finish是原流程，不能列為producer缺失。
+
+296共144個ps樣本，長按後40個樣本最高67.1%，未達連續8筆>90%的一次profile觸發條件，**沒有取得sample堆疊**。整輪最高151.6%在長按前；Simulator多核心CPU估計及RSS不當iPhone實測。兩輪各自source_changed=false，296與295之間確實有上述DEBUG觀測差異，不主張完全同一binary；一次通過不能否定295。
+
+外部`T/native-295-selection-evidence/`保留tests／summary、42份debug附件、原錄影及119／125／161／185秒畫面、暫時patch及`295-296-disposition.json`；`R/native-296-selection-trace-geometry.log`及process.jsonl／summary保留控制事件及時間線。暫時patch先逐位元核對僅含本輪兩檔診斷，再reverse-check／reverse，兩runtime檔回到21a原hash，未留下新Release程式碼。兩輪heavy序列化，已授權兩容器均恢復。
+
+**295根因未定位，未修復，沒有安排相同條件反覆重跑。** 兩輪不代表原A31送出故障或非fixture串流已驗收。271實機穩定畫面／AX限制另見[限定驗證](IPHONE_271_LIMITED_VALIDATION.md)，272原機回歸另收實際結果。
