@@ -6,6 +6,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private let usageSink: (any ModelUsageSink)?
+    private let observeHTTPFailure: @Sendable (ModelHTTPFailureDiagnostic) -> Void
     /// A whole request, streamed or not, may take up to 10 minutes; one that stalls
     /// ends after 120 s without data (timeoutIntervalForRequest), like the Play
     /// build's model client (ProviderStore.kt: readTimeout 120 s, no call timeout).
@@ -28,10 +29,12 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     }
 
     // Shorter deadlines let deterministic tests exercise timeouts; never exceeds 10 minutes.
-    init(session: URLSession, timeoutNanoseconds: UInt64, usageSink: (any ModelUsageSink)? = nil) {
+    init(session: URLSession, timeoutNanoseconds: UInt64, usageSink: (any ModelUsageSink)? = nil,
+         observeHTTPFailure: @escaping @Sendable (ModelHTTPFailureDiagnostic) -> Void = { $0.log() }) {
         self.session = session
         self.timeoutNanoseconds = min(timeoutNanoseconds, Self.maximumTimeout)
         self.usageSink = usageSink
+        self.observeHTTPFailure = observeHTTPFailure
     }
 
     public func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
@@ -48,6 +51,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                 meter.dispatching()
                 let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects(onDispatch: onDispatch))
                 defer { bytes.task.cancel() }
+                try await diagnoseHTTPFailure(response, bytes: bytes)
                 try Self.validate(response, stream: false)
                 return try await withTaskCancellationHandler {
                     var data = Data()
@@ -100,6 +104,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                         // A response proves this request has started even when
                         // URLSession omitted the body-progress delegate callback.
                         onDispatch()
+                        try await diagnoseHTTPFailure(response, bytes: bytes)
                         if let http = response as? HTTPURLResponse {
                             if (200..<300).contains(http.statusCode), http.mimeType?.lowercased() == "application/json" {
                                 // A complete-only endpoint ignored stream=true. Use its
@@ -231,6 +236,18 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                                                       maxOutputTokens: configuration.maxOutputTokens,
                                                       vision: configuration.vision, includeUsage: includeUsage)
         return request
+    }
+
+    private func diagnoseHTTPFailure(_ response: URLResponse, bytes: URLSession.AsyncBytes) async throws {
+        guard let http = response as? HTTPURLResponse,
+              let diagnostic = ModelHTTPFailureDiagnostic(response: http) else { return }
+        // Publish headers first, so a stalled/truncated body cannot erase the actual status.
+        observeHTTPFailure(diagnostic)
+        if http.statusCode == 429 {
+            let body = try await ModelHTTPFailureBody.collect(bytes)
+            observeHTTPFailure(diagnostic.classifying(body))
+        }
+        // The existing validator/fallback logic still throws exactly the same typed error.
     }
 
     private static func validate(_ response: URLResponse, stream: Bool) throws {

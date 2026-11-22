@@ -21,6 +21,7 @@ public struct ResponsesModelClient: StructuredStreamingChatModelClient, Referenc
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private let usageSink: (any ModelUsageSink)?
+    private let observeHTTPFailure: @Sendable (ModelHTTPFailureDiagnostic) -> Void
     private let accounts: any ModelAccountTokenProviding
     private static let maximumTimeout: UInt64 = 600_000_000_000
     static let maximumErrorBodyBytes = 16 * 1024
@@ -41,11 +42,13 @@ public struct ResponsesModelClient: StructuredStreamingChatModelClient, Referenc
 
     /// Shorter deadlines let tests exercise timeouts; never more than 10 minutes.
     init(session: URLSession, timeoutNanoseconds: UInt64, accounts: any ModelAccountTokenProviding,
-         usageSink: (any ModelUsageSink)? = nil) {
+         usageSink: (any ModelUsageSink)? = nil,
+         observeHTTPFailure: @escaping @Sendable (ModelHTTPFailureDiagnostic) -> Void = { $0.log() }) {
         self.session = session
         self.timeoutNanoseconds = min(timeoutNanoseconds, Self.maximumTimeout)
         self.accounts = accounts
         self.usageSink = usageSink
+        self.observeHTTPFailure = observeHTTPFailure
     }
 
     public func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
@@ -133,6 +136,8 @@ public struct ResponsesModelClient: StructuredStreamingChatModelClient, Referenc
             onDispatch()
             guard let http = response as? HTTPURLResponse else { throw HTTPChatModelError.invalidResponse }
             let status = http.statusCode
+            let diagnostic = ModelHTTPFailureDiagnostic(response: http)
+            if let diagnostic { observeHTTPFailure(diagnostic) }
             if (300..<400).contains(status) { throw HTTPChatModelError.redirectRejected }
             if status == 401 {
                 if retriesUnauthorized && attempt == 0 {
@@ -146,6 +151,7 @@ public struct ResponsesModelClient: StructuredStreamingChatModelClient, Referenc
             guard (200..<300).contains(status) else {
                 // Only a short error body is read for its code; it never reaches a prompt, the UI or a log.
                 let data = try await Self.collect(bytes, limit: Self.maximumErrorBodyBytes)
+                if let diagnostic { observeHTTPFailure(diagnostic.classifying(data)) }
                 throw ResponsesFailure.http(status: status, body: data ?? Data(), kind: route.kind)
             }
             let parser: ResponsesEventParser
