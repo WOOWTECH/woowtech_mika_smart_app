@@ -598,6 +598,8 @@ private struct ChatView: View {
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
     #endif
     @FocusState private var isEditingDraft: Bool
+    /// Refresh only an idle, empty editor when its text metrics change.
+    @State private var idleComposerFieldID = UUID()
     @StateObject private var keyboardDock = ChatKeyboardDock()
     @State private var showsMCPResults = false
     /// Android's attach panel takes the keyboard's place under the input bar.
@@ -1321,6 +1323,7 @@ private struct ChatView: View {
             // Return adds a line; the Done bar closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
                       text: draft, axis: .vertical)
+                .id(idleComposerFieldID)
                 .lineLimit(lines)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
@@ -1373,6 +1376,10 @@ private struct ChatView: View {
             .disabled(!session.canAttemptSend)
             .accessibilityLabel(localizer.text(.shellSend))
             .accessibilityIdentifier("chat.send")
+        }
+        .onChange(of: dynamicTypeSize) { _, _ in
+            guard session.draft.isEmpty, !isEditingDraft else { return }
+            idleComposerFieldID = UUID()
         }
         .frame(minHeight: 52)
         .layoutPriority(1)
