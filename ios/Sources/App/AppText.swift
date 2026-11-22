@@ -1059,6 +1059,7 @@ enum AppText: Equatable {
     case documentActivityCompleted
     case documentCreated
     case documentStorageFull
+    case documentQuotaFull
     case documentGenerationFailed
     case documentMissing
     case documentPreviewFailed
@@ -2132,6 +2133,7 @@ enum AppText: Equatable {
         case .documentActivityCompleted: return "document.activityCompleted"
         case .documentCreated: return "document.created"
         case .documentStorageFull: return "document.storageFull"
+        case .documentQuotaFull: return "document.quotaFull"
         case .documentGenerationFailed: return "document.generationFailed"
         case .documentMissing: return "document.missing"
         case .documentPreviewFailed: return "document.previewFailed"
@@ -3326,7 +3328,8 @@ enum AppText: Equatable {
         case .documentDeliveryFailed: return "無法完成檔案交付，請確認目的地或稍後再試。"
         case .documentActivityCompleted: return "系統回報操作完成；這不代表接收者已收到文件。"
         case .documentCreated: return "文件已產生，可預覽、儲存或分享。"
-        case .documentStorageFull: return "可用空間或暫存額度不足，請釋出空間後重試。"
+        case .documentStorageFull: return "裝置可用儲存空間不足，請釋出空間後重試。"
+        case .documentQuotaFull: return "文件暫存額度（100 MiB）不足。請關閉預覽、分享及文件產生頁面，待保留期到期後重試。檔案停止使用後仍保留 24 小時；到期且未使用的檔案會在下次產生文件時清理。"
         case .documentGenerationFailed: return "文件產生失敗，請重試或縮小內容。"
         case .documentMissing: return "暫存檔已不存在，請重新產生文件。"
         case .documentPreviewFailed: return "無法預覽文件，請關閉預覽後重試。"

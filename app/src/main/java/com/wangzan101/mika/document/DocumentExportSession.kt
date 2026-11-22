@@ -38,11 +38,26 @@ internal class DocumentExportSession(
     var pendingSave by mutableStateOf<GeneratedDocument?>(null); private set
     var status by mutableStateOf(R.string.document_local_note); private set
 
-    fun editSource(value: String) { if (!busy) { source = value; tableIndex = null; tables = emptyList(); invalidate() } }
-    fun editTitle(value: String) { if (!busy) { title = value; invalidate() } }
+    private var validationProblem: DocumentProblem? = null
+
+    fun editSource(value: String) {
+        if (!busy) { source = value; validationProblem = null; tableIndex = null; tables = emptyList(); invalidate() }
+    }
+    fun editTitle(value: String) {
+        if (!busy) {
+            title = value
+            // A title can fix its own validation or the model's combined byte limit.
+            if (validationProblem == DocumentProblem.InvalidTitle || validationProblem == DocumentProblem.TooLarge)
+                validationProblem = null
+            invalidate()
+        }
+    }
     fun chooseFormat(value: DocumentFormat) { if (!busy) { format = value; invalidate() } }
     fun chooseTable(index: Int) { if (!busy) { tableIndex = index; invalidate() } }
-    private fun invalidate() { generated = null; status = R.string.document_local_note }
+    private fun invalidate() {
+        generated = null
+        status = validationProblem?.let(::problemText) ?: R.string.document_local_note
+    }
     fun failed() { busy = false; pendingSave = null; status = R.string.document_failed }
     fun shareOpened() { status = R.string.document_share_opened }
 
@@ -57,7 +72,13 @@ internal class DocumentExportSession(
         status = R.string.document_generating
         scope.launch {
             try {
-                val model = withContext(parseDispatcher) { DocumentMarkdown.parse(title, language, source) }
+                val model = try {
+                    withContext(parseDispatcher) { DocumentMarkdown.parse(title, language, source) }
+                } catch (e: DocumentException) {
+                    validationProblem = e.problem
+                    throw e
+                }
+                validationProblem = null
                 tables = model.sections.filterIsInstance<DocumentSection.Table>()
                 if (format == DocumentFormat.CSV && tables.size > 1 && tableIndex == null) {
                     status = R.string.document_choose_table

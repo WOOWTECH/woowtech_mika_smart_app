@@ -1,6 +1,10 @@
 package com.wangzan101.mika.document
 
 import com.wangzan101.mika.R
+import com.wangzan101.mika.core.document.DocumentException
+import com.wangzan101.mika.core.document.DocumentProblem
+import com.wangzan101.mika.core.document.DocumentWriters
+import com.wangzan101.mika.core.document.DocumentLimits
 import com.wangzan101.mika.core.document.DocumentFormat
 import com.wangzan101.mika.core.document.DocumentSection
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,6 +17,80 @@ import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentExportSessionTest {
+    @Test fun sourceErrorSurvivesOutputEditsUntilSourceChanges() = runTest {
+        val session = DocumentExportSession(this, "| A | B |\n| --- | --- |\n| one |", "Title", "en", DocumentFormat.CSV, StandardTestDispatcher(testScheduler))
+        var writes = 0
+        session.generateWith { _, _, _ -> writes++; throw IOException() }
+        advanceUntilIdle()
+        assertEquals(R.string.document_ragged, session.status)
+        for (format in listOf(DocumentFormat.HTML, DocumentFormat.PDF, DocumentFormat.CSV)) {
+            session.chooseFormat(format)
+            session.editTitle("Title " + format.name)
+            assertEquals(R.string.document_ragged, session.status)
+            assertNull(session.generated)
+            assertFalse(session.busy)
+        }
+        assertEquals(0, writes)
+        session.editSource("| A | B |\n| --- | --- |\n| one | two |")
+        assertEquals(R.string.document_local_note, session.status)
+        session.generateWith { model, format, _ ->
+            writes++
+            assertEquals(DocumentFormat.CSV, format)
+            assertEquals(listOf("one", "two"), (model.sections.single() as DocumentSection.Table).rows.single())
+            throw IOException()
+        }
+        advanceUntilIdle()
+        assertEquals(1, writes)
+        assertEquals(R.string.document_failed, session.status)
+        session.chooseFormat(DocumentFormat.HTML)
+        assertEquals("A writer failure is not a cached source error", R.string.document_local_note, session.status)
+    }
+
+    @Test fun editingTitleCanRepairValidationIncludingCombinedByteLimit() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        for ((source, invalidTitle) in listOf(
+            "Valid source" to "",
+            "x".repeat(DocumentLimits.MAX_SOURCE_BYTES - 10) to "Title uses more than ten bytes",
+        )) {
+            val session = DocumentExportSession(this, source, invalidTitle, "en", DocumentFormat.HTML, dispatcher)
+            var writes = 0
+            session.generateWith { _, _, _ -> writes++; throw IOException() }
+            advanceUntilIdle()
+            assertEquals(if (invalidTitle.isEmpty()) R.string.document_invalid_title else R.string.document_too_large, session.status)
+            assertEquals(0, writes)
+            session.chooseFormat(DocumentFormat.PDF)
+            assertEquals(if (invalidTitle.isEmpty()) R.string.document_invalid_title else R.string.document_too_large, session.status)
+            session.editTitle("OK")
+            assertEquals(R.string.document_local_note, session.status)
+            session.generateWith { _, _, _ -> writes++; throw IOException() }
+            advanceUntilIdle()
+            assertEquals(1, writes)
+        }
+    }
+
+    @Test fun formatDependentWriterFailureIsNotRetainedAsSourceValidation() = runTest {
+        val session = DocumentExportSession(this, "No table", "Title", "en", DocumentFormat.CSV, StandardTestDispatcher(testScheduler))
+        session.generateWith { model, _, index ->
+            DocumentWriters.csv(model, index)
+            throw AssertionError("CSV without a table must fail in the real writer")
+        }
+        advanceUntilIdle()
+        assertEquals(R.string.document_missing_table, session.status)
+        session.chooseFormat(DocumentFormat.HTML)
+        assertEquals(R.string.document_local_note, session.status)
+        var writes = 0
+        session.generateWith { _, format, _ ->
+            writes++
+            assertEquals(DocumentFormat.HTML, format)
+            throw DocumentException(DocumentProblem.TooLarge)
+        }
+        advanceUntilIdle()
+        assertEquals(1, writes)
+        assertEquals(R.string.document_too_large, session.status)
+        session.chooseFormat(DocumentFormat.PDF)
+        assertEquals(R.string.document_local_note, session.status)
+    }
+
     @Test fun malformedTableIsActionableAndRetryUsesEditedSource() = runTest {
         val session = DocumentExportSession(this, "| a | b |\n| --- | --- |\n| 1 |", "Title", "en", DocumentFormat.CSV, StandardTestDispatcher(testScheduler))
         var writes = 0

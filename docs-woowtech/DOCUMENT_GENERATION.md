@@ -146,3 +146,37 @@ swift test --package-path ios --jobs 2 --filter AssistantDocumentsTests
 清理以本輪建立的精確 ID／路徑為界：已經由 App UI 刪除 11 個獨立測試對話（包含最後的技能建立與檢索兩個對話），前後 AX 清單核對，原清單中的其他 13 個對話 ID 都保留；捲動清單另露出 3 個既有對話，不能要求整份可見清單完全相等。兩筆測試記憶、一份測試技能與自訂搜尋引擎已刪除；5 個測試 Documents 檔案、7 個本輪產檔暫存目錄已移除，Documents 原有 9 個項目保留。Mac 端的驗收檔案／雜湊／畫面保留。原購物對話內誤加入的兩筆短文件測試訊息，以及 Google／PDF 測試瀏覽歷史仍在：介面沒有單筆刪除入口，因此沒有為清理測試而刪掉原對話或清空原歷史。精確清理證據為 `ipad-owned-files-cleanup.json`、`ipad-own-conversation-cleanup-verification.json`。
 
 本輪不操作原 iPhone 對話或附件，也不修改原工作區的 `UserProfileChatFlow.swift` 與 `UserProfileChatFlowTests.swift` 未提交內容。
+
+## 2026-11-22 文件錯誤處理與預覽修補
+
+此批變更在已發佈的271之後整合，**不包含於271**。受測來源為 `9f62a017a964968ca42d39950bfb41e3346f9088` 加九份文件相關修改；精確檔案SHA見外部 `native-289-document-followup-source-before.json`，manifest SHA256 `1ffa1cb6dc1de6d33bb930b1c7e57161de2a01bd6f2ad1456c3dcc94ad5568b8`。前後manifest完全相同，原回尾／分頁修補未被覆寫。
+
+修補涵蓋：無效來源的說明不因切換格式或改標題而消失；取消解析可在同一狀態重試，舊解析結果不能覆蓋較新的結果；CSV預覽於64KiB截點退至完整UTF-8字元邊界，完整儲存／分享資料不截斷；100MiB邏輯暫存額度改用獨立錯誤，與真正Cocoa／POSIX磁碟空間不足分開。100MiB、24小時、使用中檔案保護及到期清理時機均未更動，沒有新增套件。
+
+原生 `native-289-document-followup` 在既有iPhone17／iOS27 Simulator執行，**40/40 PASS，failure0、skip0，外層466.34秒、exit0**：
+
+| 範圍 | 實際執行與界線 |
+| --- | --- |
+| 文件核心24項 | parser／HTML／CSV／公式保護／資料上限與雙平台共同fixture；不是商用模型結果 |
+| 原生匯出整合13項 | 含新增8項：真parser取消及可控交錯、無效來源終態、UTF-8邊界、完整輸出bytes、實際暫存IO／配額恢復、錯誤domain及雙語文案；另保留中文跨頁PDF等既有案 |
+| 實際UI三項 | 本機PDF匯出；無效來源格式／標題變動後說明仍存在，關閉後第二個有效來源可產CSV；CSV預覽／儲存取消及靜態HTML腳本文字不執行。模型回覆為隔離fixture |
+
+Python資源／精確scope檢查另有15/15 PASS；inventory144是登錄數，不是此次執行144案。單元、整合、UI分開計，不把合成資料或Simulator列為實機商用驗收。
+
+證據根目錄仍為 `Documents/WOOWTECH-iOS-validation/documents-20261120`：`Documents-289-document-followup.xcresult`、`native-289-summary.json`、同名wrapper／log／source／容器恢復收據；`testflight-20261122/document-followup-native289-evidence.json`彙整bytes與SHA。`native-289-chinese-pdf/`保留實際PDF與文字擷取，`native-289-document-images/`保留畫面。已目視核對有效來源的CSV產生畫面；無效來源改標題時的截圖有鍵盤遮住較下方說明，錯誤持續存在的證據來自AX／disabled／未產檔斷言，**不主張該截圖已完整顯示錯誤**。
+
+**警告尚未定位**：PDF預覽開啟時出現一次 `Publishing changes from within view updates`；全部UI結束後的hosted App啟動出現一次 `ChatTranscriptViewportPreferenceKey` 每frame多次更新。測試PASS不消除這兩個警告，也未證明來源是PDFKit、新狀態物件或原A31故障。一次受控Simulator取樣超過15秒上限而中止，沒有完整profile，保留失敗不作根因結論。
+
+配額案以隔離sparse file測真100MiB邏輯用量及到期恢復，沒有填滿實機磁碟。外部接收App、實機ENOSPC、外部文件提供者、實際分享生命週期及SwiftUI快速關閉／重開時的取消行為仍須各別驗收。後續TestFlight與原iPhone結果分別見[271發佈紀錄](TESTFLIGHT_271_RELEASE.md)及[驗收缺口](ACCEPTANCE_GAPS_20261122.md)。
+
+### Android 對應修補與限定驗證（2026-11-22）
+
+Android同步修正兩個來源可證的問題：來源解析錯誤在切換格式／修改無關標題後仍保留，編輯來源後可重試；生成CSV的64KiB預覽退至完整UTF-8字元邊界，完整匯出／儲存／分享資料不截斷。可由標題修復的標題驗證及總bytes限制仍允許重驗；格式相關writer錯誤不被固化成來源錯誤。保留Android可編輯來源的既有流程，未宣稱兩平台UI完全對齊。
+
+`android-290-document-followup` 的真JUnit XML確認 **8/8 PASS，failure0、error0、skip0**：`DocumentExportSessionTest` 6項（3個新測試＋3個舊回歸），`DocumentCsvPreviewTextTest` 2項新測試，共 **5新＋3舊**。新測試涵蓋錯誤保留及正確失效、可修復的標題／總bytes限制、writer錯誤分類，以及真CSV writer輸出的2／3／4-byte字元截點、cap+1讀取與完整bytes保留；舊案覆蓋畸形表格修正重試、多表選擇及產生中禁止編輯。單元測試使用upstream debug；Apporo與WOOWTECH兩品牌Kotlin編譯成功。整個序列48.65秒、exit0，source前後一致。
+
+受測來源為 `9f62a017a964968ca42d39950bfb41e3346f9088` 加當時未提交修改；精確身份見證據根目錄的 `android-290-document-followup-source-before.json`／`-source-after.json`，兩者SHA256同為 `daa35ed8c4e2c36e9ffc1f6318a1d3022a224f5d1692dd8718ab5a3bcef7aaeb`。原始JUnit XML及彙整收據位於 `testflight-20261122/android-document-followup-candidate/execution290/`；`result.json` SHA256為 `925a86b99c357a46145cac7d3e0ba5a66da13640da94c46853aa45ddf18d01be`，其中列出兩份已核對XML的SHA256與完整case清單。
+
+Android原有 **64MiB／32檔** logical cache與獨立`CacheFull`說明維持，與iOS的100MiB額度不同；取消仍重拋`CancellationException`，本批未引入iOS的初始化架構。**290只執行JVM單元測試與品牌編譯，沒有執行instrumentation或真機測試**；不能據此宣稱實際FileViewer畫面、SAF／外部分享接收、實體磁碟ENOSPC或完整UI驗收通過。
+
+診斷追加：native291／292的單一PDF案例各1/1 PASS，警告仍出現，但擷取分別未建立target／附加失敗；293僅為隔離Simulator附加及安全卸離檢查。294實際附加成功，卻在PDF之前的chat.draft AX讀取逾時，0/1、exit1；只捕獲WebKit啟動及XCTAutomationSupport predicate兩個無關fault，已成功detach。此批診斷沒有取得目標警告的stack、沒有根據它修改runtime；完整失敗與界線見外部 `pdf-preview-warning-candidate/diagnostic-disposition.json`。不得把294併成40/40，亦不把原40案正常測試改寫為失敗。

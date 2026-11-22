@@ -1045,7 +1045,8 @@
 "document.deliveryFailed" = "無法完成檔案交付，請確認目的地或稍後再試。";
 "document.activityCompleted" = "系統回報操作完成；這不代表接收者已收到文件。";
 "document.created" = "文件已產生，可預覽、儲存或分享。";
-"document.storageFull" = "可用空間或暫存額度不足，請釋出空間後重試。";
+"document.storageFull" = "裝置可用儲存空間不足，請釋出空間後重試。";
+"document.quotaFull" = "文件暫存額度（100 MiB）不足。請關閉預覽、分享及文件產生頁面，待保留期到期後重試。檔案停止使用後仍保留 24 小時；到期且未使用的檔案會在下次產生文件時清理。";
 "document.generationFailed" = "文件產生失敗，請重試或縮小內容。";
 "document.missing" = "暫存檔已不存在，請重新產生文件。";
 "document.previewFailed" = "無法預覽文件，請關閉預覽後重試。";

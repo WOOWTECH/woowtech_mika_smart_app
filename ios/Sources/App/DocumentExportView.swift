@@ -31,6 +31,21 @@ struct GeneratedDocument: Identifiable, Sendable {
     }
 }
 
+/// Logical cache capacity is separate from a device filesystem failure.
+enum DocumentExportFailure: Error, Equatable {
+    case temporaryQuotaExceeded
+
+    static func message(for error: Error) -> AppText {
+        if error as? DocumentExportFailure == .temporaryQuotaExceeded { return .documentQuotaFull }
+        let failure = error as NSError
+        if (failure.domain == NSCocoaErrorDomain && failure.code == NSFileWriteOutOfSpaceError)
+            || (failure.domain == NSPOSIXErrorDomain && failure.code == Int(POSIXErrorCode.ENOSPC.rawValue)) {
+            return .documentStorageFull
+        }
+        return .documentGenerationFailed
+    }
+}
+
 /// Serializes parsing, rendering and disk work away from the UI actor. Only this
 /// directory is pruned. Live previews/shares stay pinned until their sheet closes.
 actor DocumentExportStore {
@@ -67,7 +82,7 @@ actor DocumentExportStore {
             .appendingPathComponent("GeneratedDocuments", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let remaining = try prune(root: root)
-        guard remaining + data.count <= maximumStoredBytes else { throw CocoaError(.fileWriteOutOfSpace) }
+        guard remaining + data.count <= maximumStoredBytes else { throw DocumentExportFailure.temporaryQuotaExceeded }
         let id = UUID()
         let directory = root.appendingPathComponent(id.uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
@@ -110,6 +125,35 @@ actor DocumentExportStore {
     }
 }
 
+/// Only a completed parse is terminal. A cancelled view task can retry on the
+/// same object; an older attempt never publishes over a newer attempt.
+@MainActor
+final class DocumentSourceValidation: ObservableObject {
+    @Published private(set) var report: DocumentReport?
+    @Published private(set) var error: AppText?
+    var initialized: Bool { report != nil || error != nil }
+    private var latestAttempt: UUID?
+
+    func initialize(parse: @MainActor () async throws -> DocumentReport) async -> DocumentReport? {
+        guard !initialized, !Task.isCancelled else { return nil }
+        let attempt = UUID()
+        latestAttempt = attempt
+        do {
+            let parsed = try await parse()
+            guard !Task.isCancelled, latestAttempt == attempt else { return nil }
+            report = parsed
+            return parsed
+        } catch is CancellationError {
+            // No publication or reset: a newer attempt may already be valid.
+            return nil
+        } catch {
+            guard !Task.isCancelled, latestAttempt == attempt else { return nil }
+            self.error = .documentInvalid
+            return nil
+        }
+    }
+}
+
 @MainActor
 struct DocumentExportView: View {
     let source: DocumentExportSource
@@ -117,15 +161,17 @@ struct DocumentExportView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var format: DocumentFormat = .pdf
-    @State private var report: DocumentReport?
     @State private var selectedTable = -1
     @State private var generated: GeneratedDocument?
     @State private var busy = false
     @State private var status: AppText?
     @State private var delivery: DocumentDelivery?
     @State private var preview: GeneratedDocument?
-    @State private var initialized = false
+    @State private var didSetInitialOptions = false
+    @StateObject private var sourceValidation = DocumentSourceValidation()
     @StateObject private var lifetime = DocumentExportLifetime()
+
+    private var report: DocumentReport? { sourceValidation.report }
 
     private var canGenerate: Bool {
         report != nil && !busy && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -176,7 +222,7 @@ struct DocumentExportView: View {
                     }.disabled(!canGenerate).accessibilityIdentifier("document.generate")
                 }.disabled(busy)
 
-                if let status {
+                if let status = sourceValidation.error ?? status {
                     Section {
                         Text(localizer.text(status)).accessibilityIdentifier("document.status")
                     }
@@ -208,20 +254,22 @@ struct DocumentExportView: View {
             }
         }
         .task {
-            guard !initialized else { return }
-            initialized = true
-            format = source.format
-            let firstLine = source.content.split(maxSplits: 1, whereSeparator: \.isNewline).first.map(String.init) ?? "Report"
-            title = String(firstLine.unicodeScalars.prefix(512).filter { !CharacterSet.controlCharacters.contains($0) }
-                .map(String.init).joined().trimmingCharacters(in: CharacterSet(charactersIn: "# ")).prefix(80))
-            if title.isEmpty { title = "Report" }
-            do {
-                // Source validation is independent of the editable/inferred title.
-                let parsed = try await DocumentExportStore.shared.parse(source.content, title: "Report", language: "und")
-                guard !Task.isCancelled else { return }
-                report = parsed
+            guard !sourceValidation.initialized else { return }
+            if !didSetInitialOptions {
+                format = source.format
+                let firstLine = source.content.split(maxSplits: 1, whereSeparator: \.isNewline).first.map(String.init) ?? "Report"
+                title = String(firstLine.unicodeScalars.prefix(512).filter { !CharacterSet.controlCharacters.contains($0) }
+                    .map(String.init).joined().trimmingCharacters(in: CharacterSet(charactersIn: "# ")).prefix(80))
+                if title.isEmpty { title = "Report" }
+                // Retrying a cancelled parse must not reset the user's edits.
+                didSetInitialOptions = true
+            }
+            // Source validation is independent of the editable/inferred title.
+            if let parsed = await sourceValidation.initialize(parse: {
+                try await DocumentExportStore.shared.parse(source.content, title: "Report", language: "und")
+            }) {
                 selectedTable = parsed.tables.count == 1 ? 0 : -1
-            } catch { status = .documentInvalid }
+            }
         }
         .sheet(item: $preview) { file in DocumentPreviewView(file: file, localizer: localizer) }
         .sheet(item: $delivery, onDismiss: {
@@ -271,7 +319,7 @@ struct DocumentExportView: View {
                 if owner != nil { status.wrappedValue = .documentCancelled }
             } catch {
                 if owner != nil {
-                    status.wrappedValue = (error as NSError).code == NSFileWriteOutOfSpaceError ? .documentStorageFull : .documentGenerationFailed
+                    status.wrappedValue = DocumentExportFailure.message(for: error)
                 }
             }
         }
@@ -294,6 +342,23 @@ private enum DocumentDelivery: Identifiable {
     var id: String { (isSave ? "save-" : "share-") + file.id.uuidString }
 }
 
+/// CSV output is valid UTF-8. Bound preview work without cutting a scalar or
+/// changing the full generated data used by Files and Share.
+enum DocumentCSVPreviewText {
+    static let maximumBytes = 64 * 1024
+
+    static func text(from data: Data) -> String {
+        var end = data.index(data.startIndex, offsetBy: min(data.count, maximumBytes))
+        if end < data.endIndex {
+            // At most three continuation bytes for the generated UTF-8 input.
+            while end > data.startIndex && data[end] & 0xC0 == 0x80 {
+                data.formIndex(before: &end)
+            }
+        }
+        return String(decoding: data[..<end], as: UTF8.self)
+    }
+}
+
 private struct DocumentPreviewView: View {
     let file: GeneratedDocument
     let localizer: AppLocalizer
@@ -312,10 +377,10 @@ private struct DocumentPreviewView: View {
                         DocumentPDFPreview(data: file.data, failed: $failed)
                     case .csv:
                         VStack(alignment: .leading) {
-                            if file.data.count > 64 * 1024 {
+                            if file.data.count > DocumentCSVPreviewText.maximumBytes {
                                 Text(localizer.text(.documentPreviewPartial)).font(.caption).padding(.horizontal)
                             }
-                            DocumentCSVPreview(text: String(decoding: file.data.prefix(64 * 1024), as: UTF8.self))
+                            DocumentCSVPreview(text: DocumentCSVPreviewText.text(from: file.data))
                         }
                     }
                 }

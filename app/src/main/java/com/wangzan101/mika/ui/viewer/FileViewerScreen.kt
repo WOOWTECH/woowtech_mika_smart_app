@@ -162,9 +162,9 @@ private fun load(context: Context, uri: Uri, kind: ViewerKind): Loaded = when (k
         },
     )
     else -> {
-        // 多读一个字节,用来判断是不是被截断了;截在多字节字符中间时解码会换成替代符,不影响前面的内容
+        // 多读一个字节判断截断；生成的 CSV 预览只在完整 UTF-8 字符边界解码。
         val documentCsv = uri.authority == com.wangzan101.mika.chat.AttachFilesProvider.authority(context.packageName) && uri.pathSegments.firstOrNull() == "documents"
-        val cap = if (documentCsv) 64 * 1024 else TEXT_CAP
+        val cap = if (documentCsv) com.wangzan101.mika.document.DocumentCsvPreviewText.MAX_BYTES else TEXT_CAP
         val bytes = open(context, uri).use { input ->
             val buf = ByteArray(cap + 1)
             var n = 0
@@ -176,7 +176,8 @@ private fun load(context: Context, uri: Uri, kind: ViewerKind): Loaded = when (k
             buf.copyOf(n)
         }
         val truncated = bytes.size > cap
-        val text = String(bytes, 0, minOf(bytes.size, cap), Charsets.UTF_8).removePrefix("\uFEFF")
+        val text = if (documentCsv) com.wangzan101.mika.document.DocumentCsvPreviewText.text(bytes)
+            else String(bytes, 0, minOf(bytes.size, cap), Charsets.UTF_8).removePrefix("\uFEFF")
         Loaded.Text(text, truncated, documentCsv)
     }
 }

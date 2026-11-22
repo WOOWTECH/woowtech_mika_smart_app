@@ -1,6 +1,6 @@
 # TestFlight 271 發佈紀錄（2026-11-22）
 
-**0.1.0 (271) 已可供既有內部群組下載。** Apple 於本次恢復工作後的唯讀查詢回傳 `VALID`、`IN_BETA_TESTING`；上傳處理為 `COMPLETE`，errors／warnings 為空。尚未取得271實機安裝回執，不能把開放下載算作手機驗收。
+**0.1.0 (271) 已可供既有內部群組下載，並已在原iPhone經TestFlight原地更新。** Apple回傳 `VALID`、`IN_BETA_TESTING`；上傳處理為 `COMPLETE`，errors／warnings為空。裝機與更新保留證據見下節；畫面及商用功能仍逐項驗證，不以安裝成功代替。
 
 App `io.woowtech.assistant`／App Store Connect `6834435121`，WOOWTECH team `W4UWZ8NP2P`。沿用使用者上傳新版及原地實測授權，沒有公開上架、新增測試者或外部Beta送審。
 
@@ -44,6 +44,10 @@ App `io.woowtech.assistant`／App Store Connect `6834435121`，WOOWTECH team `W4
 精確回執：`release-271/report.json`、`release-271/symbols-evidence.json`、`validation-271/receipt.json`與`safe-evidence.json`、`upload-271/receipt.json`、`web-status/271-resume-builds.private.json`、`web-status/271-resume-upload.private.json`、`release-status-271.json`。封存時report內的未上傳旗標是當時狀態；日後狀態以有時間的Apple查詢為準，不改寫原封存回執。
 
 ## 實機交接及未驗收
+
+13:46:39台北，原分支工具實際查詢 `CFBundleVersion=271`、`0.1.0`、`SignerIdentity=TestFlight Beta Distribution`，同時TestFlight顯示271「打開」。更新前原WDA程序為0；手機可讀且截圖沒有鎖定證據。依既有授權由同一操作者一次恢復原服務，ready／PID3290後才繼續更新，未啟第二組服務。
+
+13:46:55–59首次啟動前，conversations.vault、learning.vault及原PNG的bytes／SHA逐項與本輪更新前基準一致。之後首次啟動App PID3300；此處只證明更新瞬間資料保留，不主張整輪UI操作後加密vault仍逐位元相同。原始輸出在 `T/iphone-271-install-progress.private.json`（installed output `88b1cb50c56659178bd346f51e78157a`、preservation output `973395301fb55e56b155302529c8dcbc`）。原WDA未就緒的歷史阻礙及其小報告保留於 `T/iphone-271-initial-connection/`，不用舊阻礙覆蓋更新後進度。
 
 沿用同一原iPhone分支作為唯一操作者，經TestFlight原地更新；不刪原A31對話、圖片或記憶，也不重啟第二組裝置服務。更新後須核271／TestFlight簽章、原資料保留，驗中文與多行草稿、鍵盤開關、舊文閱讀、回尾控制及附件畫面，留下實際可見性與CPU時間窗。
 

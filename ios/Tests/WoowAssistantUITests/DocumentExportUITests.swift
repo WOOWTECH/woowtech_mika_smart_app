@@ -82,6 +82,57 @@ final class DocumentExportUITests: XCTestCase {
                        "A confirmed local export does not issue a new model request")
     }
 
+    func testInvalidSourceErrorSurvivesFormatAndTitleChanges() {
+        launch()
+        // The ordinary isolated reply fixture echoes this malformed table.
+        // No new runtime fixture or production source-editing flow is needed.
+        send("Invalid source\n\n| A | B |\n| --- | --- |\n| only one |")
+        let reply = app.descendants(matching: .any)["chat.message.1.assistant"].firstMatch
+        ready(reply); reply.press(forDuration: 1)
+        tap("chat.messageMenu.document")
+        let status = app.staticTexts["document.status"].firstMatch
+        let generate = app.buttons["document.generate"].firstMatch
+        let expected = "內容為空、表格欄位不一致或超出支援大小，無法產生文件。請先調整來源內容。"
+        func assertInvalidState() {
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND label == %@", expected), object: status)], timeout: 10), .completed)
+            XCTAssertTrue(generate.exists)
+            XCTAssertFalse(generate.isEnabled, "Changing output options cannot make an invalid source exportable")
+            XCTAssertFalse(app.staticTexts["document.filename"].firstMatch.exists)
+        }
+        assertInvalidState()
+        for format in ["CSV", "HTML", "PDF"] {
+            let option = app.segmentedControls["document.format"].buttons[format]
+            ready(option); option.tap()
+            XCTAssertTrue(option.isSelected)
+            assertInvalidState()
+        }
+        let title = app.textFields["document.title"]
+        ready(title); title.tap(); title.typeText(" revised")
+        XCTAssertTrue((title.value as? String ?? "").contains("revised"))
+        assertInvalidState()
+        capture("invalid-source-still-explained-after-output-edits")
+
+        // A different immutable source gets its own validation state. Use the
+        // same ordinary chat/echo/export path, without a relaunch or reset.
+        tap("document.done")
+        send("Valid source\n\n| A | B |\n| --- | --- |\n| retained | valid |", assistantIndex: 3)
+        let validReply = app.descendants(matching: .any)["chat.message.3.assistant"].firstMatch
+        ready(validReply); validReply.press(forDuration: 1)
+        tap("chat.messageMenu.document")
+        let csv = app.segmentedControls["document.format"].buttons["CSV"]
+        ready(csv); csv.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND enabled == true"), object: generate)], timeout: 10), .completed)
+        XCTAssertFalse(status.exists, "The previous source's validation failure must not leak into a new export")
+        tap("document.generate")
+        assertText("document.status", contains: "文件已產生")
+        let filename = app.staticTexts["document.filename"].firstMatch
+        XCTAssertTrue(filename.waitForExistence(timeout: 10))
+        XCTAssertTrue(filename.label.hasSuffix(".csv"))
+        capture("valid-source-export-after-invalid-source-dismissal")
+    }
+
     private func launch() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode",
                                "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture", "-WoowSkipOnboarding"]
@@ -90,11 +141,11 @@ final class DocumentExportUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.waitForExistence(timeout: 15))
     }
 
-    private func send(_ source: String) {
+    private func send(_ source: String, assistantIndex: Int = 1) {
         let draft = chatDraftControl(in: app)
         ready(draft); draft.tap(); draft.typeText(source)
         tap("chat.dismissKeyboard"); tap("chat.send")
-        XCTAssertTrue(app.descendants(matching: .any)["chat.message.1.assistant"].firstMatch.waitForExistence(timeout: 30))
+        XCTAssertTrue(app.descendants(matching: .any)["chat.message.\(assistantIndex).assistant"].firstMatch.waitForExistence(timeout: 30))
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
     }
 

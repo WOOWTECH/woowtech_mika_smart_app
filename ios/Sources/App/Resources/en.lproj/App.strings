@@ -1045,7 +1045,8 @@
 "document.deliveryFailed" = "File delivery failed. Check the destination or try again.";
 "document.activityCompleted" = "The system reported the activity completed. This does not confirm receipt by the recipient.";
 "document.created" = "File created. You can preview, save or share it.";
-"document.storageFull" = "Available storage or the temporary-file allowance is full. Free space and retry.";
+"document.storageFull" = "Not enough storage space on this device. Free space and retry.";
+"document.quotaFull" = "Not enough room in the 100 MiB document cache. Close preview, share and document-generation screens, then retry after the retention period. Files are kept for 24 hours after use ends; expired files that are no longer in use are cleaned up the next time you generate a document.";
 "document.generationFailed" = "Could not create the file. Retry or reduce the content.";
 "document.missing" = "The temporary file is missing. Generate it again.";
 "document.previewFailed" = "Unable to preview the document. Close the preview and try again.";

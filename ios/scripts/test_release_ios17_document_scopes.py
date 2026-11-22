@@ -17,13 +17,14 @@ class DocumentFocusedScopesTests(unittest.TestCase):
         groups = ios17.validate_document_scopes(catalog)
         self.assertEqual(set(groups), {"documents-chat"})
         self.assertEqual(set(groups["documents-chat"]), expected)
-        self.assertEqual(len(expected), 9)
+        self.assertEqual(len(expected), 10)
         self.assertIn("WoowAssistantUITests/ChatAttachmentUITests/testSixEntryTranscriptAcceptsFourthTurnWithKeyboardAttachmentsAndMemory",
                       expected)
         self.assertIn("WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
                       expected)
         self.assertEqual(catalog["document_focused_scopes"], groups)
         self.assertIn("WoowAssistantUITests/DocumentExportUITests/testSelectedAnswerCSVPreviewAndSaveCancellation", expected)
+        self.assertIn("WoowAssistantUITests/DocumentExportUITests/testInvalidSourceErrorSurvivesFormatAndTitleChanges", expected)
         self.assertEqual(ios17.UI_SHARDS["ui-documents"], ["ChatAttachmentUITests", "DocumentExportUITests"])
         self.assertIn("AssistantDocumentsTests", ios17.TEST_SCOPES["core"])
         for scope, methods in groups.items():

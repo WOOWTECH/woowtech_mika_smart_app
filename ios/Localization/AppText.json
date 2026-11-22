@@ -10166,8 +10166,17 @@
       "key": "document.storageFull",
       "parameters": [],
       "translations": {
-        "zh-Hant": "可用空間或暫存額度不足，請釋出空間後重試。",
-        "en": "Available storage or the temporary-file allowance is full. Free space and retry."
+        "zh-Hant": "裝置可用儲存空間不足，請釋出空間後重試。",
+        "en": "Not enough storage space on this device. Free space and retry."
+      }
+    },
+    {
+      "case": "documentQuotaFull",
+      "key": "document.quotaFull",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件暫存額度（100 MiB）不足。請關閉預覽、分享及文件產生頁面，待保留期到期後重試。檔案停止使用後仍保留 24 小時；到期且未使用的檔案會在下次產生文件時清理。",
+        "en": "Not enough room in the 100 MiB document cache. Close preview, share and document-generation screens, then retry after the retention period. Files are kept for 24 hours after use ends; expired files that are no longer in use are cleaned up the next time you generate a document."
       }
     },
     {
