@@ -21,6 +21,16 @@
     <string name="result_effective">Worked</string>
     <string name="result_unchanged">No change</string>
     <string name="result_completed">Done</string>
+    <string name="timeline_mcp_tool_error">Tool reported an error</string>
+    <string name="timeline_mcp_http_error">Server request failed</string>
+    <string name="timeline_mcp_rpc_error">Server response error</string>
+    <string name="timeline_mcp_timeout">Request timed out</string>
+    <string name="timeline_mcp_cancelled">Request cancelled</string>
+    <string name="timeline_mcp_transport_error">Connection failed</string>
+    <string name="timeline_mcp_protocol_error">Server communication failed</string>
+    <string name="timeline_mcp_other_error">Tool call failed</string>
+    <string name="timeline_mcp_code">Code %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">Outcome unconfirmed; check first</string>
     <string name="guard_stop">Guard stopped</string>
     <string name="guard_warn">Guard warning</string>
     <string name="guard_with_what">%1$s: %2$s</string>

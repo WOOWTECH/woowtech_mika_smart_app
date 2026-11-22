@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">导出文档</string>
+    <string name="document_close">关闭</string>
+    <string name="document_default_title">回答</string>
+    <string name="document_title">文档标题</string>
+    <string name="document_source">Markdown 源内容</string>
+    <string name="document_source_note">这是所选已完成回答的副本。生成前可以编辑标题与源内容，原始对话不会改变。</string>
+    <string name="document_local_note">文档在此设备上生成，不会请求模型或上传。支持标题、段落、列表及竖线分隔表格；其他 Markdown 语法保留原样。</string>
+    <string name="document_csv_note">CSV 仅导出一个选定表格，采用带 BOM 的 UTF-8 编码。为防止电子表格执行公式，忽略前置空白后以 =、+、-、@ 开头，或前置空白中含制表符或换行的单元格，会加上单引号前缀。这会改变单元格值：公式和负数会变成文本，单引号也可能显示。使用前请检查。</string>
+    <string name="document_choose_table">请选择一个表格，再生成 CSV。</string>
+    <string name="document_table_choice">表格 %1$d：%2$s（%3$d 行）</string>
+    <string name="document_generate">生成／重试</string>
+    <string name="document_generating">正在此设备上生成…</string>
+    <string name="document_ready">可以预览、保存或分享。临时文件在使用后最多保留 24 小时，到期后会在下次导出时清理。如需保留，请保存副本。</string>
+    <string name="document_preview">预览文件</string>
+    <string name="document_save">保存到文件…</string>
+    <string name="document_share">分享…</string>
+    <string name="document_regenerate">重新生成</string>
+    <string name="document_share_opened">分享面板已打开，尚未确认送达。关闭面板不代表文件已发送。</string>
+    <string name="document_save_picker">请选择保存位置。目前尚未保存。</string>
+    <string name="document_saving">正在写入文件…</string>
+    <string name="document_saved">文件已保存。</string>
+    <string name="document_save_cancelled">已取消保存，未写入文件。</string>
+    <string name="document_save_failed">无法完成保存，目标位置可能留有不完整的文件。请再次选择保存以重试。</string>
+    <string name="document_failed">无法完成此操作。请重试，或编辑源内容后重新生成。</string>
+    <string name="document_empty">请输入标题及非空的源内容。</string>
+    <string name="document_too_large">文档过大。限制：UTF-8 源内容 1 MiB、64 个表格、每个表格 64 列和 5,000 行、含表头共 50,000 个单元格；10,000 个内容区段、50,000 个列表项、PDF 256 页、文件 16 MiB。请缩减源内容后重试。</string>
+    <string name="document_ragged">每行单元格的数量必须与表头相同。请修正缺少或多出的单元格后重试。</string>
+    <string name="document_empty_table">表格需要非空的表头，以及至少一行非空的数据。</string>
+    <string name="document_missing_table">CSV 需要包含表头、分隔行和数据行的竖线分隔表格。请编辑源内容或选择 HTML／PDF。</string>
+    <string name="document_cache_full">文档临时存储空间已满。近期分享的文件会保留 24 小时，供其他应用读取。请在文件到期后重试。</string>
+    <string name="document_no_answer">目前没有可导出的最新已完成回答。请从对话中选择一条已完成的助理回答。</string>
+    <string name="document_source_window">每次最多显示 1,500 个源内容字符。编辑仅影响当前部分，导出会包含完整源内容。</string>
+    <string name="document_previous">上一部分源内容</string>
+    <string name="document_next">下一部分源内容</string>
+    <string name="document_csv_preview">仅显示前 64 KiB。生成、保存及分享的 CSV 文件均包含所选表格的完整内容。</string>
+    <string name="document_invalid_title">请使用非空、不含控制字符且最多为 1,024 个 UTF-8 字节的标题。</string>
+    <string name="document_invalid_language">文档语言标签无效。请使用应用支持的语言重新打开导出界面。</string>
+    <string name="document_invalid_content">源内容含有不支持的控制字符或无效区段。请编辑后重试。</string>
+</resources>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">Ekspor dokumen</string>
+    <string name="document_close">Tutup</string>
+    <string name="document_default_title">Jawaban</string>
+    <string name="document_title">Judul dokumen</string>
+    <string name="document_source">Sumber Markdown</string>
+    <string name="document_source_note">Ini adalah salinan jawaban terpilih yang sudah selesai. Anda dapat mengedit judul dan sumber sebelum membuat dokumen; percakapan asli tidak berubah.</string>
+    <string name="document_local_note">Dokumen dibuat di perangkat ini, tanpa permintaan ke model atau unggahan. Mendukung judul, paragraf, daftar, dan tabel berpemisah garis vertikal; sintaks Markdown lainnya dibiarkan apa adanya.</string>
+    <string name="document_csv_note">CSV hanya mengekspor satu tabel terpilih dengan UTF-8 BOM. Untuk mencegah eksekusi rumus di spreadsheet, sel yang dimulai dengan =, +, -, @ setelah spasi awal diabaikan, atau yang memiliki tab/baris baru di bagian spasi awal, diberi awalan apostrof. Ini mengubah nilai sel: rumus dan angka negatif menjadi teks; apostrof mungkin terlihat. Periksa sebelum digunakan.</string>
+    <string name="document_choose_table">Pilih satu tabel, lalu buat CSV.</string>
+    <string name="document_table_choice">Tabel %1$d: %2$s (%3$d baris)</string>
+    <string name="document_generate">Buat / coba lagi</string>
+    <string name="document_generating">Membuat dokumen di perangkat ini…</string>
+    <string name="document_ready">Siap untuk dipratinjau, disimpan, atau dibagikan. Berkas sementara disimpan hingga 24 jam setelah digunakan, lalu dibersihkan saat ekspor berikutnya setelah masa simpan berakhir. Simpan salinannya jika ingin menyimpannya lebih lama.</string>
+    <string name="document_preview">Pratinjau berkas</string>
+    <string name="document_save">Simpan ke berkas…</string>
+    <string name="document_share">Bagikan…</string>
+    <string name="document_regenerate">Buat ulang</string>
+    <string name="document_share_opened">Panel berbagi telah dibuka. Pengiriman belum dikonfirmasi; menutup panel tidak berarti berkas sudah terkirim.</string>
+    <string name="document_save_picker">Pilih lokasi penyimpanan. Belum ada berkas yang disimpan.</string>
+    <string name="document_saving">Menulis berkas…</string>
+    <string name="document_saved">Berkas telah disimpan.</string>
+    <string name="document_save_cancelled">Penyimpanan dibatalkan. Tidak ada berkas yang ditulis.</string>
+    <string name="document_save_failed">Penyimpanan tidak dapat diselesaikan. Lokasi tujuan mungkin berisi berkas yang belum lengkap. Pilih Simpan lagi untuk mencoba ulang.</string>
+    <string name="document_failed">Tindakan ini tidak dapat diselesaikan. Coba lagi, atau edit sumber lalu buat ulang dokumen.</string>
+    <string name="document_empty">Masukkan judul dan sumber yang tidak kosong.</string>
+    <string name="document_too_large">Dokumen terlalu besar. Batas: sumber UTF-8 1 MiB, 64 tabel, 64 kolom dan 5.000 baris per tabel, total 50.000 sel termasuk kepala tabel; 10.000 bagian, 50.000 butir daftar, PDF 256 halaman, dan berkas 16 MiB. Kurangi sumber lalu coba lagi.</string>
+    <string name="document_ragged">Jumlah sel di setiap baris harus sama persis dengan baris kepala tabel. Perbaiki sel yang kurang atau berlebih, lalu coba lagi.</string>
+    <string name="document_empty_table">Tabel harus memiliki kepala tabel yang tidak kosong dan setidaknya satu baris data yang tidak kosong.</string>
+    <string name="document_missing_table">CSV memerlukan tabel berpemisah garis vertikal dengan kepala tabel, baris pemisah, dan baris data. Edit sumber atau pilih HTML/PDF.</string>
+    <string name="document_cache_full">Penyimpanan sementara dokumen penuh. Berkas yang baru dibagikan disimpan selama 24 jam agar aplikasi lain dapat membacanya. Coba lagi setelah masa simpannya berakhir.</string>
+    <string name="document_no_answer">Tidak ada jawaban terbaru yang sudah selesai untuk diekspor. Pilih jawaban asisten yang sudah selesai dari percakapan.</string>
+    <string name="document_source_window">Menampilkan hingga 1.500 karakter sumber sekaligus. Pengeditan hanya memengaruhi bagian ini; hasil ekspor mencakup seluruh sumber.</string>
+    <string name="document_previous">Bagian sumber sebelumnya</string>
+    <string name="document_next">Bagian sumber berikutnya</string>
+    <string name="document_csv_preview">Hanya 64 KiB pertama yang ditampilkan. CSV yang dibuat, disimpan, dan dibagikan berisi seluruh tabel terpilih.</string>
+    <string name="document_invalid_title">Gunakan judul yang tidak kosong, maksimal 1.024 byte UTF-8, tanpa karakter kontrol.</string>
+    <string name="document_invalid_language">Tag bahasa dokumen tidak valid. Buka kembali ekspor dengan bahasa aplikasi yang didukung.</string>
+    <string name="document_invalid_content">Sumber berisi karakter kontrol yang tidak didukung atau bagian yang tidak valid. Edit lalu coba lagi.</string>
+</resources>

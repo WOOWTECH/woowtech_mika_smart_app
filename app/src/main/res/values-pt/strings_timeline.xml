@@ -100,4 +100,14 @@
     <string name="timeline_running">Em execução</string>
     <string name="timeline_step_limit">Passos</string>
     <string name="timeline_step_limit_value">%1$d / %2$d</string>
+    <string name="timeline_mcp_tool_error">A ferramenta informou um erro</string>
+    <string name="timeline_mcp_http_error">Falha na solicitação ao servidor</string>
+    <string name="timeline_mcp_rpc_error">Erro na resposta do servidor</string>
+    <string name="timeline_mcp_timeout">A solicitação excedeu o tempo limite</string>
+    <string name="timeline_mcp_cancelled">Solicitação cancelada</string>
+    <string name="timeline_mcp_transport_error">Falha na conexão</string>
+    <string name="timeline_mcp_protocol_error">Falha na comunicação com o servidor</string>
+    <string name="timeline_mcp_other_error">Falha na chamada da ferramenta</string>
+    <string name="timeline_mcp_code">Código %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">Resultado não confirmado; verifique primeiro</string>
 </resources>

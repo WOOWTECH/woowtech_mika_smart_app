@@ -92,4 +92,14 @@
     <string name="timeline_running">실행 중</string>
     <string name="timeline_step_limit">단계</string>
     <string name="timeline_step_limit_value">%1$d / %2$d</string>
+    <string name="timeline_mcp_tool_error">도구에서 오류 보고</string>
+    <string name="timeline_mcp_http_error">서버 요청 실패</string>
+    <string name="timeline_mcp_rpc_error">서버 응답 오류</string>
+    <string name="timeline_mcp_timeout">요청 시간 초과</string>
+    <string name="timeline_mcp_cancelled">요청 취소됨</string>
+    <string name="timeline_mcp_transport_error">연결 실패</string>
+    <string name="timeline_mcp_protocol_error">서버 통신 오류</string>
+    <string name="timeline_mcp_other_error">도구 호출 실패</string>
+    <string name="timeline_mcp_code">코드 %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">결과 미확인. 먼저 확인하세요</string>
 </resources>

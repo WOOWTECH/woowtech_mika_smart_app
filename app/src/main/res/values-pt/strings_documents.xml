@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">Exportar documento</string>
+    <string name="document_close">Fechar</string>
+    <string name="document_default_title">Resposta</string>
+    <string name="document_title">Título do documento</string>
+    <string name="document_source">Texto-fonte em Markdown</string>
+    <string name="document_source_note">Esta é uma cópia da resposta concluída que você selecionou. Edite o título e o texto-fonte antes de gerar o documento; a conversa original não será alterada.</string>
+    <string name="document_local_note">O arquivo é gerado neste dispositivo, sem chamar o modelo nem fazer upload. Aceita títulos, parágrafos, listas e tabelas delimitadas por barras verticais; os demais elementos de Markdown são mantidos como texto literal.</string>
+    <string name="document_csv_note">O CSV exporta apenas uma tabela selecionada, com BOM UTF-8. Para proteger as planilhas, é acrescentado um apóstrofo no início das células que, após os espaços em branco iniciais, começam com =, +, - ou @, ou cujos espaços em branco iniciais contêm tabulação ou quebra de linha. Isso altera os valores das células: fórmulas e números negativos viram texto; o apóstrofo pode ficar visível. Revise o arquivo antes de usar.</string>
+    <string name="document_choose_table">Escolha uma tabela e depois gere o CSV.</string>
+    <string name="document_table_choice">Tabela %1$d: %2$s (%3$d linhas)</string>
+    <string name="document_generate">Gerar / tentar novamente</string>
+    <string name="document_generating">Gerando neste dispositivo…</string>
+    <string name="document_ready">Pronto para visualizar, salvar ou compartilhar. Os arquivos temporários são mantidos por até 24 horas após o uso; depois desse prazo, são removidos na próxima exportação. Salve uma cópia para guardar.</string>
+    <string name="document_preview">Visualizar arquivo</string>
+    <string name="document_save">Salvar em Arquivos…</string>
+    <string name="document_share">Compartilhar…</string>
+    <string name="document_regenerate">Gerar novamente</string>
+    <string name="document_share_opened">Painel de compartilhamento aberto. A entrega não foi confirmada; fechar o painel não significa que o arquivo foi enviado.</string>
+    <string name="document_save_picker">Escolha onde salvar o arquivo. Nada foi salvo ainda.</string>
+    <string name="document_saving">Gravando o arquivo…</string>
+    <string name="document_saved">Arquivo salvo.</string>
+    <string name="document_save_cancelled">Salvamento cancelado. Nenhum arquivo foi gravado.</string>
+    <string name="document_save_failed">Não foi possível concluir o salvamento. O destino pode conter um arquivo incompleto. Escolha Salvar de novo para tentar novamente.</string>
+    <string name="document_failed">Não foi possível concluir esta ação. Tente novamente ou edite o texto-fonte e gere o documento de novo.</string>
+    <string name="document_empty">Insira um título e um texto-fonte que não esteja vazio.</string>
+    <string name="document_too_large">O documento é grande demais. Limites: 1 MiB de texto-fonte UTF-8; 64 tabelas; 64 colunas e 5.000 linhas por tabela; 50.000 células no total, incluindo os cabeçalhos; 10.000 seções; 50.000 itens de lista; 256 páginas de PDF e arquivos de 16 MiB. Reduza o texto-fonte e tente novamente.</string>
+    <string name="document_ragged">Cada linha deve ter exatamente o mesmo número de células do cabeçalho. Corrija as células que faltam ou sobram e tente novamente.</string>
+    <string name="document_empty_table">Uma tabela precisa de um cabeçalho não vazio e pelo menos uma linha de dados não vazia.</string>
+    <string name="document_missing_table">O CSV precisa de uma tabela delimitada por barras verticais, com cabeçalho, linha separadora e linhas de dados. Edite o texto-fonte ou escolha HTML/PDF.</string>
+    <string name="document_cache_full">O armazenamento temporário de documentos está cheio. Os arquivos compartilhados recentemente são mantidos por 24 horas para que outros apps possam lê-los. Tente novamente após esse prazo.</string>
+    <string name="document_no_answer">Não há uma última resposta concluída para exportar. Selecione uma resposta concluída do assistente na conversa.</string>
+    <string name="document_source_window">São exibidos até 1.500 caracteres do texto-fonte por vez. As edições afetam apenas esta seção; a exportação inclui o texto-fonte completo.</string>
+    <string name="document_previous">Seção anterior do texto-fonte</string>
+    <string name="document_next">Próxima seção do texto-fonte</string>
+    <string name="document_csv_preview">Apenas os primeiros 64 KiB são exibidos. O CSV gerado, o arquivo salvo e o arquivo compartilhado contêm toda a tabela selecionada.</string>
+    <string name="document_invalid_title">Use um título não vazio, com no máximo 1.024 bytes UTF-8 e sem caracteres de controle.</string>
+    <string name="document_invalid_language">A tag de idioma do documento é inválida. Reabra a exportação com um idioma compatível com o app.</string>
+    <string name="document_invalid_content">O texto-fonte contém caracteres de controle não aceitos ou uma seção inválida. Edite-o e tente novamente.</string>
+</resources>

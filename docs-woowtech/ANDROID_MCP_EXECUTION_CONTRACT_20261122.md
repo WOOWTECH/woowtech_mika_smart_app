@@ -1,6 +1,6 @@
 # Android MCP 單次送出及錯誤旗標修補
 
-本輪確認並修補OkHttp特定408／503隱式重送及非布林isError成功路徑，初批62個core案例通過；後續補上安全category／code／outcomeUnknown核心契約，最終92案通過。**沒有Android實機、真Apporo或商業寫入驗收；App UI整合尚待。** 以下先保留初批來源及紅綠，後續核心提交另列，不能混成同一受測版本。
+本輪修補OkHttp特定408／503隱式重送及非布林isError成功路徑，初批62個core案例通過；後續安全診斷核心92案、對話步驟提示及資源檢查40案通過，兩品牌Kotlin編譯成功。**沒有Android實機、真Apporo或商業寫入驗收。** 下文分別保留各次受測來源與失敗，不混成同一版本。
 
 來源為 `c53acdb0cc1d3405214a4034e1980328a5c9b2ef` 加本提交五個Kotlin檔；不在已上傳的iOS273包內。審查與測試證據根目錄 `R=/Users/woowtech/Documents/WOOWTECH-iOS-validation/documents-20261120`，`T=R/testflight-20261122`。
 
@@ -48,3 +48,22 @@ one-shot也阻止已送body後的401／407自動重播；預先設定的headers�
 八輪均序列化、來源before／after相同、兩個批准containers恢復；沒有把fixture／JUnit簽名錯誤當產品紅燈。最終四個HTTP/SSE×408/503仍各POST1。真McpCapability＋ToolDispatcher長結果以8192字存檔、4096字preview，實際JSON4309字，首71字含完整ok／diagnostic；截在該邊界仍可解析且與原值相同。另一真HTTP RPC -32000＋故障result store同樣保留prefix與原診斷。
 
 證據 `T/android-mcp-diagnostic-core/HANDOFF.md`、`RESULT.json`、`JSON-EXAMPLES.json`、`parent-verification.json`；最終原始log `R/android-mcp-diagnostic-green-20261122-05.log`，JUnit在 `T/android-mcp-diagnostic-core/green-prefix-final/junit/`。Parent重算八輪JUnit、核全artifact與12個現行source hash、18份真測試序列化輸出及prefix順序。Patch SHA256 `9c9244807156b99c2dd3df0eb456df1a83b9f3f1a539e903e564e4ff2114cb7b`。這些是loopback及stdio合成管線，不增加商用／實機通過數；UI clipped consumer、真Apporo、認證proxy重新協商及未知業務效果仍未驗。
+
+## 對話步驟提示及文件語系：40案通過
+
+核心診斷提交 `b9d3c9bb22e6495fc720affe2ad8bad9ebbbffc9` 上再整合本提交App變更。僅MCP namespace的結果採新路徑：完整JSON只讀頂層host diagnostic；截斷只接受固定ok→完整diagnostic前綴，拒絕nested／quoted／tooltext偽造及不合法型別。類別改為本地化人類文字，數字code放既有Tag，unknown加查驗提示；同step未知Tag不重複，保留既有guard累積與成功／舊資料路徑。
+
+RPC未知結果不能暗示未執行，因此審查時將十語系的「伺服器拒絕」改為中性「伺服器回覆錯誤」，並補-32000／-32603 unknown案例；-32602 known仍不加未知Tag。v1、v2候選及base／candidate hash保留在 `T/android-mcp-diagnostic-ui-candidate/`，v2 patch SHA256 `ad66454d34470e319c1c62e2cfc9c51f20af0aa82780c5191802c56f2a03519b`。
+
+| 執行 | 結果與界線 |
+| --- | --- |
+| UI-red-01 | 環境缺JAVA_HOME，0案，非產品紅燈；原log保留。後續沿用已安裝Homebrew JDK17及Android SDK，沒有安裝新依賴。 |
+| UI-red-02 | 只套新測試／資源，舊ViewModel不變；11案／10 failure／error0／skip0，40.56秒，source unchanged。 |
+| UI-green-01 | 40案／3 failure／error0／skip0，34.05秒。新增11及原ViewModel20均通過；3個StringResources失敗來自既有document38 keys只具英文／繁中，另8語系缺少，已與base84d靜態逐鍵比對，不能歸因新MCP keys。Apporo compile完成，Woow尚未到，未宣稱兩者皆過。 |
+| UI-green-02 | 補齊8語系304個文件項目後，**40案／failure0／error0／skip0，38.29秒**；Apporo與Woowtech Kotlin compile皆成功，source unchanged，原兩containers恢復。 |
+
+單元案例實際執行於既有啟用的 `:app:testUpstreamDebugUnitTest`：新提示11、舊ViewModel20、StringResources9。品牌unit task在專案設定中停用，**不是兩品牌各跑40案，也不是native UI／instrumentation**。Parent由原始JUnit重算四輪並核當次完整source hash，見 `T/android-mcp-diagnostic-ui-verify/parent-verification.json`；各輪同目錄的phase/junit及R原始log／source／containers皆留存。
+
+另發現文件文案原宣稱PDF512頁，但Android實際 `DocumentLimits.MAX_PDF_PAGES=256`，renderer依此拒絕超限。本輪只將十語系文案一致改為256，不提高容量或改PDF行為；前後hash與runtime來源記於 `T/android-document-l10n-repair/pdf-page-limit-correction.json`。文件新增語系的XML／key／參數／分享未確認及本機產檔語意另有兩份worker靜態核對。翻譯尚未經獨立母語者、RTL或實機版面審視，不以資源測試替代。
+
+新UI不新增重試或外部送出動作，不改授權／信任／model client；MCP guidance仍非硬性冪等。真Apporo、POCO及完整商用條件待實際服務與單一操作者時段。

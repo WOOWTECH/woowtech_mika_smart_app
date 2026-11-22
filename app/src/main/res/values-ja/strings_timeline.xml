@@ -92,4 +92,14 @@
     <string name="timeline_running">実行中</string>
     <string name="timeline_step_limit">ステップ</string>
     <string name="timeline_step_limit_value">%1$d / %2$d</string>
+    <string name="timeline_mcp_tool_error">ツールでエラーが発生</string>
+    <string name="timeline_mcp_http_error">サーバーへのリクエストに失敗</string>
+    <string name="timeline_mcp_rpc_error">サーバーの応答エラー</string>
+    <string name="timeline_mcp_timeout">リクエストがタイムアウト</string>
+    <string name="timeline_mcp_cancelled">リクエストをキャンセル</string>
+    <string name="timeline_mcp_transport_error">接続に失敗</string>
+    <string name="timeline_mcp_protocol_error">サーバーとの通信に異常</string>
+    <string name="timeline_mcp_other_error">ツールの呼び出しに失敗</string>
+    <string name="timeline_mcp_code">コード %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">結果は未確認です。先に確認してください</string>
 </resources>

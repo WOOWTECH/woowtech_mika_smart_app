@@ -8,6 +8,7 @@ import com.wangzan101.mika.record.RunStore
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -164,9 +165,10 @@ class RunTimelineViewModel(
                 is RunEvent.ToolResult -> {
                     toolTimes.getOrPut(e.step) { mutableListOf() } += e
                     val row = at(e.step)
+                    val diagnostic = if (e.tool.startsWith("mcp_") && "__" in e.tool) mcpMetadata(e.resultJson) else null
                     rows[e.step] = row.copy(
-                        result = resultLabel(e.resultJson, e.changed),
-                        tags = row.tags + guardTags(e.resultJson),
+                        result = resultLabel(e.resultJson, e.changed, diagnostic),
+                        tags = row.tags + guardTags(e.resultJson) + mcpTags(diagnostic, row.tags),
                         screenshotId = row.screenshotId ?: e.screenshotId,
                     )
                 }
@@ -240,11 +242,131 @@ class RunTimelineViewModel(
         private val NOT_OK = Regex(""""ok"\s*:\s*false""")
         private val ERROR = Regex(""""error"\s*:\s*"([a-z_]+)"""")
 
-        private fun resultLabel(json: String, changed: Boolean?): String = when {
+        private fun resultLabel(json: String, changed: Boolean?, diagnostic: McpMetadata? = null): String = when {
+            diagnostic != null -> {
+                val d = diagnostic.diagnostic
+                when {
+                    diagnostic.ok == null || d == null -> tr(R.string.result_error)
+                    diagnostic.ok == false || d.category != "result" -> MCP_ERROR_LABELS[d.category]?.let {
+                        tr(R.string.result_error_detail, tr(it))
+                    } ?: tr(R.string.result_error)
+                    changed == true -> tr(R.string.result_effective)
+                    changed == false -> tr(R.string.result_unchanged)
+                    else -> tr(R.string.result_completed)
+                }
+            }
             NOT_OK.containsMatchIn(json) -> ERROR.find(json)?.groupValues?.get(1)?.let { ERROR_LABELS[it] }?.let { tr(R.string.result_error_detail, it) } ?: tr(R.string.result_error)
             changed == true -> tr(R.string.result_effective)
             changed == false -> tr(R.string.result_unchanged)
             else -> tr(R.string.result_completed)
+        }
+
+        /** Host metadata only. No server text, raw error, or executionWarning is used as a label. */
+        private data class McpDiagnostic(val category: String, val code: Int?, val outcomeUnknown: Boolean)
+        private data class McpMetadata(val ok: Boolean?, val diagnostic: McpDiagnostic?)
+
+        private val MCP_ERROR_LABELS = mapOf(
+            "toolError" to R.string.timeline_mcp_tool_error,
+            "http" to R.string.timeline_mcp_http_error,
+            "rpc" to R.string.timeline_mcp_rpc_error,
+            "timeout" to R.string.timeline_mcp_timeout,
+            "cancelled" to R.string.timeline_mcp_cancelled,
+            "transport" to R.string.timeline_mcp_transport_error,
+            "protocolFailure" to R.string.timeline_mcp_protocol_error,
+            "other" to R.string.timeline_mcp_other_error,
+        )
+        private val MCP_INTEGER = Regex("-?(0|[1-9][0-9]*)")
+
+        private fun strictBoolean(value: JsonElement?): Boolean? {
+            val p = value as? JsonPrimitive ?: return null
+            if (p.isString) return null
+            return when (p.content) { "true" -> true; "false" -> false; else -> null }
+        }
+
+        private fun mcpDiagnostic(value: JsonElement?): McpDiagnostic? {
+            val o = value as? JsonObject ?: return null
+            if (o.keys.any { it !in setOf("category", "code", "outcomeUnknown") }) return null
+            val category = (o["category"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null
+            if (category != "result" && category !in MCP_ERROR_LABELS) return null
+            val unknown = strictBoolean(o["outcomeUnknown"]) ?: return null
+            val code = if ("code" in o) {
+                val p = o["code"] as? JsonPrimitive ?: return null
+                if (p.isString || !MCP_INTEGER.matches(p.content)) return null
+                p.content.toIntOrNull() ?: return null
+            } else null
+            return McpDiagnostic(category, code, unknown)
+        }
+
+        private fun mcpMetadata(json: String): McpMetadata? {
+            parse(json)?.let { o ->
+                // Old complete records have no host diagnostic; keep their existing presentation.
+                if ("diagnostic" !in o) return null
+                return McpMetadata(strictBoolean(o["ok"]), mcpDiagnostic(o["diagnostic"]))
+            }
+            return mcpPrefixMetadata(json)
+        }
+
+        /**
+         * RunEvent.clipResult can cut the long text after the host metadata. Accept only the
+         * emitter's root {"ok":bool,"diagnostic":{complete object},... prefix. Never search
+         * nested objects or quoted tool content. Unverifiable metadata stays a generic error;
+         * absence of an unknown tag is not a claim that a call was rolled back.
+         */
+        private fun mcpPrefixMetadata(json: String): McpMetadata? {
+            val invalid = McpMetadata(null, null)
+            var i = 0
+            fun whitespace() { while (i < json.length && json[i] in " \t\r\n") i++ }
+            fun take(token: String): Boolean {
+                whitespace()
+                if (!json.startsWith(token, i)) return false
+                i += token.length
+                return true
+            }
+            if (!take("{") || !take("\"ok\"") || !take(":")) return invalid
+            val ok = when { take("true") -> true; take("false") -> false; else -> return invalid }
+            if (!take(",")) return invalid
+            // Pre-diagnostic MCP emitters used ok -> text/error. Keep those old clipped
+            // records on the legacy path; never look inside their values for a diagnostic.
+            if (take("\"text\"") || take("\"error\"")) return if (take(":")) null else invalid
+            if (!take("\"diagnostic\"") || !take(":")) return invalid
+            whitespace()
+            if (i >= json.length || json[i] != '{') return invalid
+            val start = i
+            var depth = 0
+            var quoted = false
+            var escaped = false
+            while (i < json.length) {
+                val c = json[i++]
+                when {
+                    escaped -> escaped = false
+                    quoted -> if (c == '\\') escaped = true else if (c == '"') quoted = false
+                    c == '"' -> quoted = true
+                    c == '{' -> depth++
+                    c == '}' -> {
+                        depth--
+                        if (depth == 0) {
+                            val end = i
+                            whitespace()
+                            if (i < json.length && json[i] != ',') return invalid
+                            return McpMetadata(ok, mcpDiagnostic(parse(json.substring(start, end))))
+                        }
+                    }
+                }
+            }
+            return invalid
+        }
+
+        private fun mcpTags(metadata: McpMetadata?, existing: List<Tag>): List<Tag> {
+            if (metadata?.ok == null) return emptyList()
+            val d = metadata.diagnostic ?: return emptyList()
+            return buildList {
+                if (metadata.ok == false || d.category != "result") {
+                    d.code?.let { add(Tag(tr(R.string.timeline_mcp_code, it), TagTone.Bad)) }
+                }
+                val unknown = Tag(tr(R.string.timeline_mcp_outcome_unknown), TagTone.Warn)
+                // A step can contain child and outer ToolResults. Only this new tag is deduplicated.
+                if (d.outcomeUnknown && unknown !in existing) add(unknown)
+            }
         }
 
         private fun guardTags(json: String): List<Tag> = guardObjects(json).mapNotNull { o ->

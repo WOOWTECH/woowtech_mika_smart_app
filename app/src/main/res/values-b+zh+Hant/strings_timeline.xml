@@ -20,6 +20,16 @@
     <string name="result_effective">生效</string>
     <string name="result_unchanged">沒變化</string>
     <string name="result_completed">完成</string>
+    <string name="timeline_mcp_tool_error">工具回報錯誤</string>
+    <string name="timeline_mcp_http_error">伺服器請求失敗</string>
+    <string name="timeline_mcp_rpc_error">伺服器回覆錯誤</string>
+    <string name="timeline_mcp_timeout">請求逾時</string>
+    <string name="timeline_mcp_cancelled">請求已取消</string>
+    <string name="timeline_mcp_transport_error">連線失敗</string>
+    <string name="timeline_mcp_protocol_error">伺服器通訊異常</string>
+    <string name="timeline_mcp_other_error">工具呼叫失敗</string>
+    <string name="timeline_mcp_code">代碼 %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">結果未確認，請先查驗</string>
     <string name="guard_stop">守衛停止</string>
     <string name="guard_warn">守衛提醒</string>
     <string name="guard_with_what">%1$s:%2$s</string>

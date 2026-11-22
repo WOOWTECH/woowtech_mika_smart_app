@@ -104,4 +104,14 @@
     <string name="timeline_running">Выполняется</string>
     <string name="timeline_step_limit">Шаги</string>
     <string name="timeline_step_limit_value">%1$d / %2$d</string>
+    <string name="timeline_mcp_tool_error">Инструмент сообщил об ошибке</string>
+    <string name="timeline_mcp_http_error">Ошибка запроса к серверу</string>
+    <string name="timeline_mcp_rpc_error">Ошибка в ответе сервера</string>
+    <string name="timeline_mcp_timeout">Время ожидания запроса истекло</string>
+    <string name="timeline_mcp_cancelled">Запрос отменён</string>
+    <string name="timeline_mcp_transport_error">Ошибка подключения</string>
+    <string name="timeline_mcp_protocol_error">Ошибка связи с сервером</string>
+    <string name="timeline_mcp_other_error">Ошибка вызова инструмента</string>
+    <string name="timeline_mcp_code">Код %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">Результат не подтверждён; сначала проверьте</string>
 </resources>

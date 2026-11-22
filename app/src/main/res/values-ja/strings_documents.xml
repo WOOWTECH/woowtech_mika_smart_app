@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">文書を書き出す</string>
+    <string name="document_close">閉じる</string>
+    <string name="document_default_title">回答</string>
+    <string name="document_title">文書のタイトル</string>
+    <string name="document_source">Markdown ソース</string>
+    <string name="document_source_note">選択した生成済みの回答のコピーです。生成前にタイトルとソースを編集できます。元の会話は変更されません。</string>
+    <string name="document_local_note">文書はこの端末内で生成します。モデルへのリクエストやアップロードは行いません。見出し、段落、リスト、縦棒で区切った表に対応し、その他の Markdown 記法はそのまま残ります。</string>
+    <string name="document_csv_note">CSV には選択した表を 1 つだけ、BOM 付き UTF-8 で書き出します。表計算ソフトで式として実行されるのを防ぐため、先頭の空白を除くと =、+、-、@ で始まるセル、または先頭の空白部分にタブや改行を含むセルには、単一引用符を付けます。これによりセルの値が変わり、数式や負数は文字列になります。引用符が表示される場合もあります。使用前に確認してください。</string>
+    <string name="document_choose_table">表を 1 つ選択してから CSV を生成してください。</string>
+    <string name="document_table_choice">表 %1$d：%2$s（%3$d 行）</string>
+    <string name="document_generate">生成／再試行</string>
+    <string name="document_generating">この端末内で生成中…</string>
+    <string name="document_ready">プレビュー、保存、共有ができます。一時ファイルは使用後、最長 24 時間保持され、期限後の次回書き出し時に削除されます。残しておくにはコピーを保存してください。</string>
+    <string name="document_preview">ファイルをプレビュー</string>
+    <string name="document_save">ファイルに保存…</string>
+    <string name="document_share">共有…</string>
+    <string name="document_regenerate">再生成</string>
+    <string name="document_share_opened">共有シートを開きました。送達は確認されていません。閉じても、ファイルが送信されたことにはなりません。</string>
+    <string name="document_save_picker">保存先を選択してください。まだ保存されていません。</string>
+    <string name="document_saving">ファイルを書き込み中…</string>
+    <string name="document_saved">ファイルを保存しました。</string>
+    <string name="document_save_cancelled">保存をキャンセルしました。ファイルは書き込まれていません。</string>
+    <string name="document_save_failed">保存を完了できませんでした。保存先に不完全なファイルが残っている可能性があります。もう一度「保存」を選択して再試行してください。</string>
+    <string name="document_failed">この操作を完了できませんでした。再試行するか、ソースを編集して再生成してください。</string>
+    <string name="document_empty">タイトルと空でないソースを入力してください。</string>
+    <string name="document_too_large">文書が大きすぎます。上限：UTF-8 ソース 1 MiB、表 64 個、各表の列数 64・行数 5,000、見出しを含むセルの総数 50,000、セクション 10,000 個、リスト項目 50,000 個、PDF 256 ページ、ファイル 16 MiB。ソースを減らして再試行してください。</string>
+    <string name="document_ragged">各行のセル数は見出し行と同じにする必要があります。不足または余分なセルを修正して再試行してください。</string>
+    <string name="document_empty_table">表には空でない見出し行と、少なくとも 1 行の空でないデータ行が必要です。</string>
+    <string name="document_missing_table">CSV には、見出し行、区切り行、データ行のある縦棒区切りの表が必要です。ソースを編集するか、HTML／PDF を選択してください。</string>
+    <string name="document_cache_full">文書の一時保存領域がいっぱいです。最近共有したファイルは、他のアプリが読み取れるよう 24 時間保持されます。保持期限が過ぎてから再試行してください。</string>
+    <string name="document_no_answer">書き出せる生成済みの最新回答がありません。会話から生成が完了したアシスタントの回答を選択してください。</string>
+    <string name="document_source_window">ソースは一度に最大 1,500 文字を表示します。編集はこの部分だけに反映され、書き出しにはソース全体が含まれます。</string>
+    <string name="document_previous">前のソース部分</string>
+    <string name="document_next">次のソース部分</string>
+    <string name="document_csv_preview">先頭の 64 KiB のみ表示しています。生成、保存、共有する CSV ファイルには、選択した表の全体が含まれます。</string>
+    <string name="document_invalid_title">タイトルは空にせず、制御文字を含めず、UTF-8 で 1,024 バイト以内にしてください。</string>
+    <string name="document_invalid_language">文書の言語タグが無効です。対応するアプリの言語で書き出し画面を開き直してください。</string>
+    <string name="document_invalid_content">ソースに未対応の制御文字または無効なセクションが含まれています。編集して再試行してください。</string>
+</resources>

@@ -92,4 +92,14 @@
     <string name="timeline_running">进行中</string>
     <string name="timeline_step_limit">步数</string>
     <string name="timeline_step_limit_value">%1$d / %2$d</string>
+    <string name="timeline_mcp_tool_error">工具报告错误</string>
+    <string name="timeline_mcp_http_error">服务器请求失败</string>
+    <string name="timeline_mcp_rpc_error">服务器回复错误</string>
+    <string name="timeline_mcp_timeout">请求超时</string>
+    <string name="timeline_mcp_cancelled">请求已取消</string>
+    <string name="timeline_mcp_transport_error">连接失败</string>
+    <string name="timeline_mcp_protocol_error">服务器通信异常</string>
+    <string name="timeline_mcp_other_error">工具调用失败</string>
+    <string name="timeline_mcp_code">代码 %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">结果未确认，请先核实</string>
 </resources>

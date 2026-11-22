@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">تصدير مستند</string>
+    <string name="document_close">إغلاق</string>
+    <string name="document_default_title">إجابة</string>
+    <string name="document_title">عنوان المستند</string>
+    <string name="document_source">مصدر Markdown</string>
+    <string name="document_source_note">هذه نسخة من الإجابة المكتملة المحددة. يمكنك تعديل العنوان ونص المصدر قبل إنشاء المستند؛ ستبقى المحادثة الأصلية دون تغيير.</string>
+    <string name="document_local_note">يُنشأ الملف على هذا الجهاز دون إرسال طلب إلى النموذج أو رفع بيانات. يدعم العناوين والفقرات والقوائم والجداول المفصولة بخطوط عمودية؛ وتبقى عناصر Markdown الأخرى نصًا حرفيًا.</string>
+    <string name="document_csv_note">يُصدّر CSV جدولًا واحدًا محددًا فقط، بترميز UTF-8 مع علامة BOM. لحماية جداول البيانات، تُضاف علامة اقتباس مفردة في بداية الخلايا التي يبدأ محتواها بعد المسافات البيضاء الأولية بـ = أو + أو - أو @، أو التي تحتوي المسافات البيضاء في بدايتها على علامة جدولة أو سطر جديد. هذا يغيّر قيم الخلايا: تصبح الصيغ والأعداد السالبة نصًا، وقد تظهر علامة الاقتباس المفردة. راجع الملف قبل استخدامه.</string>
+    <string name="document_choose_table">اختر جدولًا واحدًا، ثم أنشئ ملف CSV.</string>
+    <string name="document_table_choice">الجدول %1$d: %2$s (عدد الصفوف: %3$d)</string>
+    <string name="document_generate">إنشاء / إعادة المحاولة</string>
+    <string name="document_generating">جارٍ الإنشاء على هذا الجهاز…</string>
+    <string name="document_ready">الملف جاهز للمعاينة أو الحفظ أو المشاركة. يُحتفظ بالملفات المؤقتة لمدة تصل إلى 24 ساعة بعد استخدامها، ثم تُحذف عند التصدير التالي بعد انقضاء المدة. احفظ نسخة للاحتفاظ بها.</string>
+    <string name="document_preview">معاينة الملف</string>
+    <string name="document_save">حفظ في الملفات…</string>
+    <string name="document_share">مشاركة…</string>
+    <string name="document_regenerate">إنشاء من جديد</string>
+    <string name="document_share_opened">فُتحت لوحة المشاركة. لم يتأكد تسليم الملف؛ إغلاقها لا يعني أنه أُرسل.</string>
+    <string name="document_save_picker">اختر مكان الحفظ. لم يُحفظ شيء بعد.</string>
+    <string name="document_saving">جارٍ كتابة الملف…</string>
+    <string name="document_saved">حُفظ الملف.</string>
+    <string name="document_save_cancelled">أُلغي الحفظ. لم يُكتب أي ملف.</string>
+    <string name="document_save_failed">تعذّر إكمال الحفظ. قد يحتوي مكان الحفظ على ملف غير مكتمل. اختر الحفظ مجددًا لإعادة المحاولة.</string>
+    <string name="document_failed">تعذّر إكمال هذا الإجراء. أعد المحاولة، أو عدّل نص المصدر وأنشئ المستند من جديد.</string>
+    <string name="document_empty">أدخل عنوانًا ونص مصدر غير فارغ.</string>
+    <string name="document_too_large">المستند كبير جدًا. الحدود: نص مصدر بترميز UTF-8 بحجم 1 MiB، و64 جدولًا، و64 عمودًا و5,000 صف لكل جدول، و50,000 خلية إجمالًا بما فيها خلايا العناوين؛ و10,000 مقطع، و50,000 عنصر قائمة، و256 صفحة PDF، وملفات بحجم 16 MiB. قلّل نص المصدر وأعد المحاولة.</string>
+    <string name="document_ragged">يجب أن يطابق عدد الخلايا في كل صف عدد خلايا صف العناوين تمامًا. صحّح الخلايا الناقصة أو الزائدة وأعد المحاولة.</string>
+    <string name="document_empty_table">يحتاج الجدول إلى صف عناوين غير فارغ وصف بيانات واحد غير فارغ على الأقل.</string>
+    <string name="document_missing_table">يتطلب CSV جدولًا مفصولًا بخطوط عمودية، يتضمن صف عناوين وصفًا فاصلًا وصفوف بيانات. عدّل نص المصدر أو اختر HTML أو PDF.</string>
+    <string name="document_cache_full">مساحة المستندات المؤقتة ممتلئة. يُحتفظ بالملفات التي تمت مشاركتها مؤخرًا لمدة 24 ساعة لتتمكن التطبيقات الأخرى من قراءتها. أعد المحاولة بعد انتهاء المدة.</string>
+    <string name="document_no_answer">لا توجد إجابة أخيرة مكتملة يمكن تصديرها. اختر إجابة مكتملة من المساعد في المحادثة.</string>
+    <string name="document_source_window">يُعرض ما يصل إلى 1,500 محرف من نص المصدر في كل مرة. تؤثر التعديلات في هذا المقطع فقط؛ ويشمل التصدير نص المصدر كاملًا.</string>
+    <string name="document_previous">مقطع المصدر السابق</string>
+    <string name="document_next">مقطع المصدر التالي</string>
+    <string name="document_csv_preview">يُعرض أول 64 KiB فقط. يحتوي ملف CSV المُنشأ والملف المحفوظ والملف المُشارك على الجدول المحدد كاملًا.</string>
+    <string name="document_invalid_title">استخدم عنوانًا غير فارغ، لا يتجاوز 1,024 بايت بترميز UTF-8 ولا يحتوي على محارف تحكم.</string>
+    <string name="document_invalid_language">وسم لغة المستند غير صالح. أعد فتح التصدير باستخدام لغة يدعمها التطبيق.</string>
+    <string name="document_invalid_content">يحتوي نص المصدر على محارف تحكم غير مدعومة أو مقطع غير صالح. عدّله وأعد المحاولة.</string>
+</resources>

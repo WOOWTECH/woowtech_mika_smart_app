@@ -13,7 +13,7 @@
 - **[K]** [PDF呈現鍵盤動畫發布修補](KEYBOARD_ANIMATION_PUBLISHING_FIX_20261122.md)：298夾界定位duration-only發布、299真publisher失敗→300三案通過；此修補不在272內，Release／新實機另驗。
 - **[A]** [272外觀與字級還原](IPHONE_272_APPEARANCE_AND_FONT.md)：代表外觀及原圖判讀校正；空draft還原後71秒樣本仍64pt，新增僅空白／未聚焦欄位重建。301一過一失敗、302加暫時觀測兩案通過分開保留；273實機循環尚待。
 - **[R]** [TestFlight273發佈](TESTFLIGHT_273_RELEASE.md)：來源`4e2c8c64`、真Validation／Upload成功、IPA／App／dSYM及完整archive gate留證；Apple處理／可安裝及273實機尚待，不以302替代。
-- **[H]** [Android MCP執行修補](ANDROID_MCP_EXECUTION_CONTRACT_20261122.md)：真loopback紅燈後初批62/62；後續三transport安全typed診斷、unknown guidance及長結果prefix最終92/92。UI未知結果、實機與真服務仍待，不將unit當商用驗收。
+- **[H]** [Android MCP執行修補](ANDROID_MCP_EXECUTION_CONTRACT_20261122.md)：初批62/62、三transport安全診斷92/92；對話步驟unknown／截斷consumer及語系40/40、兩品牌compile成功。含文件八語系38 keys補齊及PDF256頁文案修正；實機／真服務仍待，不將unit當商用驗收。
 - **[U]** [回尾／鍵盤修補驗證](CHAT_RETURN_CONTROL_VALIDATION_20261122.md)：同runtime五個native案例分批通過，保留287 AX逾時及288單案重驗；尚非271實機驗收。
 - **[M]** [iPhone270手動記憶CRUD](IPHONE_270_MEMORY_CRUD.md)：新增／同ID修改、關鍵字重啟讀回、限定刪除及第二次重啟限定PASS；38檔獨立核對與原資料保留另有證據。模型記憶／技能語意仍未測，不增加24輪正常完成數。
 - **[F]** [TestFlight 270 發佈與原 iPhone 實測](TESTFLIGHT_270_RELEASE.md)，尤其「原 iPhone 實裝與部分驗證」；機器摘要為 T/`iphone270-validation-summary.json`，觀察時間 `2026-11-22T02:13:49Z`。私密原始工具輸出留在 T，不複製進本文件。

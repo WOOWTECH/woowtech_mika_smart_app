@@ -112,4 +112,14 @@
     <string name="timeline_exported">حُفظت سجلات الاستخدام</string>
     <string name="timeline_export_failed">تعذّر تصدير سجلات الاستخدام. تحقق من توفر السجل وإمكانية الكتابة إلى الوجهة.</string>
     <string name="timeline_running">قيد التشغيل</string>
+    <string name="timeline_mcp_tool_error">أبلغت الأداة عن خطأ</string>
+    <string name="timeline_mcp_http_error">فشل طلب الخادم</string>
+    <string name="timeline_mcp_rpc_error">خطأ في استجابة الخادم</string>
+    <string name="timeline_mcp_timeout">انتهت مهلة الطلب</string>
+    <string name="timeline_mcp_cancelled">أُلغي الطلب</string>
+    <string name="timeline_mcp_transport_error">فشل الاتصال</string>
+    <string name="timeline_mcp_protocol_error">فشل التواصل مع الخادم</string>
+    <string name="timeline_mcp_other_error">فشل استدعاء الأداة</string>
+    <string name="timeline_mcp_code">الرمز %1$d</string>
+    <string name="timeline_mcp_outcome_unknown">النتيجة غير مؤكدة؛ تحقّق أولًا</string>
 </resources>

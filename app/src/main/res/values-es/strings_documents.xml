@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">Exportar documento</string>
+    <string name="document_close">Cerrar</string>
+    <string name="document_default_title">Respuesta</string>
+    <string name="document_title">Título del documento</string>
+    <string name="document_source">Origen en Markdown</string>
+    <string name="document_source_note">Esta es una copia de la respuesta finalizada que seleccionaste. Puedes editar el título y el contenido de origen antes de generar el documento; la conversación original no cambia.</string>
+    <string name="document_local_note">El archivo se genera en este dispositivo, sin consultar al modelo ni subir datos. Admite encabezados, párrafos, listas y tablas delimitadas por barras verticales; los demás elementos de Markdown se conservan como texto literal.</string>
+    <string name="document_csv_note">CSV solo exporta una tabla seleccionada, con BOM UTF-8. Para proteger las hojas de cálculo, se añade un apóstrofo al principio de las celdas que, tras los espacios en blanco iniciales, empiezan por =, +, - o @, o cuyos espacios en blanco iniciales contienen tabulaciones o saltos de línea. Esto cambia los valores de las celdas: las fórmulas y los números negativos pasan a ser texto; el apóstrofo puede quedar visible. Revisa el archivo antes de usarlo.</string>
+    <string name="document_choose_table">Elige una tabla y luego genera el CSV.</string>
+    <string name="document_table_choice">Tabla %1$d: %2$s (%3$d filas)</string>
+    <string name="document_generate">Generar / reintentar</string>
+    <string name="document_generating">Generando en este dispositivo…</string>
+    <string name="document_ready">Listo para previsualizar, guardar o compartir. Los archivos temporales se conservan hasta 24 horas tras su uso; una vez vencido el plazo, se eliminan en la siguiente exportación. Guarda una copia si quieres conservarlos.</string>
+    <string name="document_preview">Previsualizar archivo</string>
+    <string name="document_save">Guardar en Archivos…</string>
+    <string name="document_share">Compartir…</string>
+    <string name="document_regenerate">Generar de nuevo</string>
+    <string name="document_share_opened">Se abrió el panel para compartir. No se ha confirmado la entrega; cerrarlo no significa que se haya enviado el archivo.</string>
+    <string name="document_save_picker">Elige dónde guardar el archivo. Todavía no se ha guardado nada.</string>
+    <string name="document_saving">Escribiendo el archivo…</string>
+    <string name="document_saved">Archivo guardado.</string>
+    <string name="document_save_cancelled">Se canceló el guardado. No se escribió ningún archivo.</string>
+    <string name="document_save_failed">No se pudo terminar de guardar. Puede haber un archivo incompleto en el destino. Elige Guardar otra vez para reintentarlo.</string>
+    <string name="document_failed">No se pudo completar esta acción. Reintenta o edita el contenido de origen y genera el documento de nuevo.</string>
+    <string name="document_empty">Introduce un título y contenido de origen que no esté vacío.</string>
+    <string name="document_too_large">El documento es demasiado grande. Límites: 1 MiB de contenido de origen UTF-8; 64 tablas; 64 columnas y 5.000 filas por tabla; 50.000 celdas en total, incluidos los encabezados; 10.000 secciones; 50.000 elementos de lista; 256 páginas PDF y archivos de 16 MiB. Reduce el contenido de origen y reintenta.</string>
+    <string name="document_ragged">Cada fila debe tener exactamente el mismo número de celdas que el encabezado. Corrige las celdas que falten o sobren y reintenta.</string>
+    <string name="document_empty_table">Una tabla necesita un encabezado no vacío y al menos una fila de datos no vacía.</string>
+    <string name="document_missing_table">CSV necesita una tabla delimitada por barras verticales con encabezado, fila separadora y filas de datos. Edita el contenido de origen o elige HTML/PDF.</string>
+    <string name="document_cache_full">El almacenamiento temporal de documentos está lleno. Los archivos compartidos recientemente se conservan durante 24 horas para que otras apps puedan leerlos. Reintenta cuando venza ese plazo.</string>
+    <string name="document_no_answer">No hay una última respuesta finalizada que se pueda exportar. Selecciona una respuesta finalizada del asistente en la conversación.</string>
+    <string name="document_source_window">Se muestran hasta 1.500 caracteres del contenido de origen a la vez. Las ediciones solo afectan a esta sección; la exportación incluye todo el contenido de origen.</string>
+    <string name="document_previous">Sección anterior del contenido de origen</string>
+    <string name="document_next">Sección siguiente del contenido de origen</string>
+    <string name="document_csv_preview">Solo se muestran los primeros 64 KiB. El CSV generado, el archivo guardado y el archivo compartido contienen toda la tabla seleccionada.</string>
+    <string name="document_invalid_title">Usa un título no vacío de hasta 1.024 bytes UTF-8, sin caracteres de control.</string>
+    <string name="document_invalid_language">La etiqueta de idioma del documento no es válida. Vuelve a abrir la exportación con un idioma compatible con la app.</string>
+    <string name="document_invalid_content">El contenido de origen contiene caracteres de control no admitidos o una sección no válida. Edítalo y reintenta.</string>
+</resources>

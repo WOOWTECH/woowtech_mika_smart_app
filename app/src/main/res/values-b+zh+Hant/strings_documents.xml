@@ -25,7 +25,7 @@
     <string name="document_save_failed">無法完成儲存，目的地可能留有未完成的檔案。請再次選擇儲存以重試。</string>
     <string name="document_failed">無法完成此操作。請重試，或編輯來源後重新產生。</string>
     <string name="document_empty">請輸入標題及非空白的來源。</string>
-    <string name="document_too_large">文件過大。限制：UTF-8 來源 1 MiB、64 個表格、每表格 64 欄與 5,000 列、含標題列共 50,000 個儲存格；10,000 個段落、50,000 個清單項目、PDF 512 頁、檔案 16 MiB。請縮減來源後重試。</string>
+    <string name="document_too_large">文件過大。限制：UTF-8 來源 1 MiB、64 個表格、每表格 64 欄與 5,000 列、含標題列共 50,000 個儲存格；10,000 個段落、50,000 個清單項目、PDF 256 頁、檔案 16 MiB。請縮減來源後重試。</string>
     <string name="document_ragged">每列儲存格數量須與標題列相同。請修正缺少或多出的儲存格後重試。</string>
     <string name="document_empty_table">表格需要非空白標題列及至少一列非空白資料。</string>
     <string name="document_missing_table">CSV 需要含標題列、分隔列與資料列的直線分隔表格。請編輯來源或選擇 HTML／PDF。</string>
