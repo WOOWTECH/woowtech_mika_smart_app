@@ -1,12 +1,14 @@
-# TestFlight274：已上傳，手機驗收待實際可見
+# TestFlight274：Apple已處理，實機安裝管道分開記錄
 
-**0.1.0(274)已通過Apple Validation並成功上傳，尚未證實TestFlight處理完成或群組可下載。** 原iPhone後續已原地安裝相同Release binary的Apple Development重簽版274，詳見[受控安裝及資料保留](IPHONE_274_CONTROLLED_UPDATE_20261122.md)；這不是從TestFlight下載的證據。此為新來源的診斷修補，沒有重傳273或公開App Store送審；[273原發佈紀錄](TESTFLIGHT_273_RELEASE.md)獨立保留。
+**0.1.0(274)已通過Apple Validation並成功上傳；最新登入後官方讀取為VALID／IN_BETA_TESTING，外部狀態READY_FOR_BETA_SUBMISSION。** 原iPhone已安裝相同Release binary的Apple Development重簽版274，詳見[受控安裝及資料保留](IPHONE_274_CONTROLLED_UPDATE_20261122.md)；這不是從TestFlight下載的證據。此為新來源的診斷修補，沒有重傳273或274；[273原發佈紀錄](TESTFLIGHT_273_RELEASE.md)獨立保留。公開送審已獲授權、完成版本及建置選取，但尚未提交，詳見[公開上架狀態](PUBLIC_APP_STORE_SUBMISSION_20261122.md)。
 
 ## 最新上傳狀態核對
 
 使用者指定的iPhone回合`codex_01a20379-8d30-7260-b7a4-062e5500aa1d`已經HTTP200讀取：該回合是274受控字級還原測試，沒有新增runtime修補或上傳。核對本工作樹至`c43182e6`，相較上傳來源`611d6bfa`的`ios/Sources`沒有差異；iOS目錄僅增加附件UI測試，最新實作已包含在274。
 
-本次直接重讀實際archive的Distributions，仍為`uploadedBuildNumber=274`、`uploadEvent.state=success`、`2026-11-22T10:45:43Z`（臺北18:45:43）。既有官方App Store Connect分頁目前仍為`/login`，沒有讀到新的processing或群組狀態，也沒有新建置、重傳或公開送審。安全核對收據在`T/resume-20261122/latest-release-check-20261122/release-check-safe.json`。下方「手機交接與未測」及19:12清單保留當時紀錄；後續274實機結果以[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)為準，不能由歷史清單推定目前仍是272。
+實際archive的Distributions仍為`uploadedBuildNumber=274`、`uploadEvent.state=success`、`2026-11-22T10:45:43Z`（臺北18:45:43）。原登入前收據在`T/resume-20261122/latest-release-check-20261122/release-check-safe.json`，保留其當時未登入限制。
+
+使用者完成登入後，2026-11-22T15:37Z起的官方讀取確認build `7035b2a6-8482-45d5-a058-8b235183d7b0`為274、pre-release0.1.0、processing VALID、internal IN_BETA_TESTING、external READY_FOR_BETA_SUBMISSION。已將原遭拒版本1.0.0改為0.1.0並選取274；關聯PATCH204及GET200讀回同一build ID。商店版本為PREPARE_FOR_SUBMISSION／MANUAL，尚未提交或公開。新收據在`T/public-app-store-20261122/`。沒有新archive或重傳；這個管理端狀態不證原iPhone已從TestFlight下載。下方交接／19:12清單是歷史紀錄，後續274實機結果以[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)為準。
 
 ## 來源與產物
 
@@ -42,7 +44,7 @@ Validation及Upload均核對**實際傳入archive**全部164項manifest、codesi
 
 已把274的來源／SHA／UUID交原唯一iPhone操作者，HTTP202收據在`T/resume-20261122/release274-phone-handoff-receipt.private.json`。先完成272附件及相機／相簿取消批次；只有完成時距Upload已至少15分鐘，才正常查一次新版本，不為此輪詢或睡等。可見才依原授權原地更新，先核A31全22前綴／原圖片／記憶／保護檔，再驗字級還原、非空草稿、鍵盤／Return／原縮圖及PDF。
 
-沒有收到可安裝／實裝／新字級結果以前，一律維持未測；不以272或native303回填274實機。原A31高CPU根因、真Apporo最終結果與241兩錯誤、App模型限流、Android實機對照、正向CSV／長表PDF／接收App及其他商用條件仍依[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)。Apple管理頁仍需要擁有者完成官方登入／必要2FA，現階段沒有processing／compliance／群組／帳號原因證據。
+上述是最初交接指令，不以272或native303回填274實機。後續Development簽章274的限定結果已有獨立文件；原A31高CPU根因、真Apporo最終結果與241兩錯誤、App模型限流、Android實機對照、正向CSV／長表PDF／接收App及其他商用條件仍依[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)。登入阻礙已解除，Apple處理狀態已確認；19:12未見版本的當時成因仍無法倒推。
 
 ## 原iPhone19:07／19:12可見性補充
 
@@ -50,4 +52,4 @@ Validation及Upload均核對**實際傳入archive**全部164項manifest、codesi
 
 Parent親看`T/resume-20261122/testflight274-20261122-normal-entry/07-normal-entry-list.png`，核17項選定manifest bytes／SHA、正常返回／進入原生request及前後22則／三原檔metadata／UserProfile字典一致。回App仍0.1.0(272)／TestFlight簽章、A31空draft，memory直接UI核對沿前camera批、Learning bytes／SHA未變；沒有把本次當重新CRUD。首次以name找返回控制失敗由guard攔下，之後以實際label及frame完成一次返回；沒有socket timeout。
 
-本輪report／result／manifest SHA256依序 `a26a253a250ec76f7d674323446ae457a7fe137cf0855b73404f27d2294575d0`、`9fbac55c57f38374e0a6caab950e822acb61d23ef0d72313a4d1fe13dc248099`、`6c2197f1624907e13bb6bc0d813893806901f5e19dc8dce058f68299c2fdbe1d`。新包實機字級／鍵盤／PDF／新診斷仍全部未測；沒有為此再上傳或建置同一包。
+本輪report／result／manifest SHA256依序 `a26a253a250ec76f7d674323446ae457a7fe137cf0855b73404f27d2294575d0`、`9fbac55c57f38374e0a6caab950e822acb61d23ef0d72313a4d1fe13dc248099`、`6c2197f1624907e13bb6bc0d813893806901f5e19dc8dce058f68299c2fdbe1d`。該19:12批次未安裝274；後續Development簽章274字級／鍵盤／PDF結果另記，真MCP仍未完成。沒有為此再上傳或建置同一包。

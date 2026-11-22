@@ -1,5 +1,5 @@
 {
-  "status": "DRAFT_NOT_WRITTEN_TO_APP_STORE_CONNECT",
+  "status": "PARTIALLY_WRITTEN_TO_APP_STORE_CONNECT_READBACK_VERIFIED_NOT_SUBMITTED",
   "app_id": "6834435121",
   "bundle_id": "io.woowtech.assistant",
   "team_id": "W4UWZ8NP2P",
@@ -7,13 +7,22 @@
   "uploaded_build": {
     "version": "0.1.0",
     "build": "274",
-    "uploaded_utc": "2026-11-22T10:45:43Z"
+    "uploaded_utc": "2026-11-22T10:45:43Z",
+    "processing_state": "VALID",
+    "internal_beta_state": "IN_BETA_TESTING",
+    "external_beta_state": "READY_FOR_BETA_SUBMISSION",
+    "status_observed_utc": "2026-11-22T15:37:20Z",
+    "phone_testflight_install_verified": false
   },
   "store_version": {
     "historical": "1.0.0",
     "historical_status": "rejected",
-    "current": "UNKNOWN_UNTIL_AUTHENTICATED_READ",
-    "version_alignment": "REQUIRED_CHECK_BEFORE_BUILD_SELECTION"
+    "current": "0.1.0",
+    "version_alignment": "PATCHED_FROM_REJECTED_1.0.0_TO_0.1.0_HTTP_200",
+    "current_status": "PREPARE_FOR_SUBMISSION",
+    "version_resource_id": "e8552737-0b4a-44e0-8b12-9469cb58d931",
+    "selected_build": "274",
+    "selected_build_resource_id": "7035b2a6-8482-45d5-a058-8b235183d7b0"
   },
   "localizations": {
     "zh-Hant": {
@@ -34,11 +43,24 @@
     }
   },
   "privacy_url": "https://assistant-relay.woowtech.io/privacy/ios",
-  "support_url": "PRESERVE_EXISTING_VERIFIED_VALUE_AFTER_LOGIN",
+  "support_url": "https://aiot.woowtech.io/",
   "pricing_and_territories": "PRESERVE_EXISTING_SETTINGS_UNTIL_AUTHENTICATED_READ",
   "review_contact": "PRESERVE_EXISTING_PRIVATE_FIELDS_DO_NOT_COPY_TO_REPO",
-  "review_credentials": "PRESERVE_EXISTING_PRIVATE_NOTES_VERIFY_SERVICE_WITHOUT_EXPOSURE",
+  "review_credentials": "PRESERVED_EXISTING_PRIVATE_NOTES; availability probe HTTP402; owner restore/update in ASC required; never paste keys in chat",
   "release_option": "MANUAL_RELEASE_AFTER_APPROVAL",
   "submission_executed": false,
-  "public_release_executed": false
+  "public_release_executed": false,
+  "field_write_status": {
+    "description_keywords_promotionalText": "Both zh-Hant and en-US PATCH HTTP200 with exact readback",
+    "name_subtitle": "Draft only; not changed in ASC",
+    "whatsNew": "Draft only; first public version has no existing release notes; not written",
+    "support_marketing_urls": "Preserved existing https://aiot.woowtech.io/; one public GET200 redirects /en",
+    "review_contact_credentials": "Existing private fields preserved; review service probe failed HTTP402; no keys in repository"
+  },
+  "privacy_current_asc": "Published Other User Content / App Functionality / Not Linked To You; no console privacy changes made",
+  "submission_blockers": [
+    "Original rejection4.3/4.2.6 requires owner-confirmed portfolio, product differentiation and content-provider facts, including Apporo Assistant WAITING_FOR_REVIEW",
+    "Existing private reviewer AI service returned HTTP402 with descriptive client; no usable chat completion",
+    "Old iPhone-large/iPad screenshot first images viewed; latest UI correspondence not verified; preserve until ready replacement"
+  ]
 }
