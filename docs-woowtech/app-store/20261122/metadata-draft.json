@@ -1,0 +1,44 @@
+{
+  "status": "DRAFT_NOT_WRITTEN_TO_APP_STORE_CONNECT",
+  "app_id": "6834435121",
+  "bundle_id": "io.woowtech.assistant",
+  "team_id": "W4UWZ8NP2P",
+  "runtime_commit": "611d6bfa75ec46d39fd9654ac97ff2de6291a1a0",
+  "uploaded_build": {
+    "version": "0.1.0",
+    "build": "274",
+    "uploaded_utc": "2026-11-22T10:45:43Z"
+  },
+  "store_version": {
+    "historical": "1.0.0",
+    "historical_status": "rejected",
+    "current": "UNKNOWN_UNTIL_AUTHENTICATED_READ",
+    "version_alignment": "REQUIRED_CHECK_BEFORE_BUILD_SELECTION"
+  },
+  "localizations": {
+    "zh-Hant": {
+      "name": "渥屋助理",
+      "subtitle": "連接你的 AI，整理對話與文件",
+      "promotionalText": "使用你選擇的 AI 服務，在 iPhone 與 iPad 整理想法、閱讀附件、研究網頁，並將回覆匯出成 HTML、PDF 或 CSV。",
+      "description": "渥屋助理讓你連接自己選擇的 AI 模型服務，在 iPhone 與 iPad 進行對話、整理資料與交付文件。\n\n【對話與資料整理】\n・支援串流回覆、引用及接續已保存的對話。\n・加入照片或文件；可用的圖片理解能力取決於你選擇的模型。\n・查看及管理保存在裝置上的記憶與技能。\n\n【文件輸出】\n・從明確選取的回覆整理文件，提供 HTML、PDF 與 CSV 輸出入口。\n・預覽文件，並使用系統介面儲存或分享。CSV 用於表格資料，不是 Excel 活頁簿。\n\n【網頁與工具】\n・在內建瀏覽器開啟網站、保留瀏覽紀錄，並使用助理研究頁面內容。\n・連接你自己的 MCP 伺服器並管理可用工具。第三方工具與服務需要各自的可用連線及權限。\n\n【使用需求】\n・AI 功能需要可用的模型服務、網路連線及該服務要求的登入或 API Key；使用量與費用由你選擇的服務決定。\n・渥屋助理在自己的介面與內建瀏覽器中運作。\n・AI 內容可能出錯，重要資料請自行核實。\n\n【資料與隱私】\n・對話、記憶及技能保存在裝置上，憑證由系統鑰匙圈管理。\n・執行 AI 功能時，回答需要的對話、附件、記憶、網頁或工具內容會依你的設定傳給相應服務。\n・你可主動檢舉 AI 回覆；該檢舉內容會傳送給開發者。\n・詳情請見 https://assistant-relay.woowtech.io/privacy/ios 。",
+      "keywords": "AI,助理,對話,文件,PDF,CSV,HTML,筆記,摘要,記憶,瀏覽器,MCP",
+      "whatsNew": "改善對話輸入區與鍵盤互動、系統字級還原，以及文件預覽與匯出錯誤處理。"
+    },
+    "en-US": {
+      "name": "woowtech agent",
+      "subtitle": "Your AI, chats and documents",
+      "promotionalText": "Connect your chosen AI service on iPhone and iPad. Organize ideas, work with attachments and web pages, and export selected responses as HTML, PDF or CSV.",
+      "description": "Connect your chosen AI model service to woowtech agent on iPhone and iPad. Chat, organize information and export selected responses as documents.\n\nCONVERSATIONS AND INFORMATION\nStream replies, quote messages and continue saved conversations. Add photos or documents; image understanding depends on your selected model. View and manage memories and skills stored on your device.\n\nDOCUMENTS\nExport selected content as HTML or PDF, or table data as CSV. Preview files and use the system interfaces to save or share them. CSV is a text table format, not an Excel workbook.\n\nWEB AND TOOLS\nOpen websites in the built-in browser, retain browsing history and ask the assistant to research page content. Connect your own MCP servers and manage available tools. External tools require their own working connections and permissions.\n\nREQUIREMENTS\nAI features require an available model service, an internet connection and any login or API key required by that service. Usage and fees depend on your provider. The app operates within its own interface and built-in browser. AI output can contain errors; verify important information.\n\nPRIVACY\nConversations, memories and skills are stored on your device. Credentials use the system Keychain. Relevant conversations, attachments, memories, web content or tool results are sent to the services you configure when needed for AI functionality. If you choose to report an AI response, that report is sent to the developer.\nPrivacy policy: https://assistant-relay.woowtech.io/privacy/ios",
+      "keywords": "AI,assistant,chat,documents,PDF,CSV,HTML,notes,summary,memory,browser,MCP",
+      "whatsNew": "Improves the chat composer, keyboard interaction, system text-size restoration, document preview and export error handling."
+    }
+  },
+  "privacy_url": "https://assistant-relay.woowtech.io/privacy/ios",
+  "support_url": "PRESERVE_EXISTING_VERIFIED_VALUE_AFTER_LOGIN",
+  "pricing_and_territories": "PRESERVE_EXISTING_SETTINGS_UNTIL_AUTHENTICATED_READ",
+  "review_contact": "PRESERVE_EXISTING_PRIVATE_FIELDS_DO_NOT_COPY_TO_REPO",
+  "review_credentials": "PRESERVE_EXISTING_PRIVATE_NOTES_VERIFY_SERVICE_WITHOUT_EXPOSURE",
+  "release_option": "MANUAL_RELEASE_AFTER_APPROVAL",
+  "submission_executed": false,
+  "public_release_executed": false
+}

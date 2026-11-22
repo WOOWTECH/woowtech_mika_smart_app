@@ -1,0 +1,22 @@
+App Review supplement for the current iOS runtime (draft; not yet saved to App Store Connect)
+
+App: 渥屋助理 / woowtech agent
+Bundle ID: io.woowtech.assistant; Apple app ID: 6834435121.
+Latest uploaded build: 0.1.0 (274), runtime source 611d6bfa. The existing store page previously showed version 1.0.0 and a rejection; its current version and rejection must be checked before associating a build.
+
+The app is an AI client for iPhone and iPad. AI features use a configured external model provider. The app does not require creating an app-specific account; a working external AI service is required for model-dependent features. Preserve the existing private reviewer-only service details in the review notes and verify they still work. Do not ask reviewers to buy a service or use the development team's personal credentials. No reviewer credentials belong in this file.
+
+Suggested review walkthrough after service availability is verified:
+1. Launch the app; use the welcome screen to open model settings. Use the dedicated review service from the private notes.
+2. Send a short question and verify the actual response finishes. Continue the conversation and reopen a saved conversation.
+3. Add a non-sensitive photo or file using the system picker. Image understanding depends on the selected provider/model.
+4. Open a completed assistant response's document export action; choose HTML or PDF and preview. Use a response containing one table to export CSV. Use the system save/share interface; cancellation must not be reported as delivery.
+5. Open the built-in browser to a public page. Login-protected third-party websites require their own accounts.
+6. Memory/skills settings manage locally stored information. Optional MCP integrations require a separate server, authentication and permissions. Core review should use dedicated sample integrations, not private business systems.
+7. Long-press an assistant response to find the in-app reporting action. A report is only sent when explicitly submitted.
+
+External services: model provider chosen/configured by the user; optional MCP servers; visited websites; developer's AI-response reporting endpoint when a user submits a report. Relevant content is sent as required for these actions and is subject to in-app disclosures and the privacy policy.
+
+Changes since the earlier uploaded builds: keyboard publisher update, text-size restoration, document export error handling and MCP diagnostic classification. These do not establish that all previously observed device faults are resolved.
+
+Review readiness: no successful new model-dependent review walkthrough has been recorded in this submission-preparation batch. The current original iPhone still has an unresolved original-conversation issue and the last model probe was rate-limited. Verify a dedicated review service and the latest rejection details before representing the app as fully reviewable.
