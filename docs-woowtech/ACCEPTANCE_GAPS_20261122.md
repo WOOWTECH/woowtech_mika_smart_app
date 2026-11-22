@@ -24,6 +24,7 @@
 - **[Y]** [274公開URL歷史保存](IPHONE_274_BROWSER_HISTORY_20261122.md)：真正WebKit內容完成後新history與舊一筆、引擎在一次正常重啟後保留；原A31全24一致。保留腳本誤假設自動回原對話的斷言及一筆QA history，不是自訂搜尋／登入／下載驗收。
 - **[X]** [274最大字級首末捲動](IPHONE_274_ACCESSIBILITY_SCROLL_20261122.md)：7次editor短滑、2次獨立提示區手勢，首／末及提示末尾實圖可達、47字hash與109pt frame不變。還原後source15.0153秒逾時／自然恢復仍保留，沒有據初張裁切圖改產品。
 - **[Z]** [Android雙品牌APK就緒](ANDROID_APK_READINESS_20261122.md)：來源`57b9972f`，一次SDK環境失敗保留後61.31秒assemble成功、source未變；兩包簽章／DEX來源核驗，無新儀器／實機操作。沿既有直接APK管道，Play的target36遷移分開，不當已上架。
+- **[C2]** [274 Settings返回對照](IPHONE_274_SETTINGS_RETURN_CONTROLS_20261122.md)：NoChange一次source2.0158秒正常；字級前置一次未確認即停止／CPU0；修正轉場準備後一次source1.6667秒正常、field64→23pt。正常兩批均stack0，原兩次15秒FAIL及根因未知不變，沒有繼續循環找故障。
 - **[U]** [回尾／鍵盤修補驗證](CHAT_RETURN_CONTROL_VALIDATION_20261122.md)：同runtime五個native案例分批通過，保留287 AX逾時及288單案重驗；尚非271實機驗收。
 - **[M]** [iPhone270手動記憶CRUD](IPHONE_270_MEMORY_CRUD.md)：新增／同ID修改、關鍵字重啟讀回、限定刪除及第二次重啟限定PASS；38檔獨立核對與原資料保留另有證據。模型記憶／技能語意仍未測，不增加24輪正常完成數。
 - **[F]** [TestFlight 270 發佈與原 iPhone 實測](TESTFLIGHT_270_RELEASE.md)，尤其「原 iPhone 實裝與部分驗證」；機器摘要為 T/`iphone270-validation-summary.json`，觀察時間 `2026-11-22T02:13:49Z`。私密原始工具輸出留在 T，不複製進本文件。
