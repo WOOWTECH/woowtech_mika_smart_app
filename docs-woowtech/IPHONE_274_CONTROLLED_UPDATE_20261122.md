@@ -39,7 +39,7 @@ Parent已在12:14 UTC沿原授權指示：先新取原A31全22、空draft／pend
 
 **24則在20:17安裝前已存在，19:19最後快照為22則。額外一對user／assistant的顯示hash符合之前的提問／限流錯誤，但找不到對應intent或dispatch，來源／精確時間仍未知。** 保留全部24，不把它們自動計成新成功對話，也不能把相同錯誤顯示當成新HTTP回覆。初次啟動的錯誤畫面斷言／`07-stopped.json`仍留原件，不能用後續成功覆寫失敗。獨立來源審查未找到restore自行追加完整一對訊息的具體機制；這不構成歷史發起者判定。
 
-Parent已從原始收據獨立比較45檔及實際24個message hashes，並核兩記憶／選擇metadata／外觀的保留條件，見`parent-install-and-preservation-verification.json`。後續20:49再次比較45檔仍完全相同，沒有新增／遺失；不是只核conversation檔案大小。
+Parent核對45檔比對收據及公開的三個必要檔bytes／SHA，另獨立比較實際24個message hashes與兩記憶／選擇metadata／外觀的保留條件，見`parent-install-and-preservation-verification.json`。完整45檔逐byte比較由原Mac操作者執行，未傳私密index／備份供Parent重做；其20:49收據仍是45檔完全相同、無新增／遺失，不是只核conversation檔案大小。
 
 ### 20:51封存的限定UI結果
 

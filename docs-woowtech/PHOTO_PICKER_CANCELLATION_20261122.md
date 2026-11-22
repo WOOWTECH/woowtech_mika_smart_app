@@ -51,3 +51,17 @@ source等待open約2.079870秒仍inflight時，觸發一次stack；起訖均在�
 團隊獨立重算並以22項純記憶體檢查指出：應分stage保留已取得資料、使用UUID-only encoder、驗schema與必要App/WDA threads、保留不含例外內容的frame資訊、先encode再原子寫入、對完整capture lifecycle設界線。候選修補再有86項離線檢查，尚未部署／手機驗證；這些不是新增商用測試通過數。優先完成[274受控更新](IPHONE_274_CONTROLLED_UPDATE_20261122.md)；若新版本仍發生，再用已審候選進行一次有界故障窗取證，不重播舊case充數。
 
 目前只確立可重現的AX source header等待逾時，**仍無USB／App／XCTest的可檢驗根因結論，沒有據此修改產品程式**，原A31送出100%問題亦另列未關閉。
+
+## 274單次正常對照，與272失敗分開
+
+原iPhone／iOS26.5已受控原地安裝Development簽章Release274，runtime`611d6bfa`，非TestFlight，詳[安裝及UI證據](IPHONE_274_CONTROLLED_UPDATE_20261122.md)。21:01:45.042752取消意圖、46.977949原生tap返回、48.715836 source觀察完成。相同正式picker未選asset，實際Cancel HTTP一次、其後source一次，**本次沒有重現15秒逾時**。原要求15秒timeout不變。
+
+source snapshot範圍1.736081167秒；Parent另由原HTTP JSONL算call_begin→call_return為1.734829542秒，兩者界線不同。2.08秒檢查時source已完成，故stack擷取0；沒有補抓事後堆疊。新observer候選的實際capture／cleanup分支仍未驗證，不能由這次正常對照或86項offline檢查宣稱修復舊TypeError或逾時。
+
+同process CPU觀測7.028325625秒，9行／排warmup後各程序8有效；App3629峰18.098640%、WDA3290峰11.055939%、Photos兩服務30.471315%／0%，最大host間隔1.076315334秒。Parent重算原始CPU peak／gap及唯一兩個HTTP請求，這不是失敗窗CPU或原A31送出回歸。
+
+準備失敗另留：第一次picker過渡尚無Cancel；後續caller手動UI intent與transport helper的同名O_EXCL檔在HTTP前衝突，原experiment JSONL為0 bytes。修正transport收據名並用新attempt子目錄後只送一次實際Cancel，未覆寫舊檔／重開picker或服務。修正前只重現本機檔案衝突、未完整fake-transport排練；Parent訊息到達時真請求已完成，故未為補排練再跑手機。不能把未傳輸的intent當實際取消次數。
+
+返回QA四則hash相同、空draft／pending0；A31全24／原22前綴、原圖4270 bytes、兩memory／兩UserProfile源檔保留。相對上一[模型探測收尾](IPHONE_274_SERVICE_PROBE_20261122.md)，三原檔及兩vault差異metadata相同、無新檔／遺失；不把安裝前45檔完全一致套到已經新增QA回合的狀態。本輪0Send／模型／MCP／相簿截圖／asset匯入，沒有新資產需清理。
+
+原件`T/resume-20261122/photos-cancel274-inflight-20261122/`，report／result／manifest SHA依序`801ea1c98fc1ca8aabf9bdede94144f99a402bacf8a946d50912f9b5ff3934bb`、`d38e5514d44fef011780ea436fbee92f4375f1144ab49ceeb47691a80435c5f8`、`1c5240f24276a9c3e7700a7503044b3758b8b55008333706f6a48e9503a0b268`。Parent核154項manifest中的20份實際原件，另有`parent-independent-verification.json`。單次正常不關閉舊兩次Photos逾時、274 Settings返回逾時或原A31 CPU根因，亦不算實拍／選圖正向驗收。
