@@ -51,7 +51,7 @@ class LegacySseMcpEndpoint private constructor(
     private val tools: List<McpToolDescriptor>,
     private val resources: List<McpResourceDescriptor>,
     private val prompts: List<McpPromptDescriptor>,
-    private val post: suspend (String) -> Response,
+    private val post: suspend (String, Boolean) -> Response,
     val serverName: String?,
     val instructions: String?,
 ) : McpEndpoint, Closeable {
@@ -109,7 +109,7 @@ class LegacySseMcpEndpoint private constructor(
                 put("method", method)
                 putJsonObject("params") { params.forEach { (k, v) -> put(k, v) } }
             }
-            post(body.toString()).use { response ->
+            post(body.toString(), method == "tools/call").use { response ->
                 if (response.code !in 200..299) throw McpClientException("MCP server returned HTTP ${response.code} for $method")
             }
             val message = withTimeoutOrNull(timeoutSec * 1000L) { deferred.await() }
@@ -165,13 +165,15 @@ class LegacySseMcpEndpoint private constructor(
                 val postUrl = withTimeoutOrNull(minOf(timeoutSec * 1000L, 15_000L)) { endpointUrl.await() }
                     ?: throw McpClientException("legacy MCP SSE did not provide an endpoint")
                 val ids = AtomicLong(0)
-                suspend fun postRaw(text: String): Response {
+                suspend fun postRaw(text: String, toolCall: Boolean = false): Response {
                     val builder = Request.Builder().url(postUrl)
                         .header("Content-Type", "application/json")
                         .header("Accept", "application/json, text/event-stream")
                     headers.forEach { (k, v) -> if (!k.equals("Content-Type", true) && !k.equals("Accept", true)) builder.header(k, v) }
-                    return client.newBuilder().callTimeout(timeoutSec.toLong(), TimeUnit.SECONDS).build()
-                        .newCall(builder.post(text.toRequestBody(JSON_MEDIA)).build()).await(timeoutSec)
+                    val requestBody = text.toRequestBody(JSON_MEDIA).let { if (toolCall) it.forMcpToolCall() else it }
+                    val requestClient = client.newBuilder().callTimeout(timeoutSec.toLong(), TimeUnit.SECONDS)
+                        .apply { if (toolCall) retryOnConnectionFailure(false) }.build()
+                    return requestClient.newCall(builder.post(requestBody).build()).await(timeoutSec)
                 }
                 suspend fun request(method: String, params: JsonObject): JsonObject {
                     val id = ids.incrementAndGet()

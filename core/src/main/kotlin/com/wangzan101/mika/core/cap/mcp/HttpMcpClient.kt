@@ -61,6 +61,7 @@ class HttpMcpEndpoint private constructor(
     private val json = Json { ignoreUnknownKeys = true }
     // MCP 端点不应该靠重定向跳转;禁止重定向,避免把请求(含认证头)带去别的主机
     private val client = http.newBuilder().followRedirects(false).followSslRedirects(false).build()
+    private val toolCallClient = client.newBuilder().retryOnConnectionFailure(false).build()
 
     override fun tools(): List<McpToolDescriptor> = tools
     override fun resources(): List<McpResourceDescriptor> = resources
@@ -129,7 +130,7 @@ class HttpMcpEndpoint private constructor(
             put("method", method)
             put("params", params)
         }
-        val response = post(body.toString())
+        val response = post(body.toString(), toolCall = method == "tools/call")
         if (response.code !in 200..299) throw McpClientException("MCP server returned HTTP ${response.code} for $method")
         val message = parseMessages(response.body).firstOrNull { it.matchesId(id) }
             ?: throw McpClientException("MCP server returned no response for $method")
@@ -141,15 +142,17 @@ class HttpMcpEndpoint private constructor(
         return message["result"] as? JsonObject ?: throw McpClientException("MCP server returned no result for $method")
     }
 
-    private suspend fun post(body: String): RawResponse {
+    private suspend fun post(body: String, toolCall: Boolean): RawResponse {
         val builder = Request.Builder().url(url)
             .header("Content-Type", "application/json")
             .header("Accept", "application/json, text/event-stream")
             .header("MCP-Protocol-Version", protocolVersion)
         sessionId?.let { builder.header("MCP-Session-Id", it) }
         headers.forEach { (k, v) -> if (!k.equals("Content-Type", true) && !k.equals("Accept", true)) builder.header(k, v) }
-        val request = builder.post(body.toRequestBody(JSON_MEDIA)).build()
-        return client.newCall(request).awaitBody(timeoutSec) { response ->
+        val requestBody = body.toRequestBody(JSON_MEDIA).let { if (toolCall) it.forMcpToolCall() else it }
+        val request = builder.post(requestBody).build()
+        val requestClient = if (toolCall) toolCallClient else client
+        return requestClient.newCall(request).awaitBody(timeoutSec) { response ->
             RawResponse(response.code, response.header("Mcp-Session-Id"), response.body?.string().orEmpty())
         }
     }

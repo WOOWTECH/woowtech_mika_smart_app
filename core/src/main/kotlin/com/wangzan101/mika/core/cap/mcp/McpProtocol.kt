@@ -88,7 +88,10 @@ internal fun mcpPromptResult(result: JsonObject): McpResult {
 
 /** tools/call 的 content[]、structuredContent 和成本;三种传输共用。 */
 internal fun mcpToolResult(result: JsonObject): McpResult {
-    val isError = (result["isError"] as? JsonPrimitive)?.booleanOrNull == true
+    val isError = result["isError"]?.let { flag ->
+        (flag as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
+            ?: throw McpClientException("MCP server returned an invalid isError flag")
+    } ?: false
     val content = result["content"] as? kotlinx.serialization.json.JsonArray
     val text = content?.mapNotNull { element ->
         val item = element as? JsonObject ?: return@mapNotNull null
