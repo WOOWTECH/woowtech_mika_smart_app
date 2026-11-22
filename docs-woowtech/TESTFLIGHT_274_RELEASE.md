@@ -37,3 +37,11 @@ Validation及Upload均核對**實際傳入archive**全部164項manifest、codesi
 已把274的來源／SHA／UUID交原唯一iPhone操作者，HTTP202收據在`T/resume-20261122/release274-phone-handoff-receipt.private.json`。先完成272附件及相機／相簿取消批次；只有完成時距Upload已至少15分鐘，才正常查一次新版本，不為此輪詢或睡等。可見才依原授權原地更新，先核A31全22前綴／原圖片／記憶／保護檔，再驗字級還原、非空草稿、鍵盤／Return／原縮圖及PDF。
 
 沒有收到可安裝／實裝／新字級結果以前，一律維持未測；不以272或native303回填274實機。原A31高CPU根因、真Apporo最終結果與241兩錯誤、App模型限流、Android實機對照、正向CSV／長表PDF／接收App及其他商用條件仍依[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)。Apple管理頁仍需要擁有者完成官方登入／必要2FA，現階段沒有processing／compliance／群組／帳號原因證據。
+
+## 原iPhone19:07／19:12可見性補充
+
+19:07恢復既有TestFlight清單只見272／271／270，資料新鮮度未知；這批原封存在`T/resume-20261122/testflight274-20261122/`，沒有回寫成正常重進結果。19:12另完成此前未做的導航：正常返回版本群組→點0.1.0一次，**19:12:04.786147+08仍只見272／271／270，未見274或273**。沒有下拉刷新／循環查詢或安裝，Apple後端處理／群組原因仍unknown。
+
+Parent親看`T/resume-20261122/testflight274-20261122-normal-entry/07-normal-entry-list.png`，核17項選定manifest bytes／SHA、正常返回／進入原生request及前後22則／三原檔metadata／UserProfile字典一致。回App仍0.1.0(272)／TestFlight簽章、A31空draft，memory直接UI核對沿前camera批、Learning bytes／SHA未變；沒有把本次當重新CRUD。首次以name找返回控制失敗由guard攔下，之後以實際label及frame完成一次返回；沒有socket timeout。
+
+本輪report／result／manifest SHA256依序 `a26a253a250ec76f7d674323446ae457a7fe137cf0855b73404f27d2294575d0`、`9fbac55c57f38374e0a6caab950e822acb61d23ef0d72313a4d1fe13dc248099`、`6c2197f1624907e13bb6bc0d813893806901f5e19dc8dce058f68299c2fdbe1d`。新包實機字級／鍵盤／PDF／新診斷仍全部未測；沒有為此再上傳或建置同一包。

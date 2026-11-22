@@ -2,7 +2,8 @@ import XCTest
 
 /// The Android-aligned attach panel, tray and send path with the real ChatSession.
 /// `-UITestAttachments` shows a test-only button that adds one generated photo and
-/// one short note; the system pickers and the user's own photos are never involved.
+/// one short note. The cancellation regression also opens the real system
+/// pickers without selecting any photos or files, in an isolated simulator.
 final class ChatAttachmentUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
@@ -136,6 +137,33 @@ final class ChatAttachmentUITests: XCTestCase {
                                              object: app.otherElements["chat.attach.panel"])
         XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 15), .completed)
         XCTAssertTrue(app.buttons["chat.dismissKeyboard"].firstMatch.waitForExistence(timeout: 5))
+    }
+
+    func testSystemPhotoPickerCancelPreservesDraftAndAllowsFilePickerCancel() {
+        launch(transcriptFixture: true)
+        let text = "Unsent picker cancellation regression"
+        write(text, field: chatDraftControl(in: app), scroll: false)
+        tap("chat.dismissKeyboard")
+        tap("chat.attach.toggle")
+
+        for (phase, tile) in [("photos", "chat.attach.album"), ("files-after-photos", "chat.attach.files")] {
+            XCTContext.runActivity(named: "Real system picker cancellation: \(phase)") { _ in
+                tap(tile)
+                let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["取消", "Cancel"])).firstMatch
+                XCTAssertTrue(cancel.waitForExistence(timeout: 10), "The actual system picker must present Cancel")
+                ready(cancel)
+                print("PICKER_CANCEL phase=\(phase) tap epoch=\(Date().timeIntervalSince1970)")
+                cancel.tap()
+                let draft = chatDraftControl(in: app)
+                let restored = NSPredicate(format: "exists == true AND hittable == true AND value == %@", text)
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: restored, object: draft)],
+                                             timeout: 10), .completed, "Cancel must return to the unchanged draft")
+                XCTAssertFalse(app.descendants(matching: .any)["chat.attach.tray"].firstMatch.exists)
+                XCTAssertTrue(app.buttons["chat.attach.files"].firstMatch.isHittable,
+                              "Another picker must remain usable after cancellation")
+                print("PICKER_CANCEL phase=\(phase) restored epoch=\(Date().timeIntervalSince1970)")
+            }
+        }
     }
 
     func testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone() {
