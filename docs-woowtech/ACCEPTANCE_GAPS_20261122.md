@@ -10,6 +10,7 @@
 - **[J]** [原iPhone272文件及A31送出](IPHONE_272_VALIDATION.md)：短HTML／PDF實檔、實際取消、限定清理及18prefix保留；原A31實送1、正常0、約5.02秒模型限流，17CPU最高52.5128%、原18prefix保留為20則，真MCP未取得。
 - **[S]** [271服務探測與vault差額](IPHONE_271_SERVICE_PROBE.md)：獨立模型一次已接受／正常0／UI限流、QA限定清理；MCP當下目錄41工具不等於業務工具成功；21-byte差額只證外層編碼。
 - **[B]** [瀏覽歷史測試保存邊界](BROWSER_HISTORY_PERSISTENCE_VALIDATION_20261122.md)：修正UITest過早終止前置，native297精確一案1/1；無產品保存／恢復程式修改，保留舊失敗缺證。
+- **[K]** [PDF呈現鍵盤動畫發布修補](KEYBOARD_ANIMATION_PUBLISHING_FIX_20261122.md)：298夾界定位duration-only發布、299真publisher失敗→300三案通過；此修補不在272內，Release／新實機另驗。
 - **[U]** [回尾／鍵盤修補驗證](CHAT_RETURN_CONTROL_VALIDATION_20261122.md)：同runtime五個native案例分批通過，保留287 AX逾時及288單案重驗；尚非271實機驗收。
 - **[M]** [iPhone270手動記憶CRUD](IPHONE_270_MEMORY_CRUD.md)：新增／同ID修改、關鍵字重啟讀回、限定刪除及第二次重啟限定PASS；38檔獨立核對與原資料保留另有證據。模型記憶／技能語意仍未測，不增加24輪正常完成數。
 - **[F]** [TestFlight 270 發佈與原 iPhone 實測](TESTFLIGHT_270_RELEASE.md)，尤其「原 iPhone 實裝與部分驗證」；機器摘要為 T/`iphone270-validation-summary.json`，觀察時間 `2026-11-22T02:13:49Z`。私密原始工具輸出留在 T，不複製進本文件。
@@ -50,7 +51,7 @@
 | 瀏覽器網站登入／跳轉 | **已有入口、商用流程未完**：網站資料保留與合成登入案例有歷史文件；這批270未做新登入／跳轉 [F,D] | 需指定已授權網站與帳號，由使用者完成必要驗證；最小檢查登入→同源／跨源回跳→重啟會話→明示登出。fixture cookie保存不能替代真網站驗收 |
 | 瀏覽器下載／單筆歷史刪除 | **目前未提供，不是待測PASS**：270人工瀏覽明確拒絕下載；只有清空全部歷史UI，沒有單筆刪除入口 [D,F；來源見下] | 下載屬2026-11-14配合Play移除的能力，不依舊文件當成現存功能。若恢復成產品需求，先定下載授權／檔案交付／清理規格再實作；單筆歷史底層方法存在，缺的是UI。既有文件匯出成功不能填此格 |
 | HTML／PDF基本文件 | **272短篇限定通過**：既有39字回覆→生成／預覽重開／系統保存，HTML1271、PDF18442 bytes與cache逐byte一致；PDFKit1頁完整來源、實際取消及4檔限定清理 [J]。舊iPad100列5頁留原版本 [D] | 下一個未測情境為中文寬／長表多頁PDF、系統閱讀器與實際接收端；不重跑短篇充數。不挪用舊iPad多頁結果補272 |
-| 文件錯誤與預覽邊界 | **已實作／本機限定通過**：`21a884b8`同步iOS／Android保留來源錯誤及UTF-8預覽邊界；iOS取消／quota分類另補，native28940/40、Android2908/8與兩品牌編譯 [D,N]。272短篇文件及實際系統取消另有真機證據 [J] | 272未實測無效來源／64KiB／生成中取消等修補邊界。PDF Publishing、hosted preference警告及294 AX失敗仍未定位；Android未跑本修補instrumentation／真機，CSV接收端／ENOSPC仍缺 |
+| 文件錯誤與預覽邊界 | **已實作／本機限定通過**：`21a884b8`來源錯誤／UTF-8／quota修補，native28940/40、Android2908/8與兩品牌編譯 [D,N]；272短篇文件／系統取消有真機證據 [J]。PDF Publishing本次定位並修duration-only發布，299紅→300三案綠，尚不在272 [K] | 272未驗無效來源／64KiB／生成中取消；新鍵盤修補待Release／實機。hosted preference、294 AX及295串流失敗仍各留；Android新修補instrumentation／真機、CSV接收端／ENOSPC仍缺 |
 | CSV正向與接收端 | **270未測；其他環境部分通過**：iPad248真CSV保存與精確bytes、公式防護／前導零；Android API36真觸控CSV與POCO文件證據 [D,P] | 在iPhone選一張含中文／引號／換行／前導零／公式字串的表，保存並比對完整bytes。目標試算表開啟需實際接收App（舊iPad缺Numbers）；與系統預覽分開判定 |
 | 文件分享、異常與生命週期 | **部分驗證**：iOS真取消不報成功；Android FileProvider與外部test-process讀取有儀器證據。iPad249曾拒收201MiB附件並恢復小檔操作 [D,P] | 外部接收者／接收App、外部文件提供者、低儲存及交付中檔案壽命仍缺。先選一個本機接收App檢查實際開啟，不把分享面板／activity completed當送達；涉及對外寄送另依明確授權 |
 | 相機／相簿／附件 | **部分驗證**：270原照片仍可讀且hash保留；iPad舊版PDF／CSV真匯入與重啟；native合成PNG／TXT與附件第4輪有回歸 [F,D,P] | 原照片保留不證明新拍照／相簿選取。需真機實拍、限定相簿選取、取消／拒權→恢復→送出／預覽，先以一張自有QA影像完成；不宣稱fixture覆蓋相機硬體 |

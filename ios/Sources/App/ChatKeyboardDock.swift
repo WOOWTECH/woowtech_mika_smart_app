@@ -68,20 +68,28 @@ import UIKit
 final class ChatKeyboardDock: NSObject, ObservableObject {
     /// The docked local keyboard in window coordinates, or nil.
     @Published private(set) var frameInWindow: CGRect?
-    /// The keyboard's own animation length, so the composer moves with it.
-    @Published private(set) var animationDuration = 0.25
+    /// The keyboard's animation length, sampled when reserved space changes.
+    /// A duration-only update does not change layout or need a publication.
+    private(set) var animationDuration = 0.25
 
-    override init() {
+    private let notificationCenter: NotificationCenter
+
+    override convenience init() {
+        self.init(notificationCenter: .default)
+    }
+
+    init(notificationCenter: NotificationCenter) {
+        self.notificationCenter = notificationCenter
         super.init()
         for name in [UIResponder.keyboardWillChangeFrameNotification,
                      UIResponder.keyboardDidChangeFrameNotification,
                      UIResponder.keyboardWillHideNotification,
                      UIResponder.keyboardDidHideNotification] {
-            NotificationCenter.default.addObserver(self, selector: #selector(keyboardChanged(_:)), name: name, object: nil)
+            notificationCenter.addObserver(self, selector: #selector(keyboardChanged(_:)), name: name, object: nil)
         }
     }
 
-    deinit { NotificationCenter.default.removeObserver(self) }
+    deinit { notificationCenter.removeObserver(self) }
 
     /// Space to keep clear below a view framed in window (`.global`) coordinates.
     func reserve(below view: CGRect) -> CGFloat {
