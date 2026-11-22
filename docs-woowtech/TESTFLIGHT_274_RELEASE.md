@@ -1,6 +1,12 @@
 # TestFlight274：已上傳，手機驗收待實際可見
 
-**0.1.0(274)已通過Apple Validation並成功上傳，尚未證實處理完成、群組可用或手機已安裝。** 最後已核原iPhone仍272。此為新來源的診斷修補，沒有重傳273或公開App Store送審；[273原發佈紀錄](TESTFLIGHT_273_RELEASE.md)獨立保留。
+**0.1.0(274)已通過Apple Validation並成功上傳，尚未證實TestFlight處理完成或群組可下載。** 原iPhone後續已原地安裝相同Release binary的Apple Development重簽版274，詳見[受控安裝及資料保留](IPHONE_274_CONTROLLED_UPDATE_20261122.md)；這不是從TestFlight下載的證據。此為新來源的診斷修補，沒有重傳273或公開App Store送審；[273原發佈紀錄](TESTFLIGHT_273_RELEASE.md)獨立保留。
+
+## 最新上傳狀態核對
+
+使用者指定的iPhone回合`codex_01a20379-8d30-7260-b7a4-062e5500aa1d`已經HTTP200讀取：該回合是274受控字級還原測試，沒有新增runtime修補或上傳。核對本工作樹至`c43182e6`，相較上傳來源`611d6bfa`的`ios/Sources`沒有差異；iOS目錄僅增加附件UI測試，最新實作已包含在274。
+
+本次直接重讀實際archive的Distributions，仍為`uploadedBuildNumber=274`、`uploadEvent.state=success`、`2026-11-22T10:45:43Z`（臺北18:45:43）。既有官方App Store Connect分頁目前仍為`/login`，沒有讀到新的processing或群組狀態，也沒有新建置、重傳或公開送審。安全核對收據在`T/resume-20261122/latest-release-check-20261122/release-check-safe.json`。下方「手機交接與未測」及19:12清單保留當時紀錄；後續274實機結果以[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)為準，不能由歷史清單推定目前仍是272。
 
 ## 來源與產物
 
