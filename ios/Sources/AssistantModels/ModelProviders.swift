@@ -1,9 +1,25 @@
 import Foundation
 
-/// How iOS talks to a provider. Phase 1 speaks only OpenAI-compatible
-/// chat/completions; Anthropic, Gemini and Responses come with their adapters.
+/// How iOS talks to a provider. API-key providers speak OpenAI-compatible
+/// chat/completions; the two account sign-ins speak their own Responses
+/// interface (Android Kind.ChatGpt and Kind.Xai). A document saved before the
+/// sign-ins existed holds only openAICompatible and reads unchanged.
 public enum ModelProviderKind: String, Codable, Sendable {
     case openAICompatible
+    /// Signed in with a ChatGPT account: the credential is the whole sign-in
+    /// (ChatGPTSession) in the provider's Keychain item, never an API key.
+    case chatGPTAccount
+    /// Signed in with an xAI / Grok subscription (XAISession), likewise.
+    case xaiAccount
+
+    /// The sign-in behind this provider; nil for an API-key provider.
+    public var account: ModelAccountKind? {
+        switch self {
+        case .openAICompatible: return nil
+        case .chatGPTAccount: return .chatGPT
+        case .xaiAccount: return .xai
+        }
+    }
 }
 
 /// One entry of a provider's model list, keeping only the parsed fields
@@ -59,8 +75,19 @@ public struct ModelProvider: Codable, Equatable, Identifiable, Sendable {
     /// scheme://host[:port]: where content and the key go.
     public var origin: String { ModelProviderAddress.origin(of: baseURL) }
 
+    /// The account route a request to one of this provider's models carries;
+    /// nil for an API-key provider.
+    public var accountRoute: ModelAccountRoute? {
+        kind.account.map { ModelAccountRoute(kind: $0, providerID: id) }
+    }
+
     func validate() throws {
         let named = verifiedModels.union(typedModels).union(visionOverrides.keys)
+        // An account's tokens only ever go to its own interface, and its sign-in has an item.
+        if let account = kind.account {
+            guard ModelProviderAddress.normalized(baseURL) == ModelProviderAddress.normalized(account.apiBase),
+                  credentialAccount != nil, sessionHeader == nil else { throw ModelProvidersError.invalidDocument }
+        }
         guard ModelProviderAddress.isValid(baseURL),
               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               name.count <= 256, name.utf8.count <= 1024,
@@ -398,6 +425,45 @@ extension ModelProvidersDocument {
         providers[index].visionOverrides[main.model] = sees
     }
 
+    /// The provider a sign-in of this kind saves to: there is only one per kind
+    /// (Android chatGptProvider and xaiProvider).
+    public func accountProvider(_ kind: ModelAccountKind) -> ModelProvider? {
+        providers.first { $0.kind == kind.providerKind }
+    }
+
+    /// Android connectChatGpt and connectAccount: a sign-in saves or updates
+    /// the one provider of its kind, with its own name and address and the
+    /// models just listed (nil keeps the previous list). A new provider's
+    /// sign-in goes in under `newAccount`; an existing one keeps its item,
+    /// which the caller replaces in place, so work already running goes on.
+    /// Choosing a main model is left to the caller, after the consent.
+    public func connectingAccount(_ kind: ModelAccountKind, models: [ListedModel]?,
+                                  newProviderID: UUID = UUID(), newAccount: UUID = UUID()) throws -> ModelAccountConnection {
+        var next = self
+        if var provider = accountProvider(kind), let account = provider.credentialAccount {
+            if let models { provider.models = Array(models.prefix(Self.maximumListedModels)) }
+            provider.name = kind.providerName
+            provider.savedUntested = false
+            guard let index = next.providers.firstIndex(where: { $0.id == provider.id }) else { throw ModelProvidersError.unknownProvider }
+            next.providers[index] = provider
+            try next.validate()
+            return ModelAccountConnection(document: next, provider: provider, account: account, isNew: false)
+        }
+        guard providers.count < Self.maximumProviders else { throw ModelProvidersError.tooManyProviders }
+        let provider = ModelProvider(id: newProviderID, name: kind.providerName, kind: kind.providerKind, baseURL: kind.apiBase,
+                                     credentialAccount: newAccount,
+                                     models: models.map { Array($0.prefix(Self.maximumListedModels)) })
+        next.providers.append(provider)
+        try next.validate()
+        return ModelAccountConnection(document: next, provider: provider, account: newAccount, isNew: true)
+    }
+
+    /// The model a sign-in or 設為主模型 makes the main one (Android
+    /// ModelOptions.defaultMain or the first option): the first model listed.
+    public func defaultModel(of providerID: UUID) -> String? {
+        knownModels(of: providerID).first
+    }
+
     /// Removes one provider and returns its Keychain account, to delete only
     /// after the document without it is published.
     public mutating func removeProvider(id: UUID) throws -> UUID? {
@@ -443,6 +509,15 @@ extension ModelProvidersDocument {
     }
 }
 
+/// A sign-in's save as planned: the document, the provider and the Keychain
+/// account its sign-in goes in. `isNew`: write the item before publishing.
+public struct ModelAccountConnection: Equatable, Sendable {
+    public let document: ModelProvidersDocument
+    public let provider: ModelProvider
+    public let account: UUID
+    public let isNew: Bool
+}
+
 /// Who a model request goes to and with which stored key, compared in place
 /// of the key itself. A new key for the same provider keeps `target`, so its
 /// conversations continue; the new account still stops work already running.
@@ -460,6 +535,9 @@ public struct ModelProviderPreset: Equatable, Sendable {
     public let name: String
     public let baseURL: URL
     public let sessionHeader: String?
+    /// Android ProviderPresets caps(vision): what a model of this provider is
+    /// taken to do when neither its list nor the person says.
+    public let seesImages: Bool
 }
 
 public enum ModelProviderPresets {
@@ -470,8 +548,8 @@ public enum ModelProviderPresets {
         preset("Requesty", "https://router.requesty.ai/v1"),
         // Rejects a request without its conversation's session (HTTP 400).
         preset("OpenCode Go", "https://opencode.ai/zen/go/v1", sessionHeader: "x-opencode-session"),
-        preset("xAI", "https://api.x.ai/v1"),
-        preset("Mistral", "https://api.mistral.ai/v1"),
+        preset("xAI", "https://api.x.ai/v1", seesImages: true),
+        preset("Mistral", "https://api.mistral.ai/v1", seesImages: true),
         preset("Groq", "https://api.groq.com/openai/v1"),
     ]
 
@@ -487,8 +565,18 @@ public enum ModelProviderPresets {
         ("Gemini", "https://generativelanguage.googleapis.com/v1beta/openai"),
     ]
 
-    private static func preset(_ name: String, _ address: String, sessionHeader: String? = nil) -> ModelProviderPreset {
-        ModelProviderPreset(name: name, baseURL: URL(string: address)!, sessionHeader: sessionHeader)
+    private static func preset(_ name: String, _ address: String, sessionHeader: String? = nil,
+                               seesImages: Bool = false) -> ModelProviderPreset {
+        ModelProviderPreset(name: name, baseURL: URL(string: address)!, sessionHeader: sessionHeader, seesImages: seesImages)
+    }
+
+    /// Android ModelOptions.seesImages: what the person said about this model,
+    /// else what the provider's model list says, else the preset's default.
+    /// Nil when nothing says (a custom service), which never sends images.
+    public static func seesImages(provider: ModelProvider, model: String) -> Bool? {
+        if let said = provider.visionOverrides[model] { return said }
+        if let listed = provider.models?.first(where: { $0.id == model })?.vision { return listed }
+        return preset(at: provider.baseURL)?.seesImages == true ? true : nil
     }
 
     public static func preset(at url: URL) -> ModelProviderPreset? {

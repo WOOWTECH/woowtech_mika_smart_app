@@ -104,7 +104,7 @@ extension AppText {
         .storedChatReasonToolIncomplete, .storedChatLearningBusy,
         .storedChatLearningChanged, .storedChatLearningSaveFailed, .storedChatMemoryToolRejected,
         .storedChatProfileToolRejected, .storedChatNewChat, .storedChatMcpDenied, .storedChatMcpToolError,
-        .storedChatMcpLocalLimit, .storedChatMcpLimit, .storedContextIncompleteHistory, .storedContextTooLarge,
+        .storedChatMcpLocalLimit, .storedChatMcpLimit, .storedChatMcpChanged, .storedContextIncompleteHistory, .storedContextTooLarge,
         .storedReferencePrepareFailed, .storedReferenceRevoked, .storedReferenceBusy, .storedReferenceLifecycle,
         .storedInteractionNoSnapshot, .storedInteractionStale, .storedInteractionUnavailable,
         .storedInteractionInvalid, .storedInteractionUnsafe, .storedInteractionApprovalRequired,

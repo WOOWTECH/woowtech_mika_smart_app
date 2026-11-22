@@ -16,22 +16,27 @@ public struct ModelConfiguration: Sendable {
     /// The header this provider requires on every request, with this
     /// conversation's value (OpenCode Go: x-opencode-session); nil sends none.
     public let sessionHeader: ModelSessionHeader?
+    /// The signed-in account this request uses (a ChatGPT or xAI sign-in):
+    /// ModelProviderClient then calls Responses with that account's token and
+    /// ignores the API key. Nil for an API-key provider.
+    public let account: ModelAccountRoute?
 
     public init(baseURL: URL, model: String, maxOutputTokens: Int? = nil,
                 vision: ModelVisionCapability = .unknown, requiresKey: Bool = true,
-                sessionHeader: ModelSessionHeader? = nil) {
+                sessionHeader: ModelSessionHeader? = nil, account: ModelAccountRoute? = nil) {
         self.baseURL = baseURL
         self.model = model
         self.maxOutputTokens = maxOutputTokens
         self.vision = vision
         self.requiresKey = requiresKey
         self.sessionHeader = sessionHeader
+        self.account = account
     }
 
-    /// The same destination, key rule and session header with another output limit.
+    /// The same destination, key rule, session header and account with another output limit.
     public func withMaxOutputTokens(_ tokens: Int) -> ModelConfiguration {
         ModelConfiguration(baseURL: baseURL, model: model, maxOutputTokens: tokens, vision: vision,
-                           requiresKey: requiresKey, sessionHeader: sessionHeader)
+                           requiresKey: requiresKey, sessionHeader: sessionHeader, account: account)
     }
 }
 

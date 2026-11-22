@@ -14,10 +14,22 @@ enum ChatReplyMarkdown {
         case verbatim(Fallback)
     }
 
+    /// What the bubble lays out. Android renders tables and code blocks as
+    /// their own blocks, which one SwiftUI Text cannot; `text` keeps the whole
+    /// reply as one string for accessibility, copying and the checks.
+    enum Block: Equatable {
+        case text(AttributedString)
+        case code([String])
+        case table(header: [AttributedString], rows: [[AttributedString]])
+    }
+
     struct Result {
         let text: AttributedString
         let mode: Mode
+        var blocks: [Block]
         var visibleText: String { String(text.characters) }
+        /// True when the reply has a table or a code block to lay out.
+        var hasRichBlocks: Bool { blocks.contains { if case .text = $0 { return false } else { return true } } }
     }
 
     static let maximumUTF8Bytes = 64 * 1024
@@ -31,7 +43,7 @@ enum ChatReplyMarkdown {
 
     static func parse(_ source: String, streaming: Bool = false) -> Result {
         func raw(_ reason: Fallback) -> Result {
-            Result(text: AttributedString(source), mode: .verbatim(reason))
+            Result(text: AttributedString(source), mode: .verbatim(reason), blocks: [.text(AttributedString(source))])
         }
 
         // The native Text has no image or HTML renderer. Showing the source
@@ -51,56 +63,89 @@ enum ChatReplyMarkdown {
         var output: [AttributedString] = []
         var fence: Fence?
         var inTable = false
+        // The same lines as blocks: paragraphs, fenced code, and tables.
+        var blocks: [Block] = []
+        var paragraph: [AttributedString] = []
+        var codeLines: [String] = []
+        var table: (header: [String], rows: [[String]], divider: Int)?
+        func keep(_ line: AttributedString) { output.append(line); paragraph.append(line) }
+        func flushParagraph() {
+            guard !paragraph.isEmpty else { return }
+            var joined = AttributedString()
+            for (index, part) in paragraph.enumerated() {
+                if index != 0 { joined += AttributedString("\n") }
+                joined += part
+            }
+            blocks.append(.text(joined)); paragraph = []
+        }
+        func flushTable() throws {
+            guard let current = table else { return }
+            let width = current.header.count
+            let rows = current.rows.map { row in Array((row + Array(repeating: "", count: max(0, width - row.count))).prefix(width)) }
+            blocks.append(.table(header: try current.header.map(inline), rows: try rows.map { try $0.map(inline) }))
+            table = nil
+        }
         do {
             for index in lines.indices {
                 let line = lines[index]
                 if let currentFence = fence {
-                    if isClosingFence(line, for: currentFence) { fence = nil; continue }
-                    output.append(code(line))
+                    if isClosingFence(line, for: currentFence) {
+                        fence = nil
+                        blocks.append(.code(codeLines)); codeLines = []
+                        continue
+                    }
+                    output.append(code(line)); codeLines.append(line)
                     continue
                 }
                 if isFenceCandidate(line) {
                     guard let opening = openingFence(line) else { return raw(.invalidMarkdown) }
                     fence = opening
+                    flushParagraph(); try flushTable()
                     continue
                 }
                 if inTable {
                     if !line.isEmpty && line.contains("|") {
                         output.append(code(line))
+                        if index != table?.divider { table?.rows.append(tableCells(line)) }
                         continue
                     }
                     inTable = false
+                    try flushTable()
                 }
                 if lines.indices.contains(index + 1), isTableDivider(lines[index + 1], for: line) {
                     inTable = true
                     output.append(code(line))
+                    flushParagraph()
+                    table = (tableCells(line), [], index + 1)
                     continue
                 }
                 if line.hasPrefix("    ") {
                     // Indented code and unsupported list continuations stay
                     // literal; they must not gain an accidental Markdown link.
-                    output.append(code(line))
+                    keep(code(line))
                 } else if isRule(line) {
                     var rule = AttributedString("────────────")
                     rule.foregroundColor = .secondary
-                    output.append(rule)
+                    keep(rule)
                 } else if let heading = heading(line) {
                     var title = try inline(heading.text)
                     title.font = .system(size: heading.level == 1 ? 20 : heading.level == 2 ? 18 : 16,
                                          weight: .semibold)
-                    output.append(title)
+                    keep(title)
                 } else if let quotation = quote(line) {
                     var marker = AttributedString("│ ")
                     marker.foregroundColor = .secondary
-                    output.append(marker + (try inline(quotation)))
+                    keep(marker + (try inline(quotation)))
                 } else if let list = listItem(line) {
                     var marker = AttributedString(String(repeating: "  ", count: list.depth) + list.marker)
                     marker.foregroundColor = .secondary
-                    output.append(marker + (try inline(list.text)))
+                    keep(marker + (try inline(list.text)))
                 } else {
-                    output.append(try inline(line))
+                    keep(try inline(line))
                 }
             }
+            try flushTable()
+            flushParagraph()
         } catch ParseError.unsafeLink {
             return raw(.unsafeLink)
         } catch {
@@ -113,7 +158,7 @@ enum ChatReplyMarkdown {
             if index != 0 { joined += AttributedString("\n") }
             joined += part
         }
-        return Result(text: joined, mode: .formatted)
+        return Result(text: joined, mode: .formatted, blocks: blocks)
     }
 
     private enum ParseError: Error { case unsafeLink }
@@ -217,15 +262,16 @@ enum ChatReplyMarkdown {
         return marks.count >= 3 && marks.allSatisfy { $0 == marker }
     }
 
+    private static func tableCells(_ line: String) -> [String] {
+        line.trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "|"))
+            .split(separator: "|", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
     private static func isTableDivider(_ divider: String, for header: String) -> Bool {
         guard header.contains("|"), divider.contains("|") else { return false }
-        func cells(_ line: String) -> [String] {
-            line.trimmingCharacters(in: .whitespaces)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "|"))
-                .split(separator: "|", omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-        }
-        let headings = cells(header), rules = cells(divider)
+        let headings = tableCells(header), rules = tableCells(divider)
         return headings.count == rules.count && !rules.isEmpty && rules.allSatisfy { cell in
             let center = cell.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
             return center.count >= 3 && center.allSatisfy { $0 == "-" }

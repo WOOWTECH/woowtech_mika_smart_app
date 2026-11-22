@@ -189,6 +189,20 @@ private actor LearningMCPServer: MCPDiscovering {
     func cancel() async {}
 }
 
+/// A handshake that waits for the test: a server slower than the request's budget.
+private actor SlowMCPServer: MCPDiscovering {
+    let gate = ModelGate()
+    func initialize() async throws -> MCPServerInfo {
+        await gate.wait()
+        return .init(protocolVersion: "2025-03-26", capabilities: ["tools"])
+    }
+    func listTools() async throws -> [MCPTool] { [.init(name: "slow_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
+
 /// Resources only, in server order. Nothing is read in discovery.
 private actor ListedResourcesMCPServer: MCPDiscovering {
     let resources: [MCPResource]
@@ -359,7 +373,7 @@ private enum CheckProfileChatApp {
             try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed multi-round profile")
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
-            let secondRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{"round":2}}"#
+            let secondRead = #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{"round":2}}"#
             let model = ScriptedModel([.init(remoteRead), .init(secondRead), .init(finished)])
             let session = env.session(model)
             // Change the context at the second dispatch intent.
@@ -429,7 +443,7 @@ private enum CheckProfileChatApp {
         try await until("fixture discovery") { !connection.isBusy }
         try check(connection.phase == .connected, "actual fixture discovery completes")
         connection.selectTool("fixture_echo", enabled: true)
-        let command = #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
+        let command = #"{"action":"call_tool","name":"mcp_00000000__fixture_echo","arguments":{"text":"hello"}}"#
         let model = ScriptedModel([.init(command), .init(finished)]), session = env.session(model)
         let running = try startMCP(session, connection: connection)
         try await until("fixture holds actual executor with no approval") { UITestMCPLeaseControl.shared.isHolding }
@@ -518,8 +532,13 @@ private enum CheckProfileChatApp {
                           "both writes made during the executor are durable")
                 if mode == "success" {
                     try check(requests.count == 2 && session.entries.count == 2, "the turn completes after the changes")
+                } else if mode == "failure" {
+                    // Like Android, a failed request goes back to the model as an error result.
+                    try check(requests.count == 2 && session.mcpSteps.count == 1 && session.mcpSteps[0].isError
+                              && session.entries.count == 2 && session.draft.isEmpty,
+                              "failure emits no invented result; the model answers from the error")
                 } else {
-                    try check(requests.count == 1 && ended(session, mode == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+                    try check(requests.count == 1 && ended(session, .cancelled) && session.draft.isEmpty,
                               "\(mode) emits no invented result and ends without an answer")
                 }
             }
@@ -650,19 +669,26 @@ private enum CheckProfileChatApp {
             await probe.after.release(); await running.value
             try check(session.entries.count == 2 && session.draft.isEmpty, "the late ordinary or MCP reply is published")
         }
-        do {
+        // With MCP offered, the chat's own model call is not MCP work yet:
+        // leaving the app (cancelMCP) keeps that reply going; a stop ends it.
+        for stop in [true, false] {
             let env=try Environment(); defer { try? env.close() }
             try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "MCP producer fixture saves profile")
             let peer=env.reopen(), probe=BoundedCompleteProbe(), session=env.session(probe)
             let connection=try await connectedMCP(LearningMCPServer()); defer { connection.disconnect() }
             let running=try startMCP(session,connection:connection,draft:"synthetic question")
             try await until("MCP producer entered") { await probe.entered == 1 }
-            session.cancelMCP(); await running.value
-            try check(peer.updatePreferences { $0.useMemory = false }, "a peer can write while a cancelled MCP producer runs")
-            await probe.before.release(); await probe.after.release()
-            try await until("cancelled MCP producer finished") { await probe.finished == 1 }
+            if stop { session.cancel() } else { session.cancelMCP() }
+            try check(peer.updatePreferences { $0.useMemory = false }, "a peer can write while the chat producer runs")
+            await probe.before.release(); await probe.after.release(); await running.value
+            try await until("chat producer finished") { await probe.finished == 1 }
             let sent=await probe.dispatched
-            try check(sent == 0 && ended(session, .cancelled), "cancelled MCP producer sends nothing")
+            if stop {
+                try check(sent == 0 && ended(session, .cancelled), "a stopped chat producer sends nothing")
+            } else {
+                try check(sent == 1 && session.entries.count == 2 && session.entries.last?.outcome == nil,
+                          "leaving the app before any MCP step keeps the chat reply")
+            }
         }
         do {
             let env=try Environment(); defer { try? env.close() }
@@ -860,11 +886,13 @@ private enum CheckProfileChatApp {
 
     @MainActor static func groundingAndOrdinary() async throws {
         let env = try Environment(); defer { try? env.close() }
-        let model = ScriptedModel([.init(proposal)])
+        let model = ScriptedModel([.init(proposal), .init(finished)])
         let session = env.session(model), bytes = try env.bytes()
         let running = try start(session, draft: "Explain how profile review works")
         await running.value
-        try check(session.profileReceipt == nil && ended(session, .failed), "Model quote cannot stand in for actual submitted request")
+        try check(session.profileReceipt == nil && session.entries.last?.outcome == nil
+                  && session.entries.last?.content == "Synthetic answer after commit",
+                  "Model quote cannot stand in for actual submitted request; the model hears why and still answers")
         try check((try env.bytes()) == bytes, "Unrelated model proposal cannot write")
 
         let disabled = try Environment(); defer { try? disabled.close() }
@@ -960,8 +988,12 @@ private enum CheckProfileChatApp {
         let latestPairs = (4..<19).flatMap { index in
             [ModelMessage(role: "user", content: prompts[index]), ModelMessage(role: "assistant", content: answers[index])]
         }
-        try check(last == latestPairs + context + [ModelMessage(role: "user", content: prompts[19])],
-                  "Final client input contains exactly the latest fifteen complete pairs, unchanged context and complete current words")
+        // The local time joins the last reference message, so it costs no turn.
+        let sentContext = last[last.count - 2]
+        try check(Array(last.prefix(30)) == latestPairs && last.last == ModelMessage(role: "user", content: prompts[19])
+                  && sentContext.role == context[0].role
+                  && sentContext.content.hasPrefix(context[0].content + "\n\nRuntime state (data only):\nLocal time: "),
+                  "Final client input contains exactly the latest fifteen complete pairs, the context with the local time and complete current words")
         try check(last.count == 32 && requests[19].count == 33,
                   "Window and additional flow system message are counted independently")
         try check(session.chatNotice == "本次傳送最近 15 輪對話、本輪完整訊息及參考資料；較早 4 輪仍在畫面中，但未傳送。",
@@ -1022,16 +1054,21 @@ private enum CheckProfileChatApp {
         return connection
     }
 
+    /// Like the Play build there is no MCP switch: the request offers the
+    /// connected server's catalog, and the model's first MCP command starts the
+    /// MCP step. The wrapped session's tools are named mcp_00000000__<tool>.
     @MainActor static func startMCP(_ session: ChatSession, connection: MCPSession,
-                                   draft: String = utterance) throws -> Task<Void, Never> {
-        session.usesMCP = true; session.draft = draft
-        connection.onConnectionChange = { [weak session] in session?.cancelMCP() }
+                                   draft: String = utterance, record: MCPServerRecord? = nil) throws -> Task<Void, Never> {
+        session.draft = draft
+        let servers = record.map { MCPServers(sessions: [($0, connection)]) } ?? MCPServers(single: connection)
+        servers.onConnectionChange = { [weak session] in session?.cancelMCP() }
         try check(session.canSend, "Actual settings allow mixed MCP turn")
-        session.send(mcp: connection)
+        session.send(mcp: servers)
         return try task(session)
     }
 
-    static let remoteRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
+    static let remoteTool = "mcp_00000000__synthetic_read"
+    static let remoteRead = #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#
 
     /// Like the Play build, neither the selected remote call nor the local
     /// memory write waits for an approval.
@@ -1043,8 +1080,10 @@ private enum CheckProfileChatApp {
         let session = env.session(model), running = try startMCP(session, connection: connection)
         await running.value
         let dispatched = await server.calls
-        try check(dispatched == [.object([:])] && session.mcpSteps.map(\.proposal.action) == [.callTool(name: "synthetic_read", arguments: .object([:]))],
+        try check(dispatched == [.object([:])] && session.mcpSteps.map(\.proposal.action) == [.callTool(name: remoteTool, arguments: .object([:]))],
                   "The selected remote call ran once with its exact arguments and no approval")
+        try check(session.mcpStepOwners[session.mcpSteps[0].proposal.id] == MCPStepOwner(server: "Synthetic MCP", target: "synthetic_read"),
+                  "The results list names the server and its own tool name")
         try check(env.store.memory.memories.map(\.content) == [text] && env.store.memory.memories.first?.source.quote == utterance,
                   "Local authority is the current user draft")
         let receipt = try memoryReceipt(session), requests = await model.requests
@@ -1063,6 +1102,43 @@ private enum CheckProfileChatApp {
         try check(env.reopen().memory.memories.isEmpty, "MCP conversation memory uses the actual durable undo path")
     }
 
+    /// Like Android, a server slower than the request's budget is left out and
+    /// named; the other server's tools are offered and its call goes to it.
+    /// The slow connection goes on for a later request.
+    @MainActor static func mcpSlowServerDoesNotBlockTheOthers() async throws {
+        let env = try Environment(); defer { try? env.close() }
+        let fast = LearningMCPServer(), slow = SlowMCPServer()
+        let first = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in fast })
+        let second = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in slow })
+        let servers = MCPServers(sessions: [
+            (MCPServerRecord(id: UUID(uuidString: "0A000000-0000-4000-8000-000000000001")!, name: "Fast", enabled: true, legacy: false), first),
+            (MCPServerRecord(id: UUID(uuidString: "0B000000-0000-4000-8000-000000000002")!, name: "Slow", enabled: true, legacy: false), second)])
+        servers.connectionBudgetNanoseconds = 300_000_000
+        let started = ContinuousClock.now
+        guard let catalog = await servers.chatCatalog() else { throw CheckFailure(check: "The fast server is offered") }
+        try check(ContinuousClock.now - started < .seconds(5), "The slow server does not hold the request past the budget")
+        try check(catalog.unavailable == ["Slow"] && catalog.catalog.tools.map(\.name) == ["mcp_0a000000__synthetic_read"],
+                  "The slow server is named and left out; the fast server's tool is offered")
+        try check(first.phase == .connected && second.phase == .connecting, "The slow connection goes on")
+        let model = ScriptedModel([.init(#"{"action":"call_tool","name":"mcp_0a000000__synthetic_read","arguments":{}}"#),
+                                   .init(finished)])
+        let session = env.session(model)
+        session.draft = "synthetic question"
+        try check(session.canSend, "Actual settings allow the request")
+        session.send(mcp: servers)
+        let running = try task(session)
+        await running.value
+        let calls = await fast.calls
+        try check(calls.count == 1 && session.entries.count == 2 && session.entries.last?.outcome == nil
+                  && session.mcpUnavailableServers == ["Slow"], "The request answers with the fast server and names the slow one")
+        await slow.gate.release()
+        try await until("The slow server connects later") { second.phase == .connected }
+        let later = await servers.chatCatalog()
+        try check(later?.unavailable.isEmpty == true && later?.catalog.tools.count == 2,
+                  "The next request uses both servers")
+        first.disconnect(); second.disconnect()
+    }
+
     /// There is no remote approval to refuse any more; a later remote failure
     /// still cannot erase an already committed profile receipt.
     @MainActor static func mcpProfileReceiptSurvivesRemoteFailure() async throws {
@@ -1073,9 +1149,12 @@ private enum CheckProfileChatApp {
         let model = ScriptedModel([.init(proposal), .init(remoteRead)])
         let session = env.session(model), running = try startMCP(session, connection: connection)
         await running.value
-        let entered = await server.entered, sent = await server.sent
-        try check(entered == 1 && sent == 0 && session.mcpSteps.isEmpty,
-                  "The later remote call ran with no approval, failed once and was not retried")
+        let entered = await server.entered, sent = await server.sent, requests = await model.requests
+        // The memory chat saved the profile, then started the MCP step after the receipt.
+        try check(entered == 1 && sent == 0 && session.mcpSteps.count == 1 && session.mcpSteps[0].isError,
+                  "The later remote call ran with no approval, failed once, went back as an error and was not retried")
+        try check(requests.count == 3 && requests[2].first?.content.contains("already committed its one local change") == true,
+                  "The MCP step knows the chat's one local change is used")
         try check(session.profileReceipt != nil && env.reopen().profile.snapshot().entries.first?.text == text,
                   "Later remote failure cannot erase an already committed profile receipt")
         try check(ended(session, .failed) && session.entries.last?.content.contains("已儲存") == true && session.draft.isEmpty,
@@ -1107,7 +1186,7 @@ private enum CheckProfileChatApp {
         }
         // The local write applies when the proposal arrives; these happen
         // while the model is still producing it.
-        for action in ["cancel", "disconnect", "masterOff", "generation", "revision", "writeFailure"] {
+        for action in ["cancel", "masterOff", "generation", "revision", "writeFailure"] {
             let env = try Environment(); defer { try? env.close() }
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
@@ -1116,7 +1195,6 @@ private enum CheckProfileChatApp {
             try await until("Local proposal requested") { await model.requests.count == 1 }
             switch action {
             case "cancel": session.cancel()
-            case "disconnect": connection.disconnect()
             case "masterOff": try check(env.store.updatePreferences { $0.useMemory = false }, "Disable before the MCP local write")
             case "generation": try check(env.store.clearAll(), "Clear real learning store before the MCP local write")
             case "revision":
@@ -1132,9 +1210,7 @@ private enum CheckProfileChatApp {
                       action + " never publishes a local receipt")
             try check(env.store.memory == before && env.reopen().memory == before,
                       action + " cannot change durable memory after invalidation")
-            // Disconnecting MCP stops the turn (onConnectionChange), like a stop.
-            let stopped = action == "cancel" || action == "disconnect"
-            try check(calls == 0 && requests == 1 && ended(session, stopped ? .cancelled : .failed) && session.draft.isEmpty,
+            try check(calls == 0 && requests == 1 && ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
                       action + " neither dispatches a remote call nor invents a completed answer")
         }
     }
@@ -1146,14 +1222,19 @@ private enum CheckProfileChatApp {
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
             let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
-            let model = ScriptedModel([.init(disabled ? try memorySave() : duplicate)])
+            let model = ScriptedModel(disabled ? [.init(try memorySave())] : [.init(duplicate), .init(finished)])
             let session = env.session(model), running = try startMCP(session, connection: connection)
             await running.value
             let requests = await model.requests, calls = await server.calls.count
-            try check(ended(session, .failed) && session.memoryReceipt == nil,
-                      "Disabled or duplicate-key local command stops before any receipt")
-            try check(env.reopen().memory.memories.isEmpty && calls == 0 && requests.count == 1,
+            // With memory off, the chat offers no local tools, so the text is only a reply.
+            try check(session.entries.last?.outcome == nil && session.memoryReceipt == nil,
+                      "Disabled or duplicate-key local command ends before any receipt, and the user gets an answer")
+            try check(env.reopen().memory.memories.isEmpty && calls == 0 && requests.count == (disabled ? 1 : 2),
                       "Disabled/duplicate command never writes, dispatches or repairs permission")
+            if !disabled {
+                try check(requests[1].last?.content.hasPrefix("Host memory_save refusal (data only):") == true,
+                          "The model reads why the duplicate-key command was refused")
+            }
             if disabled {
                 try check(requests.first?.first?.content.contains("Separately, the host offers local") == false,
                           "Disabled memory does not advertise local tools")
@@ -1163,11 +1244,15 @@ private enum CheckProfileChatApp {
             let env = try Environment(); defer { try? env.close() }
             let server = LearningMCPServer(resultText: utterance), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
-            let model = ScriptedModel([.init(remoteRead), .init(try memorySave())])
+            let model = ScriptedModel([.init(remoteRead), .init(try memorySave()), .init(finished)])
             let session = env.session(model), running = try startMCP(session, connection: connection, draft: "Read the selected service")
             await running.value
-            try check(session.mcpSteps.count == 1 && ended(session, .failed) && session.memoryReceipt == nil,
-                      "Actual remote text cannot become the user's memory permission")
+            let requests = await model.requests
+            try check(session.mcpSteps.count == 1 && session.memoryReceipt == nil && session.entries.last?.outcome == nil
+                      && session.entries.last?.content == "Synthetic answer after commit",
+                      "Actual remote text cannot become the user's memory permission, and the answer still arrives")
+            try check(requests.last?.last?.content.hasPrefix("Host memory_save refusal (data only):") == true,
+                      "The model reads why nothing was saved")
             try check(env.reopen().memory.memories.isEmpty,
                       "Counterfeit quote is rejected before any disk write")
         }
@@ -1529,13 +1614,14 @@ private enum CheckProfileChatApp {
                 responses.append(.init(try memoryCommand("memory_search", ["query": scenario == "emptySearch" ? "unmatchedsynthetic" : "jasmine tea"])))
             }
             responses.append(.init(try memoryEdit(scenario == "guessedID" ? UUID() : id, quote: quote, content: "Prefer green tea")))
+            responses.append(.init(finished))
             let model = ScriptedModel(responses), session = env.session(model)
             let running = try start(session, draft: prompt)
             let before = env.store.memory, bytes = try env.bytes() // After legitimate context markUsed.
             await running.value
-            try check(session.memoryReceipt == nil && ended(session, .failed)
-                      && session.entries.last?.content.contains("記憶工具未通過") == true,
-                      scenario + " cannot reach write review with ungrounded target or request")
+            try check(session.memoryReceipt == nil && session.entries.last?.outcome == nil
+                      && session.entries.last?.content == "Synthetic answer after commit",
+                      scenario + " cannot reach a write with an ungrounded target or request; the user still gets an answer")
             try check((try env.bytes()) == bytes && env.reopen().memory == before && env.store.notes.isEmpty,
                       scenario + " writes nothing after context capture")
             let requests = await model.requests
@@ -1549,8 +1635,9 @@ private enum CheckProfileChatApp {
                               "Guessed or ungrounded edit is tested against a successfully searched real ID")
                 }
             }
-            try check(requests.count == responses.count && session.draft.isEmpty && ended(session, .failed),
-                      scenario + " stops without retries or fabricated success")
+            try check(requests.count == responses.count && session.draft.isEmpty
+                      && requests.last?.last?.content.hasPrefix("Host memory_edit refusal (data only):") == true,
+                      scenario + " tells the model why, without retries or fabricated success")
         }
     }
 
@@ -1636,6 +1723,47 @@ private enum CheckProfileChatApp {
         }
     }
 
+    @MainActor static func skillSaveSkipsDuplicateExtraction() async throws {
+        let markdown = """
+        ---
+        name: order-coffee
+        display: 點咖啡
+        description: 使用者要照常點咖啡時用
+        aliases: ["點咖啡"]
+        ---
+        ## 入口
+        先問要哪一家店。
+        ## 步骤
+        1. 選擇咖啡。
+        ## 容易出错的地方
+        不要重複下單。
+        ## 怎样算办成
+        拿到訂單編號。
+        ## 什么时候停下交给用户
+        要付款的時候。
+        """
+        for succeeds in [true, false] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, "enable extraction")
+            let quote = "把點咖啡的做法存成技能"
+            let command = try memoryCommand("skill_save", ["markdown": succeeds ? markdown : "invalid", "quote": quote])
+            let extraction = #"{"ops":[{"op":"add","kind":"procedure","content":"點咖啡的做法","quote":"點咖啡的做法"}]}"#
+            let model = ScriptedModel([.init(command), .init(finished), .init(extraction)])
+            let session = env.session(model)
+            let task = try start(session, draft: quote)
+            await task.value
+            await env.store.memoryOrganizingFinished()
+            let calls = await model.requests.count
+            if succeeds {
+                try check(env.reopen().skills.installed.count == 1, "successful skill save is durable")
+                try check(env.reopen().memory.memories.isEmpty && calls == 2, "successful skill save does not create a duplicate pending procedure")
+            } else {
+                try check(env.reopen().skills.installed.isEmpty && env.reopen().memory.memories.count == 1 && calls == 3,
+                          "failed skill save still permits ordinary extraction")
+            }
+        }
+    }
+
     @MainActor static func memoryNotesThroughExtraction() async throws {
         for outcome in ["newMemory", "empty", "failure", "cancel"] {
             let env = try Environment(); defer { try? env.close() }
@@ -1674,6 +1802,41 @@ private enum CheckProfileChatApp {
         }
     }
 
+    /// Like Android's RunLearning: a reply whose own tool forgot a memory is not
+    /// organized again. On the iPhone the organizer read the same words and then
+    /// forgot the similar memory the person had kept.
+    @MainActor static func toolForgetSkipsExtraction() async throws {
+        for path in ["chat", "mcp"] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, path + ": enable background extraction")
+            try check(env.store.mutateMemory {
+                _ = try $0.add(kind: .preference, content: "Prefer jasmine tea", keywords: ["tea"])
+                _ = try $0.add(kind: .preference, content: "Prefer green tea", keywords: ["tea"])
+            }, path + ": seed two similar memories")
+            guard let jasmine = env.store.memory.memories.first(where: { $0.content == "Prefer jasmine tea" })?.id else {
+                throw CheckFailure(check: path + ": jasmine memory ID")
+            }
+            let quote = "Please forget my tea preference, the jasmine one"
+            // What the organizer answered on the iPhone: the same words, aimed at what was left.
+            let organizer = ##"{"ops":[{"op":"forget","target":"#1","quote":"forget my tea preference"}]}"##
+            let model = ScriptedModel([.init(try memoryCommand("memory_search", ["query": "tea"])),
+                                       .init(try memoryEdit(jasmine, quote: quote)), .init(finished), .init(organizer)])
+            let connection = path == "mcp" ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            let session = env.session(model)
+            let running: Task<Void, Never>
+            if let connection { running = try startMCP(session, connection: connection, draft: quote) }
+            else { running = try start(session, draft: quote) }
+            await running.value
+            try await until(path + ": background learning idle") { !env.store.isLearning }
+            let calls = await model.requests
+            try check(session.chatError == nil && session.entries.count == 2 && calls.count == 3,
+                      path + ": after its tool forgot a memory, the reply ends without an organizer request")
+            try check(env.reopen().memory.memories.map(\.content) == ["Prefer green tea"],
+                      path + ": only the memory the person named is forgotten")
+        }
+    }
+
     #if DEBUG
     @MainActor static func actualUIFixtureMCPLearning() async throws {
         let env = try Environment(); defer { try? env.close() }
@@ -1685,9 +1848,12 @@ private enum CheckProfileChatApp {
         connection.selectTool("fixture_echo", enabled: true)
         defer { connection.disconnect() }
         let prompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
-        let session = env.session(client), running = try startMCP(session, connection: connection, draft: prompt)
+        // The UI fixture model names the tool of fixture server A.
+        let session = env.session(client), running = try startMCP(session, connection: connection, draft: prompt,
+                                                                    record: MCPFixtureServer.a.record)
         await running.value
-        try check(session.mcpSteps.map(\.proposal.action) == [.callTool(name: "fixture_echo", arguments: .object(["text": .string("hello")]))],
+        try check(session.mcpSteps.map(\.proposal.action) == [.callTool(name: UITestMCPFixture.modelName("fixture_echo"),
+                                                                           arguments: .object(["text": .string("hello")]))],
                   "Actual fixture remote call ran with unchanged arguments and no approval")
         let saved = env.reopen().memory.memories.first
         try check(saved?.source.quote == prompt && saved?.content == text && saved?.keywords == ["jasmine", "tea"],
@@ -1954,8 +2120,11 @@ private enum CheckProfileChatApp {
             try await group("chatLearningLikePlay", chatLearningLikePlay)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
+            try await group("skillSaveSkipsDuplicateExtraction", skillSaveSkipsDuplicateExtraction)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)
+            try await group("toolForgetSkipsExtraction", toolForgetSkipsExtraction)
             try await group("mcpRemoteCallThenMemorySave", mcpRemoteCallThenMemorySave)
+            try await group("mcpSlowServerDoesNotBlockTheOthers", mcpSlowServerDoesNotBlockTheOthers)
             try await group("mcpProfileReceiptSurvivesRemoteFailure", mcpProfileReceiptSurvivesRemoteFailure)
             try await group("mcpMemorySearchDeleteAndFences", mcpMemorySearchDeleteAndFences)
             try await group("mcpLocalAuthorityAndLimits", mcpLocalAuthorityAndLimits)
@@ -1981,6 +2150,7 @@ private enum CheckProfileChatApp {
 
 #if !PROFILE_CHAT_APP_STANDALONE
 final class ProfileChatAppIntegrationTests: XCTestCase {
+    @MainActor func testSkillSaveSkipsDuplicateExtraction() async throws { try await CheckProfileChatApp.skillSaveSkipsDuplicateExtraction() }
     @MainActor func testChatRepliesIgnoreLearningChanges() async throws { try await CheckProfileChatApp.chatRepliesIgnoreLearningChanges() }
     @MainActor func testCrossInstanceApprovalAndCancellation() async throws {
         try await CheckProfileChatApp.crossInstanceApprovalAndCancellation()
@@ -2041,6 +2211,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     @MainActor func testMCPRemoteCallThenMemorySave() async throws {
         try await CheckProfileChatApp.mcpRemoteCallThenMemorySave()
     }
+    @MainActor func testMCPSlowServerDoesNotBlockTheOthers() async throws {
+        try await CheckProfileChatApp.mcpSlowServerDoesNotBlockTheOthers()
+    }
     @MainActor func testMCPProfileReceiptSurvivesRemoteFailure() async throws {
         try await CheckProfileChatApp.mcpProfileReceiptSurvivesRemoteFailure()
     }
@@ -2052,6 +2225,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMemoryToolNotesSurviveActualBackgroundExtraction() async throws {
         try await CheckProfileChatApp.memoryNotesThroughExtraction()
+    }
+    @MainActor func testToolForgetSkipsBackgroundExtraction() async throws {
+        try await CheckProfileChatApp.toolForgetSkipsExtraction()
     }
     #if DEBUG
     @MainActor func testActualUIFixtureEdits() async throws {

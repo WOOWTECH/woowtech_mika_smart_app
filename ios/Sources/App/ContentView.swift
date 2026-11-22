@@ -15,14 +15,16 @@ struct ContentView: View {
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
     @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
-    @StateObject private var session = ChatSession()
-    @StateObject private var mcpSession = MCPSession()
+    @StateObject private var session = ChatLayoutReplay.makeSession()
+    @StateObject private var mcpServers = ChatLayoutReplay.requested ? MCPServers(sessions: []) : MCPServers()
     @StateObject private var browserWorkspace = BrowserWorkspace()
     @StateObject private var preferences = SelfConfigurationStore.applicationPreferences()
     @StateObject private var languages = AppLanguageStore.applicationPreferences()
     @StateObject private var notifications = TaskNotificationStore.applicationStore()
     private var browser: BrowserSession { browserWorkspace.selected }
     @Environment(\.scenePhase) private var scenePhase
+    /// Extra background time for a reply that is still streaming.
+    @State private var replyBackgroundTask: UIBackgroundTaskIdentifier = .invalid
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     private var webTaskColors: ChatWebTaskColors {
@@ -54,6 +56,13 @@ struct ContentView: View {
         }
         .tint(palette.accent)
         .background(palette.background)
+        .overlay(alignment: .top) {
+            if ChatLayoutReplay.requested {
+                Text("隔離重現・本機模擬失敗・無模型／MCP網路")
+                    .font(.caption2).padding(2).background(.yellow).foregroundStyle(.black)
+                    .allowsHitTesting(false).accessibilityIdentifier("chat.layoutReplay.banner")
+            }
+        }
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
         .firstLaunchOnboarding(session: session, languages: languages, accent: palette.accent)
@@ -73,9 +82,17 @@ struct ContentView: View {
             session.learning.onUserChange = { [weak browserWorkspace, weak session] in
                 browserWorkspace?.cancelAllWork(preservingFrozenReferences: session?.learning.referenceEditInProgress == true)
             }
-            mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
+            mcpServers.onConnectionChange = { [weak session] in session?.cancelMCP() }
             session.interfaceLanguage = { [weak languages] in languages?.resolved ?? .traditionalChinese }
+            // Like Android, no banner about the chat that is already in front.
+            notifications.isOnScreen = { destination in
+                switch destination {
+                case .chat: return selection == .chat && !showsDrawer
+                case .browser: return selection == .browser
+                }
+            }
             session.webTaskEnvironment = { [weak browserWorkspace] in
+                guard !ChatLayoutReplay.requested else { return nil }
                 guard let browserWorkspace else { return nil }
                 var environment = ChatWebTaskEnvironment(dataStore: browserWorkspace.websiteDataStore,
                                                          searchTemplate: browserWorkspace.library.searchSettings.selected.template)
@@ -98,13 +115,22 @@ struct ContentView: View {
             session.webTaskScenePhaseChanged(isActive: phase == .active, isBackground: phase == .background)
             if phase != .active { browserWorkspace.cancelAllWork() }
             // Like the Play build, MCP stays set up. A brief interruption (Notification
-            // Center, a permission alert) keeps the connection; in the background iOS
-            // stops the work, and the connection comes back when the app is active.
+            // Center, a permission alert) keeps the connections; in the background iOS
+            // stops the MCP work of a running request, and the connections come back
+            // when the app is active. A plain reply keeps its extra background time.
             if phase == .background {
                 session.cancelMCP()
-                mcpSession.appWillLeaveForeground()
+                mcpServers.appWillLeaveForeground()
+                session.appLeftScreen()
+                keepReplyRunningInBackground()
             }
-            if phase == .active { mcpSession.appDidBecomeActive() }
+            if phase == .active {
+                mcpServers.appDidBecomeActive()
+                endReplyBackgroundTime()
+            }
+        }
+        .onChange(of: session.isSubmitting) { _, submitting in
+            if !submitting { endReplyBackgroundTime() }
         }
         .onChange(of: selection) { previous, destination in
             // Like Play, leaving the browser closes its page; coming back shows the start page.
@@ -136,7 +162,13 @@ struct ContentView: View {
           }
           if showsDrawer {
               GeometryReader { geometry in
-                  ZStack(alignment: .leading) {
+                  // Like Android's ChatDrawer the panel fills the whole screen
+                  // height behind the status and home-indicator areas and pads
+                  // its content by those insets. Top-leading alignment matters:
+                  // the panel is taller than this safe-area container, and a
+                  // centred panel ended 46.5 pt above the bottom edge (showing
+                  // the composer) with its title under the clock.
+                  ZStack(alignment: .topLeading) {
                       Button { closeDrawer() } label: {
                           palette.scrim.ignoresSafeArea()
                       }
@@ -150,6 +182,7 @@ struct ContentView: View {
                           localizer: localizer,
                           topInset: geometry.safeAreaInsets.top,
                           bottomInset: geometry.safeAreaInsets.bottom,
+                          leadingInset: geometry.safeAreaInsets.leading,
                           onClose: closeDrawer,
                           onNew: requestNewConversation,
                           onOpenRecent: { record in
@@ -170,12 +203,12 @@ struct ContentView: View {
                               }
                           }
                       )
-                      .frame(width: min(304, max(0, geometry.size.width - 48)),
+                      .frame(width: min(304, max(0, geometry.size.width - 48)) + geometry.safeAreaInsets.leading,
                              height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)
-                      .offset(y: -geometry.safeAreaInsets.top)
+                      .offset(x: -geometry.safeAreaInsets.leading, y: -geometry.safeAreaInsets.top)
                       .transition(.move(edge: .leading))
                   }
-                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
+                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
               }
           }
         }
@@ -236,7 +269,7 @@ struct ContentView: View {
             Group {
                 switch selection {
                 case .chat:
-                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer,
+                    ChatView(session: session, mcp: mcpServers, showsDrawer: $showsDrawer, localizer: localizer,
                              openSettings: {
                                  browserReturnSection = .chat
                                  selection = .settings
@@ -252,18 +285,35 @@ struct ContentView: View {
                 case .settings:
                     MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications,
                                             languages: languages,
-                                            mcpDestination: { MCPToolsView(session: mcpSession) },
+                                            mcpDestination: { MCPToolsView(servers: mcpServers) },
                                             memoryDestination: { memoryDataView(resetNavigation: true) })
                 case .about:
                     MikaAboutView(languages: languages, info: MikaAboutInfo(bundle: .main))
                 case .tools:
-                    MCPToolsView(session: mcpSession)
+                    MCPToolsView(servers: mcpServers)
                 case .memory:
                     memoryDataView(resetNavigation: false)
                 case .browser:
                     BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
                 }
             }
+    }
+
+    /// iOS suspends the app soon after it leaves the screen, which cuts a
+    /// streaming reply; Android keeps the task running in a foreground service.
+    /// A reply that is still arriving gets iOS's usual extra background time,
+    /// about 30 seconds, so a short trip to another app does not lose it.
+    private func keepReplyRunningInBackground() {
+        guard session.isSubmitting, replyBackgroundTask == .invalid else { return }
+        replyBackgroundTask = UIApplication.shared.beginBackgroundTask(withName: "woow.chat.reply") {
+            endReplyBackgroundTime()
+        }
+    }
+
+    private func endReplyBackgroundTime() {
+        guard replyBackgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(replyBackgroundTask)
+        replyBackgroundTask = .invalid
     }
 
     private func closeDrawer() {
@@ -356,7 +406,8 @@ private struct MikaVisualPalette {
     var secondaryInk: Color { dark ? rgb(164, 165, 173) : rgb(95, 96, 104) }
     var accent: Color { dark ? rgb(97, 131, 252) : rgb(64, 105, 251) }
     var assistant: Color { dark ? .white.opacity(13.0 / 255) : .black.opacity(9.0 / 255) }
-    var glass: Color { dark ? surface.opacity(184.0 / 255) : .white.opacity(184.0 / 255) }
+    var glass: Color { surface.opacity(184.0 / 255) }
+    var disabledControl: Color { rgb(118, 118, 128).opacity((dark ? 56.0 : 31.0) / 255) }
     var hair: Color { dark ? .white.opacity(20.0 / 255) : .black.opacity(18.0 / 255) }
     var scrim: Color { .black.opacity(0.32) }
 }
@@ -372,6 +423,8 @@ private struct MikaNavigationDrawer: View {
     let localizer: AppLocalizer
     let topInset: CGFloat
     let bottomInset: CGFloat
+    /// The landscape notch side: the panel reaches the screen edge behind it.
+    let leadingInset: CGFloat
     let onClose: () -> Void
     let onNew: () -> Void
     let onOpenRecent: (ArchivedConversation) -> Void
@@ -419,6 +472,7 @@ private struct MikaNavigationDrawer: View {
         }
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
+        .padding(.leading, leadingInset)
         .frame(maxHeight: .infinity)
         .background(palette.background)
         .clipShape(MikaDrawerShape())
@@ -485,6 +539,15 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
 
 }
 
+/// Holds the chat's follow policy where SwiftUI does not watch it. On the
+/// iPhone (builds 230 and 232) a long chat with tables froze at full CPU, its
+/// memory growing, when the policy was @State: each geometry report changed it,
+/// which redrew the chat, whose new layout could report new geometry again.
+@MainActor
+private final class ChatScrollFollowBox {
+    var policy = ChatScrollFollowPolicy()
+}
+
 @MainActor
 private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     static var defaultValue: ChatTranscriptViewport? = nil
@@ -493,10 +556,21 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     }
 }
 
+/// Only this subtree observes keystrokes; transcript layout does not.
+@MainActor
+private struct ChatDraftObserver<Content: View>: View {
+    @ObservedObject var draft: ChatDraft
+    let content: (Binding<String>) -> Content
+
+    var body: some View { content($draft.text) }
+}
+
 @MainActor
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
-    @ObservedObject var mcp: MCPSession
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    /// Every chat may use the enabled servers; there is no switch per chat.
+    let mcp: MCPServers
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
     let openSettings: () -> Void
@@ -523,7 +597,10 @@ private struct ChatView: View {
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
-    @State private var scrollFollow = ChatScrollFollowPolicy()
+    @State private var scrollFollowBox = ChatScrollFollowBox()
+    /// Whether the return-to-latest button shows (!followsTail): the only part
+    /// of following that redraws the chat.
+    @State private var showsReturnToLatest = false
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
@@ -553,6 +630,20 @@ private struct ChatView: View {
         case .failed(.recognition): return .voiceRecognitionError
         case .failed(.timeout): return .voiceTimeout
         }
+    }
+
+    /// The follow policy, read without redrawing the chat.
+    private var scrollFollow: ChatScrollFollowPolicy { scrollFollowBox.policy }
+
+    /// Changes the follow policy. Only a change of the return button redraws the
+    /// chat: geometry arrives on every layout pass, and redrawing for each
+    /// report let a long chat's layout and its reports feed each other.
+    @discardableResult
+    private func updateFollow<Result>(_ change: (inout ChatScrollFollowPolicy) -> Result) -> Result {
+        let result = change(&scrollFollowBox.policy)
+        let shows = !scrollFollowBox.policy.followsTail
+        if showsReturnToLatest != shows { showsReturnToLatest = shows }
+        return result
     }
 
     private func cancelScrollSettle() {
@@ -652,9 +743,10 @@ private struct ChatView: View {
     private func answerOrQuestionBubble(index: Int, entry: ChatEntry, words: String,
                                         targets: ChatMessageActionTargets) -> some View {
         let user = entry.role == "user"
+        let reply = user ? nil : ChatReplyMarkdown.parse(entry.content)
         return HStack {
             if user { Spacer(minLength: 40) }
-            Text(user ? AttributedString(words) : ChatReplyMarkdown.render(entry.content))
+            bubbleText(user: user, words: words, reply: reply)
                 .font(.system(size: 15.5))
                 .lineSpacing(user ? 1 : 4)
                 .foregroundStyle(user ? Color.white : palette.ink)
@@ -664,6 +756,20 @@ private struct ChatView: View {
                 .modifier(ChatMessageMenu(entry: entry, targets: targets, text: menuText,
                                           perform: { perform($0, on: entry) }))
             if !user { Spacer(minLength: 0) }
+        }
+    }
+
+    /// Like Android, a reply with a table or a code block lays them out as
+    /// blocks; it stays one accessibility element with the whole reply.
+    @ViewBuilder
+    private func bubbleText(user: Bool, words: String, reply: ChatReplyMarkdown.Result?) -> some View {
+        if let reply, reply.hasRichBlocks {
+            ChatReplyBlocksView(blocks: reply.blocks, ink: palette.ink)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(reply.text))
+                .accessibilityAddTraits(.isStaticText)
+        } else {
+            Text(user ? AttributedString(words) : reply?.text ?? AttributedString())
         }
     }
 
@@ -729,8 +835,8 @@ private struct ChatView: View {
         scrollSettleTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
-            let settled = scrollFollow.settle(expectedRevision: revision)
-            if settled && scrollFollow.needsTailScroll {
+            let settled = updateFollow { $0.settle(expectedRevision: revision) }
+            if settled && scrollFollow.needsTailScroll && !ChatLayoutExperiments.current.skipAutoScroll {
                 // A no-op drag may have paused scrolling while a new fragment
                 // arrived. Catch up only after its final offset is known.
                 scrollToTailRequest += 1
@@ -742,7 +848,7 @@ private struct ChatView: View {
         }
     }
 
-    /// Notes, MCP switches and receipts above the transcript.
+    /// Notes, MCP activity and receipts above the transcript.
     @ViewBuilder private var chatHeader: some View {
         if session.isUITestMode {
             Text(verbatim: localizer.text(.chatFixtureNotice))
@@ -752,11 +858,18 @@ private struct ChatView: View {
 
         LearningChatNotes(store: session.learning, openPendingSkills: openPendingSkills)
 
-        if mcp.isAvailableForChats || session.usesMCP {
-            Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
-                .font(.callout)
-                .disabled(session.isSubmitting)
-                .accessibilityIdentifier("chat.useMCP")
+        if !session.mcpUnavailableServers.isEmpty {
+            // Like Android's task card note; the request went on with the other servers.
+            Text(localizer.text(.chatMcpUnavailable(names: session.mcpUnavailableServers
+                .map { $0.isEmpty ? localizer.text(.mcpServerDefaultName) : $0 }
+                .joined(separator: localizer.text(.mcpNameSeparator)))))
+                .font(.caption)
+                .accessibilityIdentifier("chat.mcpUnavailable")
+        }
+        if session.mcpOmitted > 0 {
+            Text(localizer.text(.chatMcpOmitted(count: session.mcpOmitted)))
+                .font(.caption)
+                .accessibilityIdentifier("chat.mcpOmitted")
         }
         if let activity = session.mcpActivity {
             Text(localizer.stored(activity)).font(.caption)
@@ -802,11 +915,19 @@ private struct ChatView: View {
     /// The latest messages that render outside the lazy list (three turns).
     private static let eagerRecentEntries = 6
 
+    private var layoutDiagnosticFields: [ChatLayoutDiagnostics.Field: ChatLayoutDiagnostics.Value] {
+        [.entries: .count(UInt64(session.entries.count)), .revision: .count(session.transcriptContentRevision),
+         .submitting: .flag(session.isSubmitting), .preview: .flag(session.replyPreview != nil),
+         .following: .flag(scrollFollowBox.policy.followsTail)]
+    }
+
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
         let rows = Array(session.entries.enumerated())
-        let lazyEnd = max(0, rows.count - Self.eagerRecentEntries)
+        let lazyEnd = ChatLayoutExperiments.current.allEager ? 0 : max(0, rows.count - Self.eagerRecentEntries)
+        ChatLayoutDiagnostics.shared.record(.transcriptLayout, fields: layoutDiagnosticFields.merging(
+            [.lazyEnd: .count(UInt64(lazyEnd)), .viewportHeight: .number(viewportHeight)]) { _, new in new })
         return VStack(alignment: .leading, spacing: 16) {
             // The welcome stays out of the lazy list: inside a LazyVStack it hung the
             // main thread on iPhone SE (iOS 18.5 CI) when an example shrank the input
@@ -830,9 +951,11 @@ private struct ChatView: View {
             GeometryReader { content in
                 Color.clear.preference(key: ChatTranscriptViewportPreferenceKey.self,
                     value: ChatTranscriptViewport(
-                        contentHeight: Double(content.size.height),
-                        bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY),
-                        viewportHeight: viewportHeight))
+                        // Whole points: a fraction of a point between two layout
+                        // passes is not a change worth following.
+                        contentHeight: Double(content.size.height).rounded(),
+                        bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY).rounded(),
+                        viewportHeight: viewportHeight.rounded()))
             }
         }
     }
@@ -840,7 +963,7 @@ private struct ChatView: View {
     @ViewBuilder private var welcomeRows: some View {
         // Android hides the welcome while the blocked card is up.
         if session.entries.isEmpty && session.replyPreview == nil && session.webTask == nil && session.shownSendBlocker == nil {
-            ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+            ChatEmptyState(draft: Binding(get: { session.draft }, set: { session.draft = $0 }), palette: palette, localizer: localizer)
         }
         if !session.hasStoredKey && session.shownSendBlocker == nil {
             Text(verbatim: localizer.text(.chatModelSetupHint))
@@ -888,59 +1011,77 @@ private struct ChatView: View {
         }
         .coordinateSpace(name: "chat.transcript.viewport")
         .accessibilityIdentifier("chat.transcript")
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         // A simultaneous drag observes scrolling without taking the long
         // press away from the message menu or the streaming reply's text.
         .simultaneousGesture(DragGesture(minimumDistance: 5)
             .onChanged { drag in
-                scrollFollow.beginDrag()
-                if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
-                if drag.translation.height < -4 { scrollFollow.userDraggedTowardLatestContent() }
+                updateFollow { $0.beginDrag() }
+                if drag.translation.height > 4 { updateFollow { $0.userDraggedTowardEarlierContent() } }
+                if drag.translation.height < -4 { updateFollow { $0.userDraggedTowardLatestContent() } }
             }
             .onEnded { _ in
-                scrollFollow.endDrag()
+                updateFollow { $0.endDrag() }
                 scheduleScrollSettle()
             })
         .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
             // An empty conversation is a browsable list, not a transcript
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
+            ChatLayoutDiagnostics.shared.record(.transcriptPosition, fields: layoutDiagnosticFields.merging(
+                [.contentHeight: .number(position.contentHeight), .bottomY: .number(position.bottomY),
+                 .viewportHeight: .number(position.viewportHeight)]) { _, new in new })
             let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
-            if scrollFollow.observe(position, hasTranscript: hasTranscript) {
+            if updateFollow({ $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }),
+               !ChatLayoutExperiments.current.skipAutoScroll {
+                ChatLayoutDiagnostics.shared.record(.scrollGeometryBegin, fields: layoutDiagnosticFields)
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                ChatLayoutDiagnostics.shared.record(.scrollGeometryEnd, fields: layoutDiagnosticFields)
             }
             scheduleScrollSettle()
         }
         .onChange(of: session.conversationID) { _, _ in
             cancelScrollSettle()
-            scrollFollow.conversationChanged()
-            if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
+            updateFollow { $0.conversationChanged() }
+            if (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil),
+               !ChatLayoutExperiments.current.skipAutoScroll {
+                ChatLayoutDiagnostics.shared.record(.scrollConversationBegin, fields: layoutDiagnosticFields)
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                ChatLayoutDiagnostics.shared.record(.scrollConversationEnd, fields: layoutDiagnosticFields)
             }
         }
         .onChange(of: session.isSubmitting) { _, submitting in
+            ChatLayoutDiagnostics.shared.record(.submittingChanged, fields: layoutDiagnosticFields)
             guard submitting else { return }
             cancelScrollSettle()
-            scrollFollow.userSubmitted()
+            updateFollow { $0.userSubmitted() }
+            guard !ChatLayoutExperiments.current.skipAutoScroll else { return }
+            ChatLayoutDiagnostics.shared.record(.scrollSubmittingBegin, fields: layoutDiagnosticFields)
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            ChatLayoutDiagnostics.shared.record(.scrollSubmittingEnd, fields: layoutDiagnosticFields)
         }
         .onChange(of: scrollToTailRequest) { _, _ in
+            ChatLayoutDiagnostics.shared.record(.scrollRequestBegin, fields: layoutDiagnosticFields)
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            ChatLayoutDiagnostics.shared.record(.scrollRequestEnd, fields: layoutDiagnosticFields)
         }
-        .overlay(alignment: .bottomTrailing) {
-            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
-                Button {
-                    cancelScrollSettle()
-                    scrollFollow.userRequestedLatest()
-                    scrollToTailRequest += 1
-                } label: {
-                    Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accent)
-                .accessibilityIdentifier("chat.returnToLatest")
-                .padding(12)
+    }
+
+    /// Reserve a separate row: an overlay covered the last reply/error text on
+    /// the physical iPhone. The transcript measures its actual remaining height.
+    @ViewBuilder private var returnToLatestControl: some View {
+        if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
+            Button {
+                cancelScrollSettle()
+                updateFollow { $0.userRequestedLatest() }
+                scrollToTailRequest += 1
+            } label: {
+                Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
             }
+            .buttonStyle(.borderedProminent)
+            .tint(palette.accent)
+            .accessibilityIdentifier("chat.returnToLatest")
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.horizontal, 12)
         }
     }
 
@@ -952,6 +1093,9 @@ private struct ChatView: View {
             .onAppear { transcriptViewportHeight = viewport.size.height }
             .onChange(of: viewport.size.height) { _, height in transcriptViewportHeight = height }
         }
+        // Keep scrolling content inside the space assigned above the status and
+        // composer, including while the keyboard or attachment panel moves them.
+        .clipped()
         .overlay(alignment: .top) {
             if let messageToast {
                 ChatToastView(toast: messageToast).padding(.top, 8).transition(.opacity)
@@ -1044,12 +1188,12 @@ private struct ChatView: View {
     /// keyboard, so at accessibility sizes the draft scrolls after three.
     private var draftLineLimit: ClosedRange<Int> { dynamicTypeSize.isAccessibilitySize ? 1...3 : 1...5 }
 
-    private var composer: some View {
+    private func composer(draft: Binding<String>) -> some View {
         HStack(alignment: .bottom, spacing: 4) {
             attachToggle
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
-                      text: $session.draft, axis: .vertical)
+                      text: draft, axis: .vertical)
                 .lineLimit(draftLineLimit)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
@@ -1075,22 +1219,33 @@ private struct ChatView: View {
                 .accessibilityIdentifier("chat.cancel")
             }
             Button {
+                ChatLayoutDiagnostics.shared.beginSend(fields: layoutDiagnosticFields.merging(
+                    [.editing: .flag(isEditingDraft), .panel: .flag(showsAttachPanel),
+                     .allEager: .flag(ChatLayoutExperiments.current.allEager),
+                     .skipAutoScroll: .flag(ChatLayoutExperiments.current.skipAutoScroll),
+                     .docked: .flag(keyboardDock.frameInWindow != nil),
+                     .keyboardTop: .number(Double(keyboardDock.frameInWindow?.minY ?? 0)),
+                     .keyboardHeight: .number(Double(keyboardDock.frameInWindow?.height ?? 0))]) { _, new in new })
                 voice.cancel()
+                ChatLayoutDiagnostics.shared.record(.dismissKeyboardBegin)
                 isEditingDraft = false
                 showsAttachPanel = false
-                session.attemptSend(mcp: session.usesMCP ? mcp : nil)
+                ChatLayoutDiagnostics.shared.record(.dismissKeyboardEnd)
+                ChatLayoutDiagnostics.shared.record(.sendAttemptBegin, fields: layoutDiagnosticFields)
+                session.attemptSend(mcp: mcp)
+                ChatLayoutDiagnostics.shared.record(.sendAttemptEnd, fields: layoutDiagnosticFields)
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
                     cancelScrollSettle()
-                    scrollFollow.userSubmitted()
-                    scrollToTailRequest += 1
+                    updateFollow { $0.userSubmitted() }
+                    if !ChatLayoutExperiments.current.skipAutoScroll { scrollToTailRequest += 1 }
                 }
             } label: {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
                     .frame(width: 40, height: 40)
-                    .background(session.canAttemptSend ? palette.accent : palette.assistant, in: Circle())
+                    .background(session.canAttemptSend ? palette.accent : palette.disabledControl, in: Circle())
             }
             .disabled(!session.canAttemptSend)
             .accessibilityLabel(localizer.text(.shellSend))
@@ -1099,8 +1254,16 @@ private struct ChatView: View {
         .frame(minHeight: 52)
         .layoutPriority(1)
         .padding(6)
-        .background(palette.glass, in: Capsule())
+        .background {
+            if reduceTransparency {
+                Capsule().fill(palette.surface)
+            } else {
+                Capsule().fill(.ultraThinMaterial)
+                    .overlay(Capsule().fill(palette.glass))
+            }
+        }
         .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.12), radius: 14, y: 4)
     }
 
     private var photoPickerLimit: Int { max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count) }
@@ -1109,11 +1272,24 @@ private struct ChatView: View {
         VStack(spacing: 12) {
             chatHeader
             transcript
-            chatStatus
-            quoteChip
-            attachmentRows
-            composer
-            attachPanel
+            returnToLatestControl
+            VStack(spacing: 12) {
+                chatStatus
+                quoteChip
+                attachmentRows
+                ChatDraftObserver(draft: session.draftModel) { draft in
+                    composer(draft: draft)
+                }
+                attachPanel
+            }
+            .layoutPriority(1)
+            .background {
+                LinearGradient(stops: [
+                    .init(color: palette.background.opacity(0), location: 0),
+                    .init(color: palette.background, location: 0.6),
+                    .init(color: palette.background, location: 1)
+                ], startPoint: .top, endPoint: .bottom)
+            }
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
@@ -1131,7 +1307,7 @@ private struct ChatView: View {
                 add: { files in Task { await session.addAttachments(files) } },
                 loadingStarted: { session.attachmentsLoadingStarted() }))
             .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
-            .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
+            .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps, owners: session.mcpStepOwners) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }
             // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
@@ -1158,7 +1334,7 @@ private struct ChatView: View {
                 // VoiceOver users hear why the tap did not send.
                 guard blocker != nil else { return }
                 // Android scrolls to the card only while following the latest message.
-                if scrollFollow.followsTail { scrollToTailRequest += 1 }
+                if scrollFollow.followsTail && !ChatLayoutExperiments.current.skipAutoScroll { scrollToTailRequest += 1 }
                 UIAccessibility.post(notification: .announcement,
                                      argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
             }

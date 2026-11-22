@@ -206,6 +206,30 @@ enum AppText: Equatable {
     case mcpKeychainStatus(code: String)
     case mcpToolCount(count: Int)
     case mcpSelectedCount(count: Int)
+    case mcpServersSection
+    case mcpServersEmpty
+    case mcpServersEmptyDetail
+    case mcpServersStatus(count: Int)
+    case mcpServersStored
+    case mcpAddServer
+    case mcpAddSection
+    case mcpTestAll
+    case mcpBackToServers
+    case mcpServerName
+    case mcpServerDefaultName
+    case mcpServerEnabled
+    case mcpServerDisabled
+    case mcpServerStatusOK(count: Int)
+    case mcpServerStatusFailed
+    case mcpDeleteServer
+    case mcpDeleteServerQuestion
+    case mcpDeleteServerConfirm
+    case mcpServerAdded
+    case mcpServerRenamed
+    case mcpServerRemoved
+    case mcpInvalidServerName
+    case mcpTooManyServers
+    case mcpNameSeparator
     case searchTitle
     case searchCustom
     case searchTemplate
@@ -370,6 +394,65 @@ enum AppText: Equatable {
     case modelsConsentReview
     case modelsLegacyUnreadable
     case signinKeyGroup
+    case signinGroup
+    case signinRowChatGPT
+    case signinRowXAI
+    case signinRunning
+    case signinSignedIn
+    case signinSignedOut
+    case signinBusy
+    case signinUseKey
+    case signinContinue
+    case signinStoredNote
+    case signinCopied
+    case signinSetMain
+    case signinSetMainNote
+    case signinSignOutNote
+    case signinListing
+    case signinListFailed
+    case signinRefresh
+    case chatgptTitle
+    case chatgptBody
+    case chatgptContinue
+    case chatgptWaiting
+    case chatgptAccount
+    case chatgptSignOut
+    case chatgptManageUsage
+    case chatgptPlanNote
+    case chatgptSignedOutNote
+    case chatgptRevokeUnconfirmed
+    case chatgptPageDone
+    case chatgptFailDenied
+    case chatgptFailMismatch
+    case chatgptFailNoClient
+    case chatgptFailTimedOut
+    case chatgptFailExchange(code: String)
+    case chatgptFailCodeExpired
+    case chatgptFailRegion
+    case chatgptFailBlocked
+    case chatgptFailIDToken
+    case chatgptFailNoPlan
+    case chatgptFailNetwork
+    case signinXAITitle
+    case signinXAIBody
+    case signinXAIRisk
+    case signinXAIStarting
+    case signinXAICodeTitle
+    case signinXAICodeBody
+    case signinXAICodeValid(minutes: Int)
+    case signinXAICopyReopen
+    case signinXAIWaiting
+    case signinXAINote403
+    case accountSignedInNoteXAI
+    case accountSignedOutNote
+    case accountManageXAI
+    case accountFailDenied
+    case accountFailExpired
+    case accountFailTimedOut
+    case accountFailRejected(code: String)
+    case accountFailNoSub
+    case accountFailNetwork
+    case accountFailIssuer
     case presetCustom
     case modelBaseURL
     case modelProviderName
@@ -657,9 +740,16 @@ enum AppText: Equatable {
     case chatModelFailedStreamCut
     case chatModelFailedTruncated
     case chatReplyTruncatedNote
+    case chatReplyInterruptedNote
     case chatModelFailedUnreadable
     case chatModelFailedServer(status: Int)
     case chatModelFailedStatus(status: Int)
+    case chatModelFailedSignedOut(account: String)
+    case chatModelFailedChatGPTLimit
+    case chatModelFailedChatGPTNotEligible
+    case chatModelFailedPlan(account: String)
+    case chatModelFailedRefused
+    case chatModelFailedContext
     case drawerDeleteTitle
     case drawerDeleteBody(title: String)
     case chatWebTitle
@@ -784,6 +874,7 @@ enum AppText: Equatable {
     case storedChatMcpToolError
     case storedChatMcpLocalLimit
     case storedChatMcpLimit
+    case storedChatMcpChanged
     case storedContextIncompleteHistory
     case storedContextTooLarge
     case storedReferencePrepareFailed
@@ -885,10 +976,11 @@ enum AppText: Equatable {
     case storedSuffixDraftKept
     case storedSuffixToolResultsKept
     case storedSuffixReplayNoSkip
-    case chatUseMCP
     case chatReceiptProfile
     case chatReceiptMemory
     case chatMcpResultsView(count: Int)
+    case chatMcpUnavailable(names: String)
+    case chatMcpOmitted(count: Int)
     case chatArchiveRetry
     case chatLearningOrganizing
     case chatMemoryApprove
@@ -1142,6 +1234,30 @@ enum AppText: Equatable {
         case .mcpKeychainStatus: return "mcp.keychain.status"
         case .mcpToolCount: return "mcpToolCount"
         case .mcpSelectedCount: return "mcpSelectedCount"
+        case .mcpServersSection: return "mcp.servers.section"
+        case .mcpServersEmpty: return "mcp.servers.empty"
+        case .mcpServersEmptyDetail: return "mcp.servers.empty.detail"
+        case .mcpServersStatus: return "mcpServersStatus"
+        case .mcpServersStored: return "mcp.servers.stored"
+        case .mcpAddServer: return "mcp.add.server"
+        case .mcpAddSection: return "mcp.add.section"
+        case .mcpTestAll: return "mcp.test.all"
+        case .mcpBackToServers: return "mcp.back.to.servers"
+        case .mcpServerName: return "mcp.server.name"
+        case .mcpServerDefaultName: return "mcp.server.default.name"
+        case .mcpServerEnabled: return "mcp.server.enabled"
+        case .mcpServerDisabled: return "mcp.server.disabled"
+        case .mcpServerStatusOK: return "mcpServerStatusOK"
+        case .mcpServerStatusFailed: return "mcp.server.status.failed"
+        case .mcpDeleteServer: return "mcp.delete.server"
+        case .mcpDeleteServerQuestion: return "mcp.delete.server.question"
+        case .mcpDeleteServerConfirm: return "mcp.delete.server.confirm"
+        case .mcpServerAdded: return "mcp.server.added"
+        case .mcpServerRenamed: return "mcp.server.renamed"
+        case .mcpServerRemoved: return "mcp.server.removed"
+        case .mcpInvalidServerName: return "mcp.invalid.server.name"
+        case .mcpTooManyServers: return "mcp.too.many.servers"
+        case .mcpNameSeparator: return "mcp.name.separator"
         case .searchTitle: return "search.title"
         case .searchCustom: return "search.custom"
         case .searchTemplate: return "search.template"
@@ -1306,6 +1422,65 @@ enum AppText: Equatable {
         case .modelsConsentReview: return "models.consentReview"
         case .modelsLegacyUnreadable: return "models.legacyUnreadable"
         case .signinKeyGroup: return "signin.keyGroup"
+        case .signinGroup: return "signin.group"
+        case .signinRowChatGPT: return "signin.row.chatgpt"
+        case .signinRowXAI: return "signin.row.xai"
+        case .signinRunning: return "signin.running"
+        case .signinSignedIn: return "signin.signedIn"
+        case .signinSignedOut: return "signin.signedOut"
+        case .signinBusy: return "signin.busy"
+        case .signinUseKey: return "signin.useKey"
+        case .signinContinue: return "signin.continue"
+        case .signinStoredNote: return "signin.storedNote"
+        case .signinCopied: return "signin.copied"
+        case .signinSetMain: return "signin.setMain"
+        case .signinSetMainNote: return "signin.setMainNote"
+        case .signinSignOutNote: return "signin.signOutNote"
+        case .signinListing: return "signin.listing"
+        case .signinListFailed: return "signin.listFailed"
+        case .signinRefresh: return "signin.refresh"
+        case .chatgptTitle: return "chatgpt.title"
+        case .chatgptBody: return "chatgpt.body"
+        case .chatgptContinue: return "chatgpt.continue"
+        case .chatgptWaiting: return "chatgpt.waiting"
+        case .chatgptAccount: return "chatgpt.account"
+        case .chatgptSignOut: return "chatgpt.signOut"
+        case .chatgptManageUsage: return "chatgpt.manageUsage"
+        case .chatgptPlanNote: return "chatgpt.planNote"
+        case .chatgptSignedOutNote: return "chatgpt.signedOutNote"
+        case .chatgptRevokeUnconfirmed: return "chatgpt.revokeUnconfirmed"
+        case .chatgptPageDone: return "chatgpt.pageDone"
+        case .chatgptFailDenied: return "chatgpt.fail.denied"
+        case .chatgptFailMismatch: return "chatgpt.fail.mismatch"
+        case .chatgptFailNoClient: return "chatgpt.fail.noClient"
+        case .chatgptFailTimedOut: return "chatgpt.fail.timedOut"
+        case .chatgptFailExchange: return "chatgpt.fail.exchange"
+        case .chatgptFailCodeExpired: return "chatgpt.fail.codeExpired"
+        case .chatgptFailRegion: return "chatgpt.fail.region"
+        case .chatgptFailBlocked: return "chatgpt.fail.blocked"
+        case .chatgptFailIDToken: return "chatgpt.fail.idToken"
+        case .chatgptFailNoPlan: return "chatgpt.fail.noPlan"
+        case .chatgptFailNetwork: return "chatgpt.fail.network"
+        case .signinXAITitle: return "signin.xai.title"
+        case .signinXAIBody: return "signin.xai.body"
+        case .signinXAIRisk: return "signin.xai.risk"
+        case .signinXAIStarting: return "signin.xai.starting"
+        case .signinXAICodeTitle: return "signin.xai.codeTitle"
+        case .signinXAICodeBody: return "signin.xai.codeBody"
+        case .signinXAICodeValid: return "signin.xai.codeValid"
+        case .signinXAICopyReopen: return "signin.xai.copyReopen"
+        case .signinXAIWaiting: return "signin.xai.waiting"
+        case .signinXAINote403: return "signin.xai.note403"
+        case .accountSignedInNoteXAI: return "account.signedInNote.xai"
+        case .accountSignedOutNote: return "account.signedOutNote"
+        case .accountManageXAI: return "account.manage.xai"
+        case .accountFailDenied: return "account.fail.denied"
+        case .accountFailExpired: return "account.fail.expired"
+        case .accountFailTimedOut: return "account.fail.timedOut"
+        case .accountFailRejected: return "account.fail.rejected"
+        case .accountFailNoSub: return "account.fail.noSub"
+        case .accountFailNetwork: return "account.fail.network"
+        case .accountFailIssuer: return "account.fail.issuer"
         case .presetCustom: return "preset.custom"
         case .modelBaseURL: return "model.baseURL"
         case .modelProviderName: return "model.providerName"
@@ -1593,9 +1768,16 @@ enum AppText: Equatable {
         case .chatModelFailedStreamCut: return "chat.modelFailed.streamCut"
         case .chatModelFailedTruncated: return "chat.modelFailed.truncated"
         case .chatReplyTruncatedNote: return "chat.reply.truncatedNote"
+        case .chatReplyInterruptedNote: return "chat.reply.interruptedNote"
         case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
         case .chatModelFailedServer: return "chat.modelFailed.server"
         case .chatModelFailedStatus: return "chat.modelFailed.status"
+        case .chatModelFailedSignedOut: return "chat.modelFailed.signedOut"
+        case .chatModelFailedChatGPTLimit: return "chat.modelFailed.chatgptLimit"
+        case .chatModelFailedChatGPTNotEligible: return "chat.modelFailed.chatgptNotEligible"
+        case .chatModelFailedPlan: return "chat.modelFailed.plan"
+        case .chatModelFailedRefused: return "chat.modelFailed.refused"
+        case .chatModelFailedContext: return "chat.modelFailed.context"
         case .drawerDeleteTitle: return "drawer.delete.title"
         case .drawerDeleteBody: return "drawer.delete.body"
         case .chatWebTitle: return "chat.web.title"
@@ -1720,6 +1902,7 @@ enum AppText: Equatable {
         case .storedChatMcpToolError: return "stored.chat.mcpToolError"
         case .storedChatMcpLocalLimit: return "stored.chat.mcpLocalLimit"
         case .storedChatMcpLimit: return "stored.chat.mcpLimit"
+        case .storedChatMcpChanged: return "stored.chat.mcpChanged"
         case .storedContextIncompleteHistory: return "stored.context.incompleteHistory"
         case .storedContextTooLarge: return "stored.context.tooLarge"
         case .storedReferencePrepareFailed: return "stored.reference.prepareFailed"
@@ -1821,10 +2004,11 @@ enum AppText: Equatable {
         case .storedSuffixDraftKept: return "stored.suffix.draftKept"
         case .storedSuffixToolResultsKept: return "stored.suffix.toolResultsKept"
         case .storedSuffixReplayNoSkip: return "stored.suffix.replayNoSkip"
-        case .chatUseMCP: return "chat.useMCP"
         case .chatReceiptProfile: return "chat.receipt.profile"
         case .chatReceiptMemory: return "chat.receipt.memory"
         case .chatMcpResultsView: return "chat.mcpResults.view"
+        case .chatMcpUnavailable: return "chat.mcpUnavailable"
+        case .chatMcpOmitted: return "chatMcpOmitted"
         case .chatArchiveRetry: return "chat.archive.retry"
         case .chatLearningOrganizing: return "chat.learning.organizing"
         case .chatMemoryApprove: return "chat.memory.approve"
@@ -1887,6 +2071,8 @@ enum AppText: Equatable {
         case .mcpKeychainStatus(let code): return [code]
         case .mcpToolCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
+        case .mcpServersStatus(let count): return [Int64(count)]
+        case .mcpServerStatusOK(let count): return [Int64(count)]
         case .commonDeleteName(let name): return [name]
         case .browserHistorySearch(let query): return [query]
         case .browserStartRemoveBookmark(let name): return [name]
@@ -1895,6 +2081,9 @@ enum AppText: Equatable {
         case .settingsNotificationsLowered(let count): return [Int64(count)]
         case .modelsUsedBy(let roles): return [roles]
         case .modelsConsentNeeded(let provider): return [provider]
+        case .chatgptFailExchange(let code): return [code]
+        case .signinXAICodeValid(let minutes): return [Int64(minutes)]
+        case .accountFailRejected(let code): return [code]
         case .modelPresetMatch(let name): return [name]
         case .modelUsePreset(let name): return [name]
         case .modelFailed(let reason): return [reason]
@@ -1931,6 +2120,8 @@ enum AppText: Equatable {
         case .chatReportExpired(let reference): return [reference]
         case .chatModelFailedServer(let status): return [Int64(status)]
         case .chatModelFailedStatus(let status): return [Int64(status)]
+        case .chatModelFailedSignedOut(let account): return [account]
+        case .chatModelFailedPlan(let account): return [account]
         case .drawerDeleteBody(let title): return [title]
         case .chatWebWorkingOn(let site): return [site]
         case .chatWebActivityOpening(let site): return [site]
@@ -1971,6 +2162,8 @@ enum AppText: Equatable {
         case .storedChatMcpActivity(let tried, let received, let failed): return [Int64(tried), Int64(received), Int64(failed)]
         case .storedResearchModelHTTP(let code): return [Int64(code)]
         case .chatMcpResultsView(let count): return [Int64(count)]
+        case .chatMcpUnavailable(let names): return [names]
+        case .chatMcpOmitted(let count): return [Int64(count)]
         case .browserInteractionNavigationMethod(let method): return [method]
         case .browserResearchReads(let count): return [Int64(count)]
         case .chatSkillNoteLearned(let description): return [description]
@@ -2132,7 +2325,7 @@ enum AppText: Equatable {
         case .mcpTitle: return "MCP 伺服器"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
-        case .mcpExplanation: return "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。"
+        case .mcpExplanation: return "可以連接多個外部 MCP 伺服器，並為每個伺服器選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，網址和存取權杖只保存在這台裝置的 Keychain。已啟用的伺服器在每個對話都能用，不需要另外打開：助理需要時會自動連線，直接執行允許的工具，不會每次先問你；工具說明和結果會送給你設定的模型。連不上的伺服器那次會略過，不影響其他伺服器。"
         case .mcpIsolation: return "UI 測試隔離模式：不會發送 MCP 網路請求。"
         case .mcpStored: return "端點已安全儲存；不顯示網址。"
         case .mcpNotStored: return "尚未儲存端點。"
@@ -2162,7 +2355,7 @@ enum AppText: Equatable {
         case .mcpCancelled: return "已取消等待"
         case .mcpFailedStatus: return "MCP 設定或連線未完成"
         case .mcpSuspended: return "已暫停連線；回到 App 時會自動重新連線"
-        case .mcpSelectionLimit: return "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。"
+        case .mcpSelectionLimit: return "一個伺服器最多提供 256 個工具、說明合計 224 KB，格式不符的工具不能使用；超出的工具維持關閉。"
         case .mcpSavedNotice: return "已存入此裝置的 Keychain；尚未送出連線請求。"
         case .mcpRemovedNotice: return "已移除此 App 的 MCP 端點、存取權杖和工具選擇。"
         case .mcpDiscoveryNotice: return "僅完成握手與目錄探索，未執行工具或讀取資源內容；不代表服務持續在線。"
@@ -2185,6 +2378,30 @@ enum AppText: Equatable {
         case .mcpKeychainStatus: return "MCP Keychain 存取失敗（系統代碼 %1$@）。"
         case .mcpToolCount: return "工具：%lld 個"
         case .mcpSelectedCount: return "已選取 %lld 個工具供對話使用"
+        case .mcpServersSection: return "伺服器"
+        case .mcpServersEmpty: return "還沒有 MCP 伺服器"
+        case .mcpServersEmptyDetail: return "新增外部 MCP 伺服器，把它的工具交給助理。"
+        case .mcpServersStatus: return "已儲存 %lld 個伺服器"
+        case .mcpServersStored: return "網址和存取權杖已安全儲存；不顯示網址。"
+        case .mcpAddServer: return "新增伺服器"
+        case .mcpAddSection: return "新增 MCP 伺服器"
+        case .mcpTestAll: return "測試全部"
+        case .mcpBackToServers: return "所有伺服器"
+        case .mcpServerName: return "名稱"
+        case .mcpServerDefaultName: return "MCP 伺服器"
+        case .mcpServerEnabled: return "在對話中使用這個伺服器"
+        case .mcpServerDisabled: return "已停用"
+        case .mcpServerStatusOK: return "可用 · %lld 個工具"
+        case .mcpServerStatusFailed: return "連線失敗"
+        case .mcpDeleteServer: return "刪除伺服器"
+        case .mcpDeleteServerQuestion: return "刪除這個伺服器在此裝置儲存的端點、存取權杖和工具選擇？其他伺服器不受影響。"
+        case .mcpDeleteServerConfirm: return "刪除"
+        case .mcpServerAdded: return "已新增並存入此裝置的 Keychain；尚未送出連線請求。"
+        case .mcpServerRenamed: return "已更改名稱。"
+        case .mcpServerRemoved: return "已刪除這個伺服器的端點、存取權杖和工具選擇。"
+        case .mcpInvalidServerName: return "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。"
+        case .mcpTooManyServers: return "最多可以儲存 16 個 MCP 伺服器。"
+        case .mcpNameSeparator: return "、"
         case .searchTitle: return "搜尋引擎"
         case .searchCustom: return "新增自訂引擎"
         case .searchTemplate: return "https://example.com/search?q=%%s"
@@ -2349,6 +2566,65 @@ enum AppText: Equatable {
         case .modelsConsentReview: return "檢視並同意"
         case .modelsLegacyUnreadable: return "之前的模型設定讀不出來，沒有搬過來；請重新新增服務商。"
         case .signinKeyGroup: return "填 API Key"
+        case .signinGroup: return "用帳號登入 · 不用填 Key"
+        case .signinRowChatGPT: return "用 Plus / Pro 方案的額度"
+        case .signinRowXAI: return "用 SuperGrok 或 X Premium+ 訂閱"
+        case .signinRunning: return "登入中…"
+        case .signinSignedIn: return "已登入"
+        case .signinSignedOut: return "已退出登入"
+        case .signinBusy: return "另一個登入還沒結束，先完成或取消它。"
+        case .signinUseKey: return "改用 API Key"
+        case .signinContinue: return "繼續登入"
+        case .signinStoredNote: return "登入資訊只加密存在這台裝置上，不會寫進日誌。"
+        case .signinCopied: return "已複製"
+        case .signinSetMain: return "設為主模型"
+        case .signinSetMainNote: return "渥屋助理辦事時用它"
+        case .signinSignOutNote: return "只清這台裝置上的登入資訊"
+        case .signinListing: return "正在列出模型…"
+        case .signinListFailed: return "列模型失敗"
+        case .signinRefresh: return "重新整理"
+        case .chatgptTitle: return "用你的 ChatGPT 方案"
+        case .chatgptBody: return "用你 ChatGPT 方案裡包含的用量（或額度餘額）完成渥屋助理裡符合條件的 AI 請求。ChatGPT Plus 和 Pro 可用。渥屋助理本身免費，不另外收費。"
+        case .chatgptContinue: return "使用 ChatGPT 繼續"
+        case .chatgptWaiting: return "請在瀏覽器裡完成登入，再回到渥屋助理。"
+        case .chatgptAccount: return "帳號"
+        case .chatgptSignOut: return "退出登入"
+        case .chatgptManageUsage: return "管理用量"
+        case .chatgptPlanNote: return "使用 ChatGPT 方案額度。Plus 每 5 小時的額度和其他用你方案的 App 共用；Pro 沒有 5 小時的限制。"
+        case .chatgptSignedOutNote: return "這台裝置上已退出登入。點「使用 ChatGPT 繼續」就能接著用方案；選好的模型都還在。"
+        case .chatgptRevokeUnconfirmed: return "這台裝置上已退出登入，但 ChatGPT 那邊沒有確認。也可以在 ChatGPT 設定裡中斷與渥屋助理的連線。"
+        case .chatgptPageDone: return "登入成功，回到渥屋助理。"
+        case .chatgptFailDenied: return "已取消登入。如果授權頁提示「所需權限不可用」：用方案額度需要 ChatGPT Plus 或 Pro，免費帳號可以改用其他服務商的 API Key。"
+        case .chatgptFailMismatch: return "登入回來的資訊和這次對不上，請再試一次。"
+        case .chatgptFailNoClient: return "ChatGPT 沒有完成對渥屋助理的註冊，請再試一次。"
+        case .chatgptFailTimedOut: return "登入逾時了，請再試一次。"
+        case .chatgptFailExchange: return "ChatGPT 拒絕了這次登入（錯誤：%1$@），請再試一次。"
+        case .chatgptFailCodeExpired: return "登入碼過期或已用過，請再登入一次。"
+        case .chatgptFailRegion: return "目前網路所在的地區不被 OpenAI 支援，換個網路再試。"
+        case .chatgptFailBlocked: return "請求被 OpenAI 的防護攔下了，換個網路或稍後再試。"
+        case .chatgptFailIDToken: return "核對不了你的 ChatGPT 帳號，請再試一次。"
+        case .chatgptFailNoPlan: return "沒有允許渥屋助理使用你的 ChatGPT 方案。請重新登入並允許使用方案額度（需要 Plus 或 Pro）。"
+        case .chatgptFailNetwork: return "連不上 ChatGPT，請檢查網路後再試。"
+        case .signinXAITitle: return "用 xAI 帳號登入"
+        case .signinXAIBody: return "用你的 SuperGrok 或 X Premium+ 訂閱在渥屋助理裡用 Grok，不用另外買 API 額度。請求直接發給 xAI。"
+        case .signinXAIRisk: return "這項登入借用 xAI 官方命令列工具的公開登入入口，不是 xAI 專門給渥屋助理開的。xAI 可能限制這種用法；有的訂閱檔位登入成功後仍不能呼叫（會提示 403），那時請改用 xAI 的 API Key。"
+        case .signinXAIStarting: return "正在打開 xAI 的確認頁…"
+        case .signinXAICodeTitle: return "在瀏覽器裡確認"
+        case .signinXAICodeBody: return "已打開 xAI 的確認頁。核對頁面上的碼和下面一樣，然後點同意。"
+        case .signinXAICodeValid: return "%1$lld 分鐘內有效"
+        case .signinXAICopyReopen: return "複製碼並重新打開確認頁"
+        case .signinXAIWaiting: return "等你在瀏覽器裡確認…"
+        case .signinXAINote403: return "如果呼叫時提示 403：說明你的訂閱檔位不能用這個介面，可以改用 xAI 的 API Key。"
+        case .accountSignedInNoteXAI: return "在用你的 xAI / Grok 訂閱。額度和這個帳號的其他客戶端共用。這項登入借用 xAI 官方命令列工具的公開登入入口，風險見登入前的說明。"
+        case .accountSignedOutNote: return "這台裝置上已退出登入。要連 xAI 那邊的授權一起撤掉，到 xAI 帳號設定裡斷開。選好的模型都還在。"
+        case .accountManageXAI: return "打開 xAI 帳號"
+        case .accountFailDenied: return "已取消登入。"
+        case .accountFailExpired: return "登入碼過期或已用過，請再試一次。"
+        case .accountFailTimedOut: return "登入逾時了，請再試一次。"
+        case .accountFailRejected: return "登入被拒絕了（錯誤：%1$@），請再試一次。"
+        case .accountFailNoSub: return "這個帳號沒有可用的 xAI 訂閱。"
+        case .accountFailNetwork: return "連不上登入服務，請檢查網路後再試。"
+        case .accountFailIssuer: return "登入地址不對，已停止，沒有繼續傳送。"
         case .presetCustom: return "自訂"
         case .modelBaseURL: return "介面網址"
         case .modelProviderName: return "名稱"
@@ -2636,9 +2912,16 @@ enum AppText: Equatable {
         case .chatModelFailedStreamCut: return "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。"
         case .chatModelFailedTruncated: return "呼叫模型失敗：回覆超過模型的輸出上限，沒有完整結束。請換個比較短的問法再試。"
         case .chatReplyTruncatedNote: return "（回覆超過模型的輸出上限，到這裡被截斷了。）"
+        case .chatReplyInterruptedNote: return "（App 離開畫面後連線中斷，回覆到這裡為止。可以再問一次。）"
         case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。"
         case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。"
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。"
+        case .chatModelFailedSignedOut: return "呼叫模型失敗：%1$@ 登入已失效，請重新登入。請到設定 › 模型檢查。"
+        case .chatModelFailedChatGPTLimit: return "呼叫模型失敗：ChatGPT 額度用完了。請稍後再試。"
+        case .chatModelFailedChatGPTNotEligible: return "呼叫模型失敗：這個帳號不能在其他 App 使用 ChatGPT 額度。請到設定 › 模型檢查。"
+        case .chatModelFailedPlan: return "呼叫模型失敗：你的 %1$@ 訂閱方案不能使用這個介面，請改用 xAI 的 API Key。"
+        case .chatModelFailedRefused: return "呼叫模型失敗：模型拒絕處理這些內容。"
+        case .chatModelFailedContext: return "呼叫模型失敗：對話內容超出模型的上下文長度。"
         case .drawerDeleteTitle: return "刪除這個對話？"
         case .drawerDeleteBody: return "「%1$@」和裡面的檔案都會刪掉。"
         case .chatWebTitle: return "網頁任務"
@@ -2763,6 +3046,7 @@ enum AppText: Equatable {
         case .storedChatMcpToolError: return "工具回報錯誤，已停止；請檢視工具結果。不會自動重試。"
         case .storedChatMcpLocalLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；先前的結果保留。"
         case .storedChatMcpLimit: return "已達 MCP 執行限制或偵測到重複呼叫；已收到的工具結果保留。"
+        case .storedChatMcpChanged: return "MCP 連線或設定在回覆時變更，已停止；沒有執行任何 MCP 工具。"
         case .storedContextIncompleteHistory: return "聊天歷史不是完整的使用者與助理回合，請開啟新對話後再試。"
         case .storedContextTooLarge: return "這次訊息與參考內容超過傳送上限，請縮短訊息或參考內容。"
         case .storedReferencePrepareFailed: return "無法準備本次參考資料，尚未開始研究。"
@@ -2864,10 +3148,11 @@ enum AppText: Equatable {
         case .storedSuffixDraftKept: return "草稿已保留。"
         case .storedSuffixToolResultsKept: return "已收到的工具結果保留；沒有自動重送操作。"
         case .storedSuffixReplayNoSkip: return " 沒有跳過內容核對，也未自動重新學習。已讀取內容保留。"
-        case .chatUseMCP: return "本次對話使用 MCP 工具"
         case .chatReceiptProfile: return "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。"
         case .chatReceiptMemory: return "本次對話曾儲存記憶修改；可在資料頁查看目前內容。"
         case .chatMcpResultsView: return "檢視工具結果（%1$lld）"
+        case .chatMcpUnavailable: return "MCP 伺服器連線失敗：%1$@"
+        case .chatMcpOmitted: return "這次有 %lld 個 MCP 工具或資源超出一次回覆的上限，沒有提供給模型。"
         case .chatArchiveRetry: return "重試保存"
         case .chatLearningOrganizing: return "正在整理你說過的事…"
         case .chatMemoryApprove: return "好"

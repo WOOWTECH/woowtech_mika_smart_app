@@ -44,9 +44,18 @@ final class BrowserSearchUITests: XCTestCase {
         // the pill's value is the full search URL.
         let query = app.buttons["browser.addressPill"]
         let searched = NSPredicate(format: "exists == true AND label CONTAINS %@", "fixture cats & dogs/+%")
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: searched, object: query)], timeout: 75), .completed)
+        let status = app.staticTexts["browser.status"]
+        // The pill can show the requested URL before WebKit finishes. History
+        // is saved synchronously by didFinish, before the ready phase; wait
+        // for that boundary before terminating the process to test persistence.
+        let loadedSearch = NSPredicate { _, _ in
+            searched.evaluate(with: query) && status.exists
+                && (status.value as? String)?.hasPrefix("phase=ready;") == true
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: loadedSearch, object: nil)], timeout: 75), .completed)
         XCTAssertTrue((query.value as? String)?.contains("q=fixture%20cats%20%26%20dogs%2F%2B%25") == true)
         XCTAssertFalse(app.buttons["browser.searchEngine.open"].exists, "The engine choice is on the start page, as Play's engine note is.")
+        XCTAssertFalse(app.staticTexts["browser.workspace.error"].exists, "Completed navigation must save history without a workspace error before relaunch.")
         launch()
         // Like the Play build, a relaunch opens the start page, and recent pages
         // (no library sheet) keep the search.

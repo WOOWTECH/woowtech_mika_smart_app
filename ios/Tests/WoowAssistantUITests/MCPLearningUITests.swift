@@ -12,7 +12,8 @@ final class MCPLearningUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 240
+        // 140 s in run 44300764046, over 240 s on a slower runner (44308580227); the shard allows 300 s.
+        executionTimeAllowance = 300
     }
 
     override func tearDownWithError() throws {
@@ -73,7 +74,8 @@ final class MCPLearningUITests: XCTestCase {
         launch(); connectFixture()
         let prompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
         send(prompt)
-        // The profile_edit applies with no card; the remote call then runs.
+        // The profile_edit applies with no card in the memory chat; its next
+        // reply starts the MCP step, and the remote call then runs.
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "MCP 個人檔案流程已完成。")
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         assertLabel(app.staticTexts["chat.profileReceipt"].firstMatch, profileReceipt)
@@ -106,8 +108,10 @@ final class MCPLearningUITests: XCTestCase {
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
 
+    /// Like Android there is no per-chat switch: the saved server is used in every chat.
     private func connectFixture() {
         navigate("tools")
+        openMCPServer(0, in: app)
         tap("mcp.connect", scroll: true)
         assertLabel(app.staticTexts["mcp.status"].firstMatch, "已連線，目錄擷取完成")
         XCTAssertFalse(app.staticTexts["mcp.error"].firstMatch.exists)
@@ -115,7 +119,9 @@ final class MCPLearningUITests: XCTestCase {
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: true)
         navigate("chat")
-        setSwitch(app.switches["chat.useMCP"].firstMatch, on: true)
+        XCTAssertFalse(app.switches["chat.useMCP"].firstMatch.exists)
+        // The composer is ready again before the prompt is typed.
+        ready(chatDraftControl(in: app))
     }
 
     private func send(_ prompt: String) {
@@ -217,6 +223,9 @@ final class MCPLearningUITests: XCTestCase {
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists { XCTAssertLessThanOrEqual(frame.maxY, keyboard.frame.minY) }
         field.tap()
+        // A tap right after a navigation can leave the field unfocused (run
+        // 44308580227); focusing again is safe and types nothing.
+        if !keyboard.waitForExistence(timeout: 3) && field.isHittable { field.tap() }
         prepareLatinKeyboard()
         var remaining = text[...]
         var entered = ""

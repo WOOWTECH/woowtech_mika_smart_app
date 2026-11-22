@@ -31,6 +31,13 @@ SHARED_MODEL_MARKER = {}
 # Formats the stores build from two literals.
 COMPOSED = set()
 
+# Saved in conversations by earlier versions and still shown in the App
+# language when such a conversation opens, though nothing writes them now.
+LEGACY_STORED = {
+    'storedChatMcpNotReady': 'before 1.1 a chat with the MCP switch on failed with it when no server was ready',
+    'storedChatMcpUnavailable': 'before 1.1 a chat with the MCP switch on failed with it when the server was down',
+}
+
 
 def literal_lines(name):
     """CJK literals outside comments, #if DEBUG blocks and shared view models."""
@@ -82,6 +89,8 @@ class EnglishSweepTests(unittest.TestCase):
         sources = '\n'.join(path.read_text() for path in (ROOT / 'Sources').rglob('*.swift') if path.name != 'AppText.swift')
         missing = []
         for case in fixed:
+            if case in LEGACY_STORED:
+                continue
             text = catalog[case]['translations']['zh-Hant']
             if '"' + text + '"' not in sources and f'.{case}.traditionalFallback' not in sources:
                 missing.append(case)

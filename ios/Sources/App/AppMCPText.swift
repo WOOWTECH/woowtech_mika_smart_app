@@ -9,6 +9,8 @@ extension AppLocalizer {
         case .unavailableKeychain: return .mcpKeychainUnavailable
         case .invalidTestNamespace: return .mcpInvalidNamespace
         case .missingLiveTestEndpoint: return .mcpMissingLiveEndpoint
+        case .invalidName: return .mcpInvalidServerName
+        case .tooManyServers: return .mcpTooManyServers
         }
     }
 }

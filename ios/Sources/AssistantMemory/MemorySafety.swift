@@ -2,6 +2,22 @@ import Foundation
 
 enum MemorySafety {
     static func normalized(_ text: String) -> String { text.precomposedStringWithCompatibilityMapping }
+
+    /// Whether two memories say the same thing but for filler words (以後,
+    /// 使用者的). Anything else that differs, such as a negation, a number or an
+    /// added detail, makes them two memories.
+    static func restates(_ first: String, _ second: String) -> Bool {
+        func essence(_ text: String) -> String {
+            var kept = String(normalized(text).lowercased().filter { $0.isLetter || $0.isNumber })
+            for word in ["使用者", "用戶", "用户", "以後", "之後", "今後", "往後", "日後", "未來", "一律", "總是", "都", "請", "的", "我"] {
+                kept = kept.replacingOccurrences(of: word, with: "")
+            }
+            return kept
+        }
+        let essential = essence(first)
+        return essential.count >= 4 && essential == essence(second)
+    }
+
     static func clean(_ text: String) -> String {
         text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
     }

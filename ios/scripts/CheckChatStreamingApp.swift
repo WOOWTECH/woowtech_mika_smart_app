@@ -80,6 +80,46 @@ private final class CompleteSequenceClient: ReferenceDispatchBoundChatModelClien
     }
     var counts: (complete: Int, stream: Int) { lock.lock(); defer { lock.unlock() }; return (requests, 0) }
 }
+/// Keeps what each request sent.
+private final class RecordingClient: ReferenceDispatchBoundChatModelClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var sent: [[ModelMessage]] = []
+    var requests: [[ModelMessage]] { lock.lock(); defer { lock.unlock() }; return sent }
+    private func keep(_ messages: [ModelMessage]) { lock.lock(); sent.append(messages); lock.unlock() }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        keep(messages)
+        return "Recorded reply"
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+/// Reads a personal skill and answers; the skill's judgment is ready while the
+/// reply's memory organizing is still running.
+private final class SkillAndOrganizingClient: ReferenceDispatchBoundChatModelClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var isJudged = false
+    private var judged: Bool { lock.lock(); defer { lock.unlock() }; return isJudged }
+    private func markJudged() { lock.lock(); isJudged = true; lock.unlock() }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if messages.first?.content.hasPrefix("You judge whether") == true {
+            markJudged()
+            return #"{"outcome":"done","reason":""}"#
+        }
+        if messages.contains(where: { $0.content.hasPrefix("Propose durable personal memories") }) {
+            while !judged { try await Task.sleep(nanoseconds: 2_000_000) }
+            try await Task.sleep(nanoseconds: 80_000_000)
+            return #"{"ops":[]}"#
+        }
+        if messages.last?.content.hasPrefix("Host skill_read result") == true { return #"{"action":"finish","answer":"Skill answer."}"# }
+        return #"{"action":"skill_read","arguments":{"name":"short-check"}}"#
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
 private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
@@ -239,6 +279,27 @@ private actor StreamMCP: MCPDiscovering {
             await Task.yield()
         }
     }
+    static func draftIsolation() throws -> Int {
+        var a = Assertions()
+        let e = try StreamEnvironment(); defer { e.close() }
+        let session = e.session(StreamClient())
+        var sessionChanges = 0, draftChanges = 0
+        let sessionObserver = session.objectWillChange.sink { _ in sessionChanges += 1 }
+        let draftObserver = session.draftModel.objectWillChange.sink { _ in draftChanges += 1 }
+        session.draft = "英文"
+        session.draftModel.text += "中文"
+        try a.check(session.draft == "英文中文" && session.draftModel.text == session.draft,
+                    "composer and session share the exact draft")
+        try a.check(sessionChanges == 0 && draftChanges == 2,
+                    "draft edits notify the composer without publishing a session change")
+        try a.check(session.canAttemptSend, "Chinese draft enables send")
+        session.draft = "  \n"
+        try a.check(!session.canAttemptSend, "whitespace draft cannot enable send")
+        session.draft = ""
+        try a.check(draftChanges == 4 && sessionChanges == 0, "clearing draft updates only its observer")
+        withExtendedLifetime((sessionObserver, draftObserver)) {}
+        return a.count
+    }
     #if DEBUG
     /// Run the real DEBUG adapter with an immediate recording sleeper. This
     /// checks its emitted fragments and the UI tests' interaction windows
@@ -302,8 +363,10 @@ private actor StreamMCP: MCPDiscovering {
     private static func noSavedAnswer(_ store: ConversationArchiveStore) -> Bool {
         store.state.conversations.allSatisfy { $0.turns.allSatisfy { $0.outcome != nil } }
     }
+    /// Like the Play build there is no MCP switch: a request offers the server's
+    /// catalog, whose tools are named mcp_00000000__<tool> (MCPServers(single:)).
     private static func start(_ session: ChatSession, _ prompt: String, mcp: MCPSession? = nil) throws -> Task<Void, Never> {
-        session.draft = prompt; session.send(mcp: mcp)
+        session.draft = prompt; session.send(mcp: mcp.map { MCPServers(single: $0) })
         guard let task = session.capturedArchiveRequest else { throw Failure(name: "actual request missing") }
         return task
     }
@@ -406,6 +469,82 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(!client.emit("Late after settings", at: 2), "old stream remains closed after settings change")
         return a.count
     }
+    /// iOS: a reply that was arriving when the app left the screen keeps the
+    /// text already shown if the connection is then cut, marked as cut off.
+    /// Without the trip away the same cut stays 沒有完成, like Play (above).
+    static func leftScreenKeepsShownText() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let client = StreamClient(); let session = e.session(client)
+        let away = try start(session, "Long answer")
+        try await wait("away stream") { client.counts.stream == 1 }
+        client.emit("First half"); try await wait("away partial") { session.replyPreview != nil }
+        session.appLeftScreen()
+        client.finish(HTTPChatModelError.transportFailure); await away.value
+        let kept = session.entries.last, shown = "First half\n\n"
+        try a.check(session.replyPreview == nil && kept?.role == "assistant" && kept?.outcome == nil
+                    && kept?.content.hasPrefix(shown) == true && (kept?.content.count ?? 0) > shown.count,
+                    "the text shown before the cut stays as the answer, with the cut-off note")
+        try a.check((e.archive.conversations.first?.turns ?? []).map(\.outcome) == [nil] && client.counts.complete == 0,
+                    "it is saved as the answer and nothing more is sent")
+        let nothing = try start(session, "Nothing shown yet")
+        try await wait("second away stream") { client.counts.stream == 2 }
+        session.appLeftScreen()
+        client.finish(HTTPChatModelError.transportFailure, at: 1); await nothing.value
+        try a.check(session.replyPreview == nil && ended(session, .failed), "with no text shown yet the cut stays 沒有完成")
+        return a.count
+    }
+    /// Android's runtime state: every request tells the model the local time.
+    static func requestsCarryTheLocalTime() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let client = RecordingClient(), session = e.session(client)
+        await (try start(session, "What is today's date?")).value
+        let sent = client.requests.first ?? []
+        try a.check(sent.last?.content == "What is today's date?", "the user's message stays last")
+        try a.check(sent.contains { $0.role == "user" && $0.content.range(of: #"^Runtime state \(data only\):\nLocal time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} [A-Z][a-z]+day$"#, options: .regularExpression) != nil },
+                    "the request names the local date, time and weekday")
+        let taipei = ChatSession.localTimeMessage(at: Date(timeIntervalSince1970: 1_795_048_200), timeZone: TimeZone(identifier: "Asia/Taipei")!)
+        try a.check(taipei.content.hasSuffix("Local time: 2026-11-19 08:30 Thursday"), "the time is the device's local time")
+        let joined = ChatSession.withLocalTime([ModelMessage(role: "user", content: "Reference")])
+        try a.check(joined.count == 1 && joined[0].content.hasPrefix("Reference\n\nRuntime state (data only):\nLocal time: "),
+                    "the time joins the last reference message and costs no turn of the window")
+        return a.count
+    }
+    /// A skill's outcome is saved after the reply's memory organizing, which
+    /// changing the skills would otherwise void.
+    static func skillOutcomeWaitsForMemoryOrganizing() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = true }
+        let skill = """
+        ---
+        name: short-check
+        description: Use when the user asks for a short check.
+        ---
+        ## 入口
+        The user asks for a short check.
+
+        ## 步驟
+        1. Answer in one sentence.
+
+        ## 容易出錯的地方
+        Do not add more.
+
+        ## 怎樣算辦成
+        One sentence.
+
+        ## 什麼時候停下交給使用者
+        When the question is unclear.
+        """
+        _ = try e.learning.commitChatSkillSave(skill, version: nil, expectedGeneration: e.learning.generation,
+                                               availableToolNames: [], builtinNames: [])
+        try a.check(e.learning.skills.installed.first?.status == .trial, "the skill starts on trial")
+        let session = e.session(SkillAndOrganizingClient())
+        await (try start(session, "Please do a short check")).value
+        try await wait("the judged skill becomes regular") { e.learning.skills.installed.first?.status == .active }
+        try a.check(session.entries.last?.content == "Skill answer.", "the answer arrived")
+        try a.check(e.learning.notice == nil && e.learning.error == nil && !e.learning.isLearning,
+                    "the memory organizing of the same reply finished without a notice")
+        return a.count
+    }
     static func boundsFallbackAndSaveFailure() async throws -> Int {
         var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
         let client = StreamClient(); let session = e.session(client)
@@ -483,11 +622,12 @@ private actor StreamMCP: MCPDiscovering {
             connection.connect(); try await wait("actual MCP discovery") { !connection.isBusy }
             connection.selectTool("synthetic_read", enabled: true)
             try a.check(connection.canUseInConversation, "real selected MCP catalog")
-            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
-            let session = e.session(client); session.usesMCP = true
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
+            let session = e.session(client)
             let task = try start(session, "Read selected tool", mcp: connection)
-            try a.check(session.chatStatusMessage == .chatStatusMCPWorking && session.replyPreview == nil && unanswered(session),
-                        "a running MCP turn shows the working status; its JSON is never shown")
+            // The chat's own reply comes first; the MCP step starts with its command.
+            try a.check(session.chatStatusMessage == .chatStatusWaiting && session.replyPreview == nil && unanswered(session),
+                        "a request offering MCP waits for the chat's reply; its JSON is never shown")
             await task.value
             let after = await server.calls
             try a.check(after == 1 && session.mcpSteps.count == 1 && session.chatError == nil, "the selected tool ran once with no approval")
@@ -500,7 +640,7 @@ private actor StreamMCP: MCPDiscovering {
             let e = try StreamEnvironment(); defer { e.close() }
             let repository = RememberingEndpoint(), server = StreamMCP()
             let first = MCPSession(repository: repository, clientFactory: { _ in server })
-            try a.check(first.phase == .saved && first.isAvailableForChats && !first.canUseInConversation,
+            try a.check(first.phase == .saved && first.canConnectForChats && !first.canUseInConversation,
                         "a saved server is available to chats before any connect")
             let (_, offered, _) = try await first.chatConnection()
             try a.check(first.phase == .connected && offered.map(\.name) == ["synthetic_read"]
@@ -515,8 +655,8 @@ private actor StreamMCP: MCPDiscovering {
             first.selectTool("synthetic_read", enabled: true)
             try a.check(repository.allowedTools == nil, "turning every tool back on saves the default (all)")
             let second = MCPSession(repository: repository, clientFactory: { _ in server })
-            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Connected by itself."}"#])
-            let session = e.session(client); session.usesMCP = true
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Connected by itself."}"#])
+            let session = e.session(client)
             let before = await server.calls
             let task = try start(session, "Read without connecting first", mcp: second)
             await task.value
@@ -524,58 +664,57 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(second.phase == .connected && after == before + 1 && session.chatError == nil && session.entries.count == 2,
                         "a chat connects to the saved server and runs the allowed tool")
             let unreachable = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in UnreachableMCP() })
-            let down = e.session(CompleteSequenceClient([])); down.usesMCP = true
-            let failed = try start(down, "Server is down", mcp: unreachable)
-            await failed.value
-            // Like the Play build the sent question stays and the turn ends as
-            // 沒有完成 with the reason; the input bar was emptied at send.
+            let down = e.session(CompleteSequenceClient(["Answered without MCP."]))
+            let answered = try start(down, "Server is down", mcp: unreachable)
+            await answered.value
+            // Like Android a server that is down is left out of the request and
+            // named; the reply goes on without its tools.
             try a.check(down.chatError == nil && down.draft.isEmpty && down.entries.count == 2
-                        && down.entries.last?.outcome == .failed
-                        && down.entries.last?.content == ChatSession.mcpAvailabilityMessage(.unreachable)
-                        && unreachable.phase == .failed, "an unreachable server ends the turn as 沒有完成 and says why")
+                        && down.entries.last?.outcome == nil && down.entries.last?.content == "Answered without MCP."
+                        && down.mcpUnavailableServers == ["Synthetic MCP"] && unreachable.phase == .failed,
+                        "an unreachable server is skipped and named; the chat still answers")
         }
         do {
             // "Every tool" stays a catalog the runner accepts: malformed or
-            // oversized tools stay off, and at most 64 are offered.
+            // oversized tools stay off; up to 256 are offered, like Android's every tool.
             let e = try StreamEnvironment(); defer { e.close() }
             let server = ManyToolsMCP()
             let many = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in server })
             many.connect()
             try await wait("many tools discovered") { !many.isBusy }
-            try a.check(many.phase == .connected && many.selectedToolNames == Set(ManyToolsMCP.names.prefix(64))
-                        && many.noticeText == .mcpSelectionLimit, "the default skips malformed and oversized tools and stops at 64")
+            try a.check(many.phase == .connected && many.selectedToolNames == Set(ManyToolsMCP.names)
+                        && many.noticeText == .mcpSelectionLimit, "the default allows every usable tool and skips malformed and oversized ones")
             many.selectTool("huge_schema", enabled: true)
-            many.selectTool("tool_70", enabled: true)
-            try a.check(many.selectedToolNames.count == 64 && !many.selectedToolNames.contains("tool_70")
-                        && !many.selectedToolNames.contains("huge_schema"), "a 65th or oversized tool stays off")
-            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"tool_1","arguments":{}}"#, #"{"action":"finish","answer":"Many tools."}"#])
-            let session = e.session(client); session.usesMCP = true
+            try a.check(many.selectedToolNames.count == 70 && !many.selectedToolNames.contains("huge_schema"),
+                        "an oversized tool stays off")
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"mcp_00000000__tool_70","arguments":{}}"#, #"{"action":"finish","answer":"Many tools."}"#])
+            let session = e.session(client)
             let task = try start(session, "Use the first tool", mcp: many)
             await task.value
             let calls = await server.calls
             try a.check(session.chatError == nil && session.entries.count == 2 && calls == 1, "the runner accepts the default catalog")
         }
         do {
-            // A failed call is not retried and drops the connection; the next chat connects again.
+            // Like Android a failed call goes back to the model as an error result
+            // and is not retried; the connection stays for the next chat.
             let e = try StreamEnvironment(); defer { e.close() }
             let server = FlakyMCP()
             let flaky = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in server })
-            let read = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
-            let first = e.session(CompleteSequenceClient([read])); first.usesMCP = true
+            let read = #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#
+            let first = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"The read failed."}"#]))
             let failed = try start(first, "First try", mcp: flaky)
             await failed.value
             let connectsBefore = await server.initializations, callsBefore = await server.calls
-            // Like the Play build the turn ends as 沒有完成 in the chat; the input bar
-            // was emptied at send.
-            try a.check(first.chatError == nil && first.draft.isEmpty && first.entries.last?.outcome == .failed
-                        && connectsBefore == 1 && callsBefore == 1 && flaky.phase == .saved,
-                        "a failed call is not retried and drops the connection")
-            let second = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"Back."}"#])); second.usesMCP = true
+            try a.check(first.chatError == nil && first.draft.isEmpty && first.entries.last?.outcome == nil
+                        && first.mcpSteps.count == 1 && first.mcpSteps[0].isError
+                        && connectsBefore == 1 && callsBefore == 1 && flaky.phase == .connected,
+                        "a failed call is an error result for the model and is not retried")
+            let second = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"Back."}"#]))
             let retried = try start(second, "Second try", mcp: flaky)
             await retried.value
             let connectsAfter = await server.initializations, callsAfter = await server.calls
-            try a.check(second.chatError == nil && connectsAfter == 2 && callsAfter == 2 && flaky.phase == .connected,
-                        "the next chat connects again")
+            try a.check(second.chatError == nil && connectsAfter == 1 && callsAfter == 2 && flaky.phase == .connected,
+                        "the next chat uses the same connection")
         }
         return a.count
     }
@@ -764,9 +903,9 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("oversize structured request") { client.counts.stream == 1 }
             client.emit(#"{"action":"finish","answer":"safe"#)
             try await wait("oversize initial preview") { session.replyPreview?.text == "safe" }
-            client.emit(String(repeating: "x", count: 24 * 1024)); await task.value
+            client.emit(String(repeating: "x", count: UserProfileChatFlow.maximumResponseBytes)); await task.value
             try a.check(session.replyPreview == nil && ended(session, .failed),
-                        "24 KiB whole-command bound ends the turn")
+                        "the whole-command bound ends the turn")
             try a.check(noSavedAnswer(e.archive) && client.counts.stream == 1,
                         "oversized command cannot commit or retry")
         }
@@ -1506,10 +1645,11 @@ private actor StreamMCP: MCPDiscovering {
                         "the resend leaves out only the usage option")
             let sent = first["messages"] as? [[String: String]] ?? []
             let lead = sent.first?["content"] ?? ""
-            try a.check(sent.count == 2 && sent[0]["role"] == "system" &&
+            try a.check(sent.count == 3 && sent[0]["role"] == "system" &&
                         (lead == AISafetyRules.prompt || lead.hasSuffix("\n\n" + AISafetyRules.prompt)) &&
-                        sent[1] == ["role": "user", "content": "Usage option refused"],
-                        "plain chat sends one system message ending with the identity line and the Play safety rules")
+                        sent[1]["content"]?.hasPrefix("Runtime state (data only):\nLocal time: ") == true &&
+                        sent[2] == ["role": "user", "content": "Usage option refused"],
+                        "plain chat sends one system message ending with the identity line and the Play safety rules, then the local time and the question")
             try a.check(session.entries.last?.content == "Resent SSE" && session.chatError == nil && displayed == ["Resent SSE"] &&
                         e.reopen().conversations.count == 1, "the resent stream previews, completes and saves the turn")
             try a.check(!String(decoding: try interceptedBody(requests[1]), as: UTF8.self).contains(canary),
@@ -1588,7 +1728,9 @@ private actor StreamMCP: MCPDiscovering {
 @main enum ChatStreamingMain {
     @MainActor static func main() async {
         do {
-            var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
+            var groups = try await [ChatStreamingChecks.draftIsolation(), ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
+                ChatStreamingChecks.leftScreenKeepsShownText(),
+                ChatStreamingChecks.requestsCarryTheLocalTime(), ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredToolsApplyDirectly(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
@@ -1599,12 +1741,14 @@ private actor StreamMCP: MCPDiscovering {
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureInteractionWindows())
             #endif
+            groups.append(try await ChatLayoutReplayChecks.run())
             print("{\"groups\":\(groups.count),\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("STREAM_APP_FAILURE: \(error)"); exit(1) }
     }
 }
 #else
 final class ChatStreamingAppTests: XCTestCase {
+    @MainActor func testDraftIsolation() throws { XCTAssertEqual(try ChatStreamingChecks.draftIsolation(), 5) }
     #if DEBUG
     @MainActor func testFixtureInteractionWindows() async throws {
         let n = try await ChatStreamingChecks.fixtureInteractionWindows(); XCTAssertEqual(n, 8)
@@ -1620,6 +1764,9 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testConsentBeforeFirstSend() async throws { let n = try await ChatStreamingChecks.consentBeforeFirstSend(); XCTAssertEqual(n, 8) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testRequestsCarryTheLocalTime() async throws { let n = try await ChatStreamingChecks.requestsCarryTheLocalTime(); XCTAssertEqual(n, 4) }
+    @MainActor func testSkillOutcomeWaitsForMemoryOrganizing() async throws { let n = try await ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(); XCTAssertEqual(n, 3) }
+    @MainActor func testLeftScreenKeepsShownText() async throws { let n = try await ChatStreamingChecks.leftScreenKeepsShownText(); XCTAssertEqual(n, 3) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredToolsApplyDirectly() async throws { let n = try await ChatStreamingChecks.structuredToolsApplyDirectly(); XCTAssertGreaterThan(n, 0) }

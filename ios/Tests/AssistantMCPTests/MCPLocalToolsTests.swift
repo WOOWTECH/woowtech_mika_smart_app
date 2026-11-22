@@ -201,9 +201,12 @@ enum MCPLocalToolsChecks {
         try c.expect(await collisionHost.local.isEmpty, "call_tool never reroutes to host local tools")
         try c.expect(await collisionHost.dispatched.count == 1, "remote collision is a remote dispatch, not a local review")
         try c.expect(await collisionExecutor.actions.count == 1, "remote collision dispatches once")
+        let unselectedLocalName = remote(name: "memory_edit")
         extra += try await expect(.unknownTool) {
-            _ = try await run(Model([remote(name: "memory_edit")]), tools: [], local: { try await collisionHost.handle($0, $1) })
+            _ = try await run(Model(Array(repeating: unselectedLocalName, count: 4)), tools: [],
+                              local: { try await collisionHost.handle($0, $1) })
         }
+        try c.expect(await collisionHost.local.isEmpty, "an unselected remote name never reaches the local host, even after feedback")
         let record = Record(), executor = Executor()
         let model = Model([#"{"action":"read_resource","uri":"fixture://record"}"#, local(.memorySearch),
                            local(.memorySave), remote(), finish])
@@ -257,14 +260,16 @@ enum MCPLocalToolsChecks {
         }
         let record = Record(), executor = Executor()
         let commands = [local(.memorySearch), local(.memorySave)] + (0..<6).map { remote($0) } + [finish]
-        let result = try await run(Model(commands), executor: executor, local: { try await record.handle($0, $1) })
+        let sixCalls = MCPConversationLimits(maximumModelCalls: 12, maximumToolCalls: 6)
+        let result = try await run(Model(commands), executor: executor, limits: sixCalls, local: { try await record.handle($0, $1) })
         try c.expect(result.stopReason == .finished && result.steps.count == 6 && result.modelCallCount == 9, "local actions do not consume remote six-call budget")
         try c.expect(await record.local.count == 2, "search plus one mutation both run")
         let seventh = try await run(Model([local(.memorySave)] + (0..<7).map { remote($0) } + [finish]),
-                                    local: { try await Record().handle($0, $1) })
+                                    limits: sixCalls, local: { try await Record().handle($0, $1) })
         try c.expect(seventh.stopReason == .toolCallLimit && seventh.steps.count == 6 && seventh.modelCallCount == 8, "local commit never raises remote limit")
         let defaults = MCPConversationLimits()
-        try c.expect(defaults.maximumModelCalls == 12 && defaults.maximumToolCalls == 6 && defaults.timeout == .seconds(180), "original default limits unchanged")
+        try c.expect(defaults.maximumModelCalls == 60 && defaults.maximumToolCalls == 60 && defaults.timeout == .seconds(30 * 60),
+                     "default limits follow Android's 60-step tasks")
         let small = try await run(Model([local(.memorySearch), local(.memorySave), remote(), finish]),
                                   limits: .init(maximumModelCalls: 3), local: { try await Record().handle($0, $1) })
         try c.expect(small.modelCallCount == 3 && small.stopReason == .modelCallLimit && small.steps.count == 1, "local calls share, never restart, model budget")
@@ -290,12 +295,17 @@ enum MCPLocalToolsChecks {
             try c.expect(await record.local.count == 1, "invalid outcome is never retried")
             try c.expect(await model.inputs.count == 1, "invalid result never sent to model")
         }
+        // Like Android, long remote results reach the model cut instead of
+        // ending the run; local results keep their own byte bounds.
         let hugeRemote = Executor(output: .object(["value": .string(String(repeating: "r", count: 16_000))]))
-        extra += try await expect(.outputTooLarge) {
-            _ = try await run(Model([local(.memorySearch)] + (0..<4).map { remote($0) }), executor: hugeRemote,
-                local: { _, _ in .searchResult(json: "{\"value\":\"" + String(repeating: "s", count: 11_000) + "\"}") })
-        }
-        try c.expect(await hugeRemote.actions.count == 4, "local bytes participate in existing 64KiB cumulative output bound")
+        let hugeModel = Model([local(.memorySearch)] + (0..<4).map { remote($0) } + [finish])
+        let huge = try await run(hugeModel, executor: hugeRemote,
+            local: { _, _ in .searchResult(json: "{\"value\":\"" + String(repeating: "s", count: 11_000) + "\"}") })
+        let hugeActions = await hugeRemote.actions.count
+        let hugeInputs = await hugeModel.inputs
+        try c.expect(huge.stopReason == .finished && hugeActions == 4, "four long remote results all run, then the model finishes")
+        try c.expect(hugeInputs.last?.last?.content.contains("\"truncated\":true") == true, "a long remote result reaches the model cut")
+        extra += 1
         let host = Record(), model = Model([local(.memorySave), finish])
         do {
             _ = try await run(model, local: { proposal, _ in await host.observe(proposal); throw HostFailure.storage })
@@ -335,10 +345,21 @@ enum MCPLocalToolsChecks {
         try c.expect(correctionInput.contains { $0.content == "Host memory_save receipt (data only):\n" + receiptJSON }, "prior actual receipt survives correction")
         let remoteFailureHost = Record()
         extra += try await expect(.executionFailed) {
-            _ = try await run(Model([local(.memorySave), remote()]), executor: Executor(fails: true),
+            _ = try await run(Model([local(.memorySave), remote(0), remote(1), remote(2)]), executor: Executor(fails: true),
                               local: { try await remoteFailureHost.handle($0, $1) })
         }
         try c.expect(await remoteFailureHost.receipts == 1, "remote failure does not discard prior host commit")
+        // Like Android a refused command is a result the model reads; the run goes on.
+        let refusal = #"{"error":"content_not_from_user","ok":false}"#, refusedHost = Record()
+        let refusedModel = Model([remote(), local(.memorySave), local(.memorySave), remote(1), finish])
+        let refused = try await run(refusedModel, local: { proposal, _ in
+            await refusedHost.observe(proposal); return .refused(json: refusal)
+        })
+        try c.expect(refused.stopReason == .finished && refused.steps.count == 2, "a refusal does not stop the request")
+        try c.expect(await refusedHost.local.count == 1, "the same command again never reaches the host")
+        let refusedInputs = await refusedModel.inputs
+        try c.expect(refusedInputs[2].last?.content == "Host memory_save refusal (data only):\n" + refusal, "the model reads the refusal")
+        try c.expect(refusedInputs[3].last?.content.contains("already refused") == true, "a repeat hears that the refusal stands")
         return c.count + extra
     }
 

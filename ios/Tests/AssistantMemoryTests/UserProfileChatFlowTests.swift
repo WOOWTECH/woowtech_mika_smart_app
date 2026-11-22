@@ -63,7 +63,8 @@ private actor HeldProfileChatResponse: ChatModelClient {
     }
 
     static func malformedAndLimited() async throws {
-        for invalid in ["ordinary prose", #"{"action":"finish","answer":"x","extra":true}"#,
+        for invalid in ["{ordinary prose", #"Saving it: {"action":"memory_save","arguments":{}}"#, "[1, 2]",
+                        #"{"action":"finish","answer":"x","extra":true}"#,
                         #"{"action":"finish","answer":" "}"#, #"{"action":"profile_edit","arguments":[]}"#,
                         #"{"action":"shell","command":"echo x"}"#, "[\(proposal)]",
                         #"{"action":"finish","\u0061ction":"finish","answer":"x"}"#,
@@ -73,18 +74,30 @@ private actor HeldProfileChatResponse: ChatModelClient {
             try expect(value == .answer("已儲存，下次對話生效。"), "One format repair can return a normal answer")
             try expect(turn.modelCalls == 2 && !turn.didCommit, "Repair never interprets invalid data as an operation")
         }
-        let repeated = try flow(), wrong = ProfileChatResponses(["bad", "bad", finish])
+        let repeated = try flow(), wrong = ProfileChatResponses(["{bad", "{bad", finish])
         try await error(.invalidCommand) { _ = try await repeated.advance(client: wrong, configuration: config, apiKey: "dummy") }
         try expect(repeated.modelCalls == 2, "Only one format repair")
-        let tooLarge = try flow(), large = ProfileChatResponses([String(repeating: "x", count: 24577)])
+        let tooLarge = try flow(), large = ProfileChatResponses([String(repeating: "x", count: UserProfileChatFlow.maximumResponseBytes + 1)])
         try await error(.responseTooLarge) { _ = try await tooLarge.advance(client: large, configuration: config, apiKey: "dummy") }
+        // Like Android's AgentLoop, plain text without a command is the answer, with
+        // no repair: on the iPhone a long chat's reply was stopped after two of them.
+        for prose in ["ordinary prose", "| 站台 | 金額 |\n|---|---:|\n| A | 1 |", "[Odoo](https://example.invalid) 的訂單"] {
+            let turn = try flow(), model = ProfileChatResponses([prose])
+            let value = try await turn.advance(client: model, configuration: config, apiKey: "dummy")
+            try expect(value == .answer(prose) && turn.modelCalls == 1 && !turn.didCommit,
+                       "Plain text is the answer without a format repair")
+        }
+        let longAnswer = String(repeating: "長", count: 12_000), longTurn = try flow()
+        let longReply = try await longTurn.advance(client: ProfileChatResponses([#"{"action":"finish","answer":"\#(longAnswer)"}"#]),
+                                                   configuration: config, apiKey: "dummy")
+        try expect(longReply == .answer(longAnswer), "A long answer is an ordinary answer")
 
         let twice = try flow(), model = ProfileChatResponses([proposal, proposal])
         _ = try await twice.advance(client: model, configuration: config, apiKey: "dummy")
         try twice.recordCommitted(entryID: nil)
         try await error(.callLimit) { _ = try await twice.advance(client: model, configuration: config, apiKey: "dummy") }
         try expect(twice.didCommit, "Later failure never erases a real committed receipt")
-        let lateRepair = try flow(), repaired = ProfileChatResponses([proposal, "bad", finish])
+        let lateRepair = try flow(), repaired = ProfileChatResponses([proposal, "{bad", finish])
         _ = try await lateRepair.advance(client: repaired, configuration: config, apiKey: "dummy")
         try lateRepair.recordCommitted(entryID: nil)
         _ = try await lateRepair.advance(client: repaired, configuration: config, apiKey: "dummy")
@@ -196,7 +209,7 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try await error(.expired) { _ = try await expired.advance(client: expiredModel, configuration: config, apiKey: "dummy") }
         let requests = await expiredModel.requests
         try expect(requests.isEmpty, "Expired turn never starts model request")
-        for timeout in [Duration.zero, .seconds(91)] {
+        for timeout in [Duration.zero, .seconds(30 * 60 + 1)] {
             do { _ = try flow(timeout: timeout); throw Failure(name: "Invalid deadline accepted") }
             catch let actual as UserProfileChatError { try expect(actual == .invalidInput, "Bounded deadline") }
         }
@@ -208,6 +221,25 @@ private actor HeldProfileChatResponse: ChatModelClient {
 
     /// The web entry is offered only when the host enables it, passes the
     /// host's own validator, ends the turn, and never follows a saved edit.
+    /// Like Android a refused memory or profile command is a result the model
+    /// reads: nothing was saved, and the user still gets an answer.
+    static func refusalGoesBackToTheModel() async throws {
+        let refusal = #"{"error":"content_not_from_user","message":"Nothing was saved.","ok":false}"#
+        let save = #"{"action":"memory_save","arguments":{"kind":"fact","content":"x","quote":"x"}}"#
+        let turn = try flow(), model = ProfileChatResponses([save, save, finish])
+        guard case .proposedMemoryChange = try await turn.advance(client: model, configuration: config, apiKey: "dummy") else {
+            throw Failure(name: "Actual memory proposal")
+        }
+        try turn.recordRefused(toolName: "memory_save", resultJSON: refusal)
+        try expect(turn.localCommandRefused && !turn.didCommit, "A refusal is not a saved change")
+        let answer = try await turn.advance(client: model, configuration: config, apiKey: "dummy")
+        try expect(answer == .answer("已儲存，下次對話生效。") && turn.modelCalls == 3, "The same command again runs nothing and the answer follows")
+        let requests = await model.requests
+        try expect(requests[1].last?.content == "Host memory_save refusal (data only):\n" + refusal, "The model reads the host's refusal")
+        try expect(requests[2].last?.content.contains("already refused") == true, "A repeated command hears that the refusal stands")
+        try await error(.invalidPhase) { try turn.recordRefused(toolName: "memory_save", resultJSON: refusal) }
+    }
+
     static func webEntryStartsAWebTask() async throws {
         let read = #"{"action":"web_read_page","url":"https://example.com/search?q=tea"}"#
         let web = UserProfileChatSkillEntry(instructions: "WEB ENTRY RULES", accepts: { $0.contains("https://") })
@@ -252,6 +284,37 @@ private actor HeldProfileChatResponse: ChatModelClient {
         let final = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
         try expect(final == .answer("已儲存，下次對話生效。") && edited.didCommit, "No web task after a saved edit")
     }
+
+    /// The MCP entry is offered only when the host enables it, ends the turn
+    /// with the exact command, and also follows a saved edit: the host's MCP
+    /// step then gets the flow's steps and knows its one change is used.
+    static func mcpEntryStartsTheMCPStep() async throws {
+        let call = #"{"action":"call_tool","name":"mcp_0a11ce00__search_read","arguments":{"model":"sale.order"}}"#
+        let mcp = UserProfileChatSkillEntry(instructions: "MCP CATALOG", accepts: { $0.contains("\"call_tool\"") })
+        let started = try UserProfileChatFlow(messages: [.init(role: "user", content: "查本月訂單")], mcpEntry: mcp)
+        let model = ProfileChatResponses([call])
+        let step = try await started.advance(client: model, configuration: config, apiKey: "dummy")
+        try expect(step == .mcpEntry(json: call) && started.exchange.isEmpty && !started.searchedMemory,
+                   "an MCP command ends the turn with nothing done before it")
+        let sent = await model.requests
+        try expect(sent[0][0].content == UserProfileChatFlow.instructions + "\nMCP CATALOG", "the catalog follows the flow's own rules")
+        try await error(.invalidPhase) { _ = try await started.advance(client: model, configuration: config, apiKey: "dummy") }
+
+        let plain = try flow(), refused = ProfileChatResponses([call, finish])
+        let answer = try await plain.advance(client: refused, configuration: config, apiKey: "dummy")
+        try expect(answer == .answer("已儲存，下次對話生效。"), "Without the host option an MCP command is only a format error")
+
+        let edited = try UserProfileChatFlow(messages: [.init(role: "user", content: "請在個人檔案記下我喜歡茶，再查訂單")], mcpEntry: mcp)
+        let afterEdit = ProfileChatResponses([proposal, call])
+        _ = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
+        try edited.recordCommitted(entryID: UUID())
+        let next = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
+        try expect(next == .mcpEntry(json: call) && edited.didCommit && edited.modelCalls == 2,
+                   "an MCP command follows a saved edit")
+        try expect(edited.exchange.count == 2 && edited.exchange[0] == ModelMessage(role: "assistant", content: proposal)
+                   && edited.exchange[1].content.hasPrefix("Host profile_edit receipt (data only):\n"),
+                   "the flow's own steps go to the MCP step, data only")
+    }
 }
 
 #if PROFILE_CHAT_STANDALONE
@@ -263,7 +326,9 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try await ProfileChatFlowChecks.memorySearchThenReviewedEdit()
         try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites()
         try await ProfileChatFlowChecks.webEntryStartsAWebTask()
-        print("Learning chat flow: 6 behavioral groups passed; no model network or persistence implied")
+        try await ProfileChatFlowChecks.mcpEntryStartsTheMCPStep()
+        try await ProfileChatFlowChecks.refusalGoesBackToTheModel()
+        print("Learning chat flow: 8 behavioral groups passed; no model network or persistence implied")
     }
 }
 #else
@@ -274,5 +339,7 @@ final class UserProfileChatFlowTests: XCTestCase {
     @MainActor func testMemorySearchThenReviewedEditSharesTheWholeTurnBudget() async throws { try await ProfileChatFlowChecks.memorySearchThenReviewedEdit() }
     @MainActor func testMemoryOperationsAreBoundedAndNeverImplicitWrites() async throws { try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites() }
     @MainActor func testWebEntryIsOptInValidatedAndEndsTheTurn() async throws { try await ProfileChatFlowChecks.webEntryStartsAWebTask() }
+    @MainActor func testMCPEntryIsOptInAndCarriesTheFlowSteps() async throws { try await ProfileChatFlowChecks.mcpEntryStartsTheMCPStep() }
+    @MainActor func testRefusedCommandGoesBackToTheModel() async throws { try await ProfileChatFlowChecks.refusalGoesBackToTheModel() }
 }
 #endif

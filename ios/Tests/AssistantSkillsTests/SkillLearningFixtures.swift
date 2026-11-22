@@ -644,8 +644,8 @@ enum SkillLearningFixtures {
         var c = SkillsCoreFixtures.Checks()
         let cases: [(String, SkillResult, SkillStatus)] = [
             (done, .unverified, .trial),
-            ("{\"outcome\":\"partial\"}", .failed, .suspended),
-            ("{\"outcome\":\"not_possible\"}", .failed, .suspended),
+            ("{\"outcome\":\"partial\"}", .failed, .trial),
+            ("{\"outcome\":\"not_possible\"}", .failed, .trial),
             ("{\"outcome\":\"unknown\"}", .unreviewed, .trial)
         ]
         for (reply, expected, status) in cases {

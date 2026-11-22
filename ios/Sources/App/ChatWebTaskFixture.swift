@@ -187,6 +187,8 @@ enum ChatWebTaskUITestModel {
 
     static func script(for prompt: String) -> Script? {
         if prompt == "[fixture:web-stop]" { return .stop }
+        // A web task the MCP step starts (UITestMCPFixtureModel).
+        if prompt == "[fixture:mcp-web]" { return .news }
         if prompt == "[fixture:web-order]" { return .order }
         if prompt == "[fixture:web-login]" { return .login }
         if prompt == "[fixture:web-ask]" { return .ask }
@@ -212,8 +214,10 @@ enum ChatWebTaskUITestModel {
 
     /// The next command, from the prompt and how many steps already ran.
     static func next(messages: [ModelMessage]) async throws -> String {
+        // The user's message before the first web command; an MCP step may sit between them.
         guard let start = messages.firstIndex(where: { $0.role == "assistant" && $0.content.hasPrefix("{\"action\":\"web_") }),
-              start > 0, let script = script(for: messages[start - 1].content) else {
+              start > 0, let script = messages[..<start].reversed().lazy
+                  .compactMap({ $0.role == "user" ? script(for: $0.content) : nil }).first else {
             return command(["action": "end_not_done", "reason": "fixture: unknown task"])
         }
         let step = messages[start...].filter { $0.role == "assistant" }.count

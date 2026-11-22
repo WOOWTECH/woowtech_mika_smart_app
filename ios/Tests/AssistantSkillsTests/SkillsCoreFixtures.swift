@@ -236,7 +236,8 @@ enum SkillsCoreFixtures {
         let seed = try install(into: &state)
         let cases: [(SkillStatus, SkillResult, Bool, SkillStatus)] = [
             (.trial, .verified, false, .active), (.trial, .unverified, true, .trial),
-            (.trial, .failed, false, .suspended), (.trial, .verifierRejected, false, .suspended),
+            (.trial, .failed, false, .trial), (.trial, .failed, true, .trial),
+            (.trial, .verifierRejected, false, .trial), (.trial, .verifierRejected, true, .suspended),
             (.trial, .unreviewed, true, .trial), (.active, .verified, true, .active),
             (.active, .unverified, true, .active), (.active, .failed, true, .active),
             (.active, .verifierRejected, true, .suspended), (.active, .verifierRejected, false, .active),
@@ -357,6 +358,15 @@ enum SkillsCoreFixtures {
         try c.expect(!context.text.contains("source:"), "context excludes local provenance fields")
         try c.expect(state.instructionContext(query: "article", availableToolNames: [], maxSkills: 0).text.isEmpty,
                      "zero skill count honored")
+        var chinese = SkillsState()
+        _ = try install(markdown("coffee", description: "A beverage workflow", extra: "terms: [咖啡外送]"), into: &chinese)
+        _ = try install(markdown("tea", description: "A tea workflow", extra: "aliases: [咖啡外送]"), into: &chinese)
+        _ = try install(markdown("disabled", description: "A disabled workflow", extra: "terms: [咖啡外送]"), into: &chinese)
+        try chinese.suspend(name: "disabled")
+        let chat = ChatSkillCatalog(bundled: nil, skills: chinese)
+        try c.expect(chat.find("咖啡外送").map(\.name) == ["tea", "coffee"], "chat ranks exact alias above personal term")
+        try c.expect(chat.find("請幫我安排咖啡外送").map(\.name) == ["tea", "coffee"], "chat matches Chinese terms embedded in a sentence")
+        try c.expect(chat.find("安排晚餐").isEmpty, "unrelated Chinese query has no matches")
         let restored = try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(state))
         try c.expect(restored.instructionContext(query: "tool-guide", availableToolNames: []).text.isEmpty,
                      "decoded tool names not persisted permission")

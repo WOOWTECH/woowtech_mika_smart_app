@@ -271,16 +271,17 @@ enum CheckTaskNotificationApp {
     @MainActor static func realMCP() async throws {
         let env = try NotificationEnvironment(); defer { try? env.close() }
         let model = NotificationScriptedModel([
-            #"{"action":"call_tool","name":"synthetic_read","arguments":{"text":"SYNTHETIC_PRIVATE_MCP_ARGUMENT"}}"#, finish])
+            #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{"text":"SYNTHETIC_PRIVATE_MCP_ARGUMENT"}}"#, finish])
         let chat = env.session(model)
         let server = NotificationMCPServer()
         let mcp = MCPSession(repository: NotificationMCPEndpoint(), clientFactory: { _ in server })
         mcp.connect(); try await Checks.until { mcp.phase == .connected }; mcp.selectTool("synthetic_read", enabled: true)
-        chat.usesMCP = true
+        // No switch: the chat offers the connected server's tools.
+        let servers = MCPServers(single: mcp)
         let center = TaskNotificationFakeCenter(); let service = await Checks.active(center)
         let bridge = TaskNotificationChatBridge(session: chat, service: service)
         defer { bridge.invalidate(); service.disable(); mcp.disconnect() }
-        chat.draft = "synthetic MCP request"; chat.send(mcp: mcp)
+        chat.draft = "synthetic MCP request"; chat.send(mcp: servers)
         try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
         let calls = await server.calls
         try Checks.expect(calls == 1 && chat.entries.count == 2 && chat.mcpSteps.count == 1, "actual MCP call runs once with no approval")

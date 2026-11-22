@@ -21,8 +21,8 @@ MODULES = [
 LANGUAGE_NOTIFICATION_SOURCES = ["AppLanguage", "AppLanguageStore", "AppLanguagePreferences", "AppText", "AppLocalizer", "AppMCPText", "AppNotificationText"]
 APPS = LANGUAGE_NOTIFICATION_SOURCES + [
     "BrowserUploadFixture", "BrowserLoginFixture", "BrowserWorkspace",
-    "ChatSession", "ChatAttachmentModels", "ChatAttachmentPreparation", "ChatAttachmentReader", "ChatAttachmentUITestFixture", "ConversationArchiveStore", "BrowserSession", "LearningKeychainStore", "UITestModelFixture", "MCPSettings",
-    "LiveModelUITestSupport", "ModelSettings", "LearningStore", "UITestMCPFixture", "MCPSession",
+    "ChatSession", "ChatLayoutDiagnostics", "ChatAttachmentModels", "ChatAttachmentPreparation", "ChatAttachmentReader", "ChatAttachmentUITestFixture", "ConversationArchiveStore", "BrowserSession", "LearningKeychainStore", "UITestModelFixture", "MCPSettings",
+    "LiveModelUITestSupport", "ModelSettings", "LearningStore", "UITestMCPFixture", "MCPSession", "MCPServers",
     "LearningRunContext", "TaskNotificationCenterAdapter", "TaskNotificationStore", "TaskNotificationChatBridge",
     "ChatWebTaskTab", "ChatWebTaskSession", "ChatWebTaskFixture", "ChatLearning",
 ]

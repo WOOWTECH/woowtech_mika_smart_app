@@ -34,6 +34,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         try LiveMCPNativeLifecycle.requireForeground(app)
         initialLaunchCompleted = true
         navigate("tools")
+        openMCPServer(0, in: app)
         revealLearningElement(app.buttons["mcp.connect"], in: app)
         app.buttons["mcp.connect"].tap()
         let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -47,9 +48,9 @@ final class LiveMCPConversationUITests: XCTestCase {
         revealLearningElement(count, in: app, visibility: .readableText)
         XCTAssertTrue(count.label == "已選取 \(audited.count) 個工具供對話使用")
         navigate("chat")
-        let toggle = app.switches["chat.useMCP"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        setSwitch(toggle)
+        // Like Android there is no per-chat switch: the saved server is used in every chat.
+        XCTAssertTrue(chatDraftControl(in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["chat.useMCP"].exists)
     }
 
     override func tearDownWithError() throws {
@@ -75,7 +76,7 @@ final class LiveMCPConversationUITests: XCTestCase {
     }
 
     func testRealModelChoosesTwoReadOnlyToolsAndUsesTheirResults() throws {
-        send("Call ha_eval_template once with only {\"template\":\"{{7*6}}\"}, and ha_list_floors_areas once with {}. After both successful tool results, reply exactly MCP_OK_42 only if the template result is 42. Use actual tool results.")
+        send("Call the MCP tool mcp_0e0e0e00__ha_eval_template once with only {\"template\":\"{{7*6}}\"}, and mcp_0e0e0e00__ha_list_floors_areas once with {}. After both successful tool results, reply exactly MCP_OK_42 only if the template result is 42. Use actual tool results.")
         // No approval card: both selected tools run as the model asks.
         let answer = app.staticTexts["chat.message.1.assistant"]
         let done = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -101,7 +102,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         // Same instruction as the successful actual MCP/App harness. Native UI
         // must deliver the prompt; no seeded draft. Like the Play build, the
         // selected remote tool and the local memory_save run with no card.
-        let prompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
+        let prompt = #"First call the MCP tool mcp_0e0e0e00__ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
         let error = app.staticTexts["chat.error"].firstMatch
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
 
@@ -198,7 +199,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         let disabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0"), object: automatic)
         XCTAssertEqual(XCTWaiter.wait(for: [disabled], timeout: 5), .completed)
         navigate("chat")
-        XCTAssertTrue(app.switches["chat.useMCP"].value as? String == "1")
+        XCTAssertFalse(app.switches["chat.useMCP"].exists)
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
         send(prompt)
 

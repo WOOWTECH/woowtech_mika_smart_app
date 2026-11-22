@@ -226,13 +226,38 @@ enum MemoryToolChecks {
         try c.expect(one.targetID == id, "One candidate does not require spoken UUID")
         try c.rejects(.notFound) { _ = try singleRun.prepare(toolName: "memory_edit", argumentsJSON: edit(UUID(), quote: "Delete tea")) }
         try state.add(kind: .fact, content: "Black tea", keywords: ["tea"], now: now)
-        for quote in ["Delete tea", "Delete x" + id.uuidString, "Delete " + id.uuidString + "_suffix"] {
-            let run = try searched(state, [quote])
-            try c.rejects(.ambiguousTarget) { _ = try run.prepare(toolName: "memory_edit", argumentsJSON: edit(id, quote: quote)) }
-        }
+        // Like Android's memory_forget, the searched ID selects the record among
+        // several results; the person never has to say an ID.
+        let several = try searched(state, ["Delete tea"])
+        let chosen = try several.prepare(toolName: "memory_edit", argumentsJSON: edit(id, quote: "Delete tea"))
+        try c.expect(chosen.targetID == id && chosen.before?.content == "Green tea", "Several results: the searched ID selects the record")
+        try c.rejects(.notFound) { _ = try several.prepare(toolName: "memory_edit", argumentsJSON: edit(UUID(), quote: "Delete tea")) }
         let precise = "Delete (" + id.uuidString + ")"
         let selected = try searched(state, [precise]).prepare(toolName: "memory_edit", argumentsJSON: edit(id, quote: precise))
         try c.expect(selected.targetID == id && selected.before?.content == "Green tea", "UUID token boundaries select intended record")
+        return c.count
+    }
+
+    /// An update may keep the names a saved record already holds, which the
+    /// person need not repeat; a new name still has to come from their words.
+    static func updateKeepsSavedNames() throws -> Int {
+        var c = Check(), state = MemoryState()
+        try state.add(kind: .preference, content: "Show sales of Apporo and WoowTech in a table with thousands separators",
+                      keywords: ["sales"], now: now)
+        let id = state.memories[0].id, quote = "Update my sales preference: use units of ten thousand"
+        let run = try searched(state, [quote], query: "sales")
+        let kept = try run.prepare(toolName: "memory_edit", argumentsJSON: edit(id, quote: quote,
+            content: "Show sales of Apporo and WoowTech in a table, in units of ten thousand"))
+        try c.expect(kept.targetID == id && kept.after?.content.contains("WoowTech") == true, "Saved names may stay in an update")
+        try c.rejects(.contentNotFromUser) {
+            _ = try run.prepare(toolName: "memory_edit", argumentsJSON: edit(id, quote: quote,
+                content: "Show sales of Apporo, WoowTech and Contoso in units of ten thousand"))
+        }
+        let fresh = MemoryToolRun(state: state, utterances: ["Remember: sales in units of ten thousand"])
+        try c.rejects(.contentNotFromUser) {
+            _ = try fresh.prepare(toolName: "memory_save", argumentsJSON: json(["kind": "preference",
+                "content": "WoowTech sales in units of ten thousand", "quote": "Remember: sales in units of ten thousand"]))
+        }
         return c.count
     }
 
@@ -460,6 +485,7 @@ enum MemoryToolChecks {
                                 ("add/receipt", MemoryToolChecks.addAndReceipt),
                                 ("edit proof/intent", MemoryToolChecks.editProofAndIntent),
                                 ("Traditional Chinese intent", MemoryToolChecks.traditionalIntent),
+                                ("update keeps saved names", MemoryToolChecks.updateKeepsSavedNames),
                                 ("update/delete", MemoryToolChecks.updateDeleteLifecycle),
                                 ("transaction/safety", MemoryToolChecks.transactionsAndSafety),
                                 ("undo", MemoryToolChecks.undoBoundary),
@@ -478,6 +504,7 @@ final class MemoryToolsTests: XCTestCase {
     func testReviewedSaveAndReceipt() throws { XCTAssertGreaterThan(try MemoryToolChecks.addAndReceipt(), 0) }
     func testLatestCandidateAndWholeMessageIntent() throws { XCTAssertGreaterThan(try MemoryToolChecks.editProofAndIntent(), 0) }
     func testTraditionalChineseIntentAndNegation() throws { XCTAssertGreaterThan(try MemoryToolChecks.traditionalIntent(), 0) }
+    func testUpdateKeepsSavedNames() throws { XCTAssertEqual(try MemoryToolChecks.updateKeepsSavedNames(), 3) }
     func testUpdateDeleteProcedureAndUndo() throws { XCTAssertGreaterThan(try MemoryToolChecks.updateDeleteLifecycle(), 0) }
     func testStaleAndTransactionalSafety() throws { XCTAssertGreaterThan(try MemoryToolChecks.transactionsAndSafety(), 0) }
     func testUndoRetentionAndRelaunchBoundary() throws { XCTAssertGreaterThan(try MemoryToolChecks.undoBoundary(), 0) }

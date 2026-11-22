@@ -3,6 +3,7 @@
 
 No personal profile, Keychain or external network. iOS parse is not native proof.
 """
+import argparse
 import hashlib
 import json
 import os
@@ -15,14 +16,22 @@ from check_profile_chat_app import APP_SOURCES, MODULES
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--persistence-race-only", action="store_true")
+    args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
-    out = Path(tempfile.mkdtemp(prefix="woow-browser-search-check-"))
+    out = args.output_dir.resolve() if args.output_dir else Path(tempfile.mkdtemp(prefix="woow-browser-search-check-"))
+    out.mkdir(parents=True, exist_ok=True)
+    if (out / "report.json").exists():
+        parser.error("output directory already contains a report")
     source = out / "source"
     report = {"status": "INCOMPLETE", "checks": [], "source_sha256": {},
               "base": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
               "native_ios_execution": False, "native_xctest_execution": False,
               "swiftui_typechecked": False, "production_source_substitutions": False,
               "personal_keychain_or_external_network": False,
+              "scope": "persistence-race-only" if args.persistence_race_only else "existing-search-suite",
               "limitations": ["Controlled simulated HTTPS WebKit documents; outgoing search requests intercepted",
                               "iOS/UIKit/SwiftUI/XCTest syntax only; parent owns native CI"]}
 
@@ -76,7 +85,11 @@ def main():
             run(config + "-app-build", common + [*flags, "-DBROWSER_SEARCH_APP_STANDALONE",
                 *["-l" + m for m, _ in MODULES], "-Xlinker", "-rpath", "-Xlinker", str(out),
                 *apps, *checks, *harnesses, "-o", str(binary)])
-            run(config + "-webkit-run", [str(binary)])
+            run_args = ["--persistence-race-only"] if args.persistence_race_only else []
+            if args.persistence_race_only and config == "Debug":
+                # Enable AX diagnostic values only in the isolated local harness.
+                run_args.append("-UITestMode")
+            run(config + "-webkit-run", [str(binary), *run_args])
         report["sources_still_current"] = all(hashlib.sha256((repo / p).read_bytes()).hexdigest() == h
                                                for p, h in report["source_sha256"].items())
         report["status"] = "PASS" if report["sources_still_current"] else "SOURCES_CHANGED"

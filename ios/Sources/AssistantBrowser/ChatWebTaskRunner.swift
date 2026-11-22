@@ -71,9 +71,9 @@ public enum ChatWebTaskPrompts {
 
     public static func entryInstructions(searchTemplate: String) -> String {
         """
-        \(entryLead) when the user's CURRENT message asks for current information from websites or for something to be done on a website, do not answer from memory. Start a web task in the app's built-in browser by returning exactly one JSON object and nothing else:
+        \(entryLead) this app has a built-in browser and you can operate it, so never say that you cannot browse, open websites or use the browser. When the user's CURRENT message asks for current or recent information from websites, mentions the built-in browser, or asks for something to be done on a website, do not answer from memory. Start a web task in the app's built-in browser by returning exactly one JSON object and nothing else:
         {"action":"web_read_page","url":"https://…"} opens a page and reads its text, or {"action":"web_navigate","url":"https://…"} opens a page. More web commands become available once the task starts.
-        To search, open the search URL \(searchTemplate) with %s replaced by the URL-encoded words, or the site's own search or list page when you know it.
+        To search, open the search URL \(searchTemplate) with %s replaced by the URL-encoded words, or the site's own search or list page when you know it. The user does not need to give an address: choose the search words yourself and start.
         A question about your abilities, an explanation, or a hypothetical plan does not need the web; answer it directly.
         """
     }

@@ -40,6 +40,8 @@ private struct RAMEndpoint: MCPEndpointStoring {
 }
 
 private let allowedName = "ha_eval_template"
+/// The name the model sees, like Android: mcp_<server>__<tool> (MCPServers(single:)).
+private let offeredName = "mcp_00000000__ha_eval_template"
 private let allowedArguments: JSONValue = .object(["template": .string("{{7*6}}")])
 
 /// Defense in depth around the actual transport, not a fake server. Like the
@@ -163,6 +165,7 @@ private actor ActualModel: ChatModelClient {
         case .redirectRejected: return "redirectRejected"
         case .invalidResponse: return "invalidResponse"
         case .incompleteResponse: return "incompleteResponse"
+        case .truncatedResponse: return "truncatedResponse"
         case .responseTooLarge: return "responseTooLarge"
         case .consumerTooSlow: return "consumerTooSlow"
         case .timedOut: return "timedOut"
@@ -187,10 +190,13 @@ private actor ActualModel: ChatModelClient {
     @MainActor private static func event(_ session: ChatSession, until deadline: ContinuousClock.Instant) async throws {
         try await wait(until: deadline) { !session.isSubmitting }
     }
+    /// No MCP switch: the request offers the connected server's catalog.
     @MainActor private static func start(_ session: ChatSession, connection: MCPSession, prompt: String) throws {
-        session.usesMCP = true; session.draft = prompt
+        session.draft = prompt
         try require(session.canSend && connection.canUseInConversation, .setup)
-        session.send(mcp: connection)
+        let servers = MCPServers(single: connection)
+        servers.onConnectionChange = { [weak session] in session?.cancelMCP() }
+        session.send(mcp: servers)
     }
 
     /// Validate an actual result value, not a substring of prose or a template.
@@ -275,7 +281,7 @@ private actor ActualModel: ChatModelClient {
 
             phase = "remote_then_memory"
             let firstDeadline = min(overall, clock.now.advanced(by: .seconds(185)))
-            let firstPrompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
+            let firstPrompt = #"First call the MCP tool mcp_00000000__ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
             try require(learning.memory.memories.isEmpty && session.memoryReceipt == nil, .remoteFence)
             // No approval card: the selected tool runs as soon as the model asks.
             try await server.armOnce()
@@ -286,7 +292,7 @@ private actor ActualModel: ChatModelClient {
             output["first_turn_app_error"] = session.chatError != nil
             let actual = await server.lastResult
             try require(session.mcpSteps.count == 1
-                        && session.mcpSteps[0].proposal.action == .callTool(name: allowedName, arguments: allowedArguments)
+                        && session.mcpSteps[0].proposal.action == .callTool(name: offeredName, arguments: allowedArguments)
                         && session.mcpSteps[0].result == actual
                         && !session.mcpSteps[0].isError && actual.map(fortyTwo) == true, .remoteResult)
             output["remote_ran_without_approval"] = true
@@ -328,7 +334,7 @@ private actor ActualModel: ChatModelClient {
             session.newConversation()
             try require(session.entries.isEmpty && session.profileReceipt == nil && session.memoryReceipt == nil, .setup)
             let secondDeadline = min(overall, clock.now.advanced(by: .seconds(185)))
-            let secondPrompt = #"First use local profile_edit to add the preference with text and quote exactly "Prefer quiet walks". After its successful committed receipt, call ha_eval_template with only {"template":"{{7*6}}"}; that call may fail. Do not call any other tool, save ordinary memory, or read resources. The saved profile must remain saved."#
+            let secondPrompt = #"First use local profile_edit to add the preference with text and quote exactly "Prefer quiet walks". After its successful committed receipt, call the MCP tool mcp_00000000__ha_eval_template with only {"template":"{{7*6}}"}; that call may fail. Do not call any other tool, save ordinary memory, or read resources. The saved profile must remain saved."#
             try start(session, connection: connection, prompt: secondPrompt)
             phase = "remote_failure"
             try await event(session, until: secondDeadline)

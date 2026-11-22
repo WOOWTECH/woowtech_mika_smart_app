@@ -10,6 +10,9 @@ import AssistantDomain
     var onOpen: ((TaskNotificationDestination) -> Void)?
     var onDismiss: ((String) -> Void)?
     var mayPresent: ((String) -> Bool)?
+    /// True while the app shows this destination: like Android, a notice about
+    /// the chat in front is not shown as a banner.
+    var isOnScreen: ((TaskNotificationDestination) -> Bool)?
     #if DEBUG
     private(set) var completedAddAttempts = 0
     var onCompletedAddAttempt: (() -> Void)?
@@ -105,6 +108,12 @@ import AssistantDomain
         Task { @MainActor [weak self] in
             guard let self, let logical = Self.logicalIdentifier(identifier, scope: self.scope),
                   self.mayPresent?(logical) == true else { completionHandler([]); return }
+            // The person already sees the finished reply on the chat in front.
+            if let destination = TaskNotificationPayload.destination(for: logical), self.isOnScreen?(destination) == true {
+                completionHandler([])
+                self.onDismiss?(logical)
+                return
+            }
             // Focus/summary/sound switches are ultimately governed by the system.
             completionHandler(hasSound ? [.banner, .list, .sound] : [.banner, .list])
         }

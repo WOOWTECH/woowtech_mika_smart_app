@@ -419,11 +419,15 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     func rememberAfterReply(utterance: String, conversationID: String,
                             expectedGeneration: UUID, client: any ChatModelClient,
                             configuration: ModelConfiguration, apiKey: String,
-                            preservingToolNotes: [MemoryNote] = []) {
+                            preservingToolNotes: [MemoryNote] = [], toolForgot: Bool = false) {
         // A user may clear/edit data while the MAIN reply is still in flight,
         // before extraction even exists. Its old utterance cannot repopulate data.
         guard generation == expectedGeneration else { return }
         cancelLearning()
+        // Like Android's RunLearning: when the reply's own tool already forgot a
+        // memory, the same words are not organized again. On the iPhone they
+        // then forgot the similar memory the person had just kept.
+        guard !toolForgot else { return }
         guard available, memory.preferences.useMemory, memory.preferences.autoRemember else { return }
         let snapshot = memory
         // Extraction sends related saved memories along with the utterance.
@@ -469,6 +473,9 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             }
         }
     }
+
+    /// Returns when the memory organizing of the latest reply is over, if one runs.
+    func memoryOrganizingFinished() async { await extraction?.value }
 
     func cancelLearning() {
         generation = UUID()

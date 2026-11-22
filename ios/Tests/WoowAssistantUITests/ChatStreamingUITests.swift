@@ -343,10 +343,18 @@ final class ChatStreamingUITests: XCTestCase {
                        "One native swipe must move the real transcript toward earlier text")
         ready(returnButton)
         XCTAssertEqual(text.label, beforeLabel, "Displacement must precede the next stream fragment")
+        let separateControl = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let current = transcript.frame
+            return !current.isEmpty && abs(current.minY - viewport.minY) < 1
+                && current.height < viewport.height
+                && returnButton.frame.minY >= current.maxY - 1
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [separateControl], timeout: 5), .completed,
+                       "Return control must reserve space below the transcript without covering reply text")
         XCTAssertLessThan(abs(transcript.frame.minY - viewport.minY), 1,
                           "The transcript viewport must not move during the swipe")
-        XCTAssertLessThan(abs(transcript.frame.height - viewport.height), 1,
-                          "The transcript viewport must not resize during the swipe")
+        XCTAssertGreaterThan(transcript.frame.height, 0)
+        XCTAssertGreaterThanOrEqual(returnButton.frame.minY, transcript.frame.maxY - 1)
         XCTAssertGreaterThanOrEqual(text.frame.minY - before.minY, 24,
                                     "The displacement must remain after the return button appears")
     }

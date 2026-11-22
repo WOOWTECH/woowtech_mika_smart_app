@@ -107,6 +107,16 @@ final class ChatKeyboardDock: NSObject, ObservableObject {
             let frame = window.convert(end, from: window.screen.coordinateSpace)
             if ChatKeyboardReserve.isPlausible(frame, in: window.bounds) { docked = frame }
         }
+        let did = notification.name == UIResponder.keyboardDidChangeFrameNotification
+            || notification.name == UIResponder.keyboardDidHideNotification
+        let event: ChatLayoutDiagnostics.Event = hiding
+            ? (did ? .keyboardDidHide : .keyboardWillHide) : (did ? .keyboardDidFrame : .keyboardWillFrame)
+        ChatLayoutDiagnostics.shared.record(event, fields: [
+            .hiding: .flag(hiding),
+            .did: .flag(did),
+            .local: .flag(local), .docked: .flag(docked != nil), .changed: .flag(frameInWindow != docked),
+            .keyboardTop: .number(Double(docked?.minY ?? 0)),
+            .keyboardHeight: .number(Double(docked?.height ?? 0)), .duration: .number(animationDuration)])
         if frameInWindow != docked { frameInWindow = docked }
     }
 
@@ -137,15 +147,32 @@ struct ChatKeyboardReserveModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
+        let _ = ChatLayoutDiagnostics.shared.record(.reservePadding, fields: [
+            .frameBottom: .number(Double(frame.maxY)), .frameHeight: .number(Double(frame.height)),
+            .docked: .flag(dock.frameInWindow != nil),
+            .keyboardTop: .number(Double(dock.frameInWindow?.minY ?? 0)),
+            .reportedBottom: .number(Double(reportedBottom)), .replaced: .flag(replaced),
+            .reserve: .number(Double(reserve)), .padding: .number(Double(bottomPadding))])
+        return content
             .padding(.bottom, bottomPadding)
             .animation(.easeOut(duration: dock.animationDuration), value: reserve)
             .background {
                 // The column's own frame does not depend on the padding above.
                 GeometryReader { proxy in
                     Color.clear
-                        .onAppear { frame = proxy.frame(in: .global) }
-                        .onChange(of: proxy.frame(in: .global)) { _, value in frame = value }
+                        .onAppear {
+                            ChatLayoutDiagnostics.shared.record(.columnFrame, fields: [
+                                .previousBottom: .number(Double(frame.maxY)),
+                                .frameBottom: .number(Double(proxy.frame(in: .global).maxY)),
+                                .frameHeight: .number(Double(proxy.size.height))])
+                            frame = proxy.frame(in: .global)
+                        }
+                        .onChange(of: proxy.frame(in: .global)) { _, value in
+                            ChatLayoutDiagnostics.shared.record(.columnFrame, fields: [
+                                .previousBottom: .number(Double(frame.maxY)),
+                                .frameBottom: .number(Double(value.maxY)), .frameHeight: .number(Double(value.height))])
+                            frame = value
+                        }
                 }
             }
             .overlay(alignment: .topLeading) {
@@ -160,8 +187,15 @@ struct ChatKeyboardReserveModifier: ViewModifier {
                 // Outside the ignored regions this reads the inset the system reports.
                 GeometryReader { proxy in
                     Color.clear
-                        .onAppear { reportedBottom = proxy.safeAreaInsets.bottom }
-                        .onChange(of: proxy.safeAreaInsets.bottom) { _, value in reportedBottom = value }
+                        .onAppear {
+                            ChatLayoutDiagnostics.shared.record(.containerInset, fields: [
+                                .reportedBottom: .number(Double(proxy.safeAreaInsets.bottom))])
+                            reportedBottom = proxy.safeAreaInsets.bottom
+                        }
+                        .onChange(of: proxy.safeAreaInsets.bottom) { _, value in
+                            ChatLayoutDiagnostics.shared.record(.containerInset, fields: [.reportedBottom: .number(Double(value))])
+                            reportedBottom = value
+                        }
                 }
             }
     }

@@ -92,8 +92,10 @@ extension ChatSession {
 
     /// Play's recordOutcomes after a chat skill step that read personal skills:
     /// Play's outcome judge decides done, partial or not possible, and a trial
-    /// skill becomes regular after a done run, or pauses after a failed one.
+    /// skill becomes regular after a done run and stays on trial otherwise.
     /// `generation` is read after the reply's memory organizing has started.
+    /// The outcome is saved once that organizing is over: changing the skills
+    /// while it runs would void it (ChatContextFence).
     func learnFromSkillStep(requestID: UUID, goal: String, answer: String, priorTurns: [String],
                             client: any ChatModelClient, configuration: ModelConfiguration, key: String) {
         guard let input = takeSkillLearning(requestID: requestID), !input.used.isEmpty else { return }
@@ -103,6 +105,8 @@ extension ChatSession {
                 goal: goal, answer: answer, priorTurns: priorTurns, completedTools: input.completedTools,
                 configuration: configuration, apiKey: key)) ?? .unknown
             guard let self, !Task.isCancelled else { return }
+            await self.learning.memoryOrganizingFinished()
+            guard !Task.isCancelled else { return }
             self.learning.recordChatSkillOutcomes(input.used,
                 evidence: SkillRunEvidence(end: .succeeded, outcome: outcome, wasRead: true, followed: true),
                 expectedGeneration: generation)
