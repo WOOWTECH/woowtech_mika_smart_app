@@ -26,6 +26,145 @@ private final class BrowserSearchKeys: LearningKeyStore {
 
 @MainActor enum BrowserSearchAppChecks {
     struct Failure: Error { let check: String }
+    /// Checkpoints run inside genuine WebKit delegate callbacks, before control
+    /// returns to its event loop. Only the interrupted arm stops the navigation.
+    /// Production callbacks, validation, encryption and reload remain unchanged.
+    @MainActor private final class PersistenceProbe: NSObject, WKNavigationDelegate {
+        let forwarding: BrowserSiteModesAppChecks.Probe
+        var onCommit: () -> Void = {}
+        var onFinish: () -> Void = {}
+        init(_ browser: BrowserSession, url: URL) {
+            forwarding = .init(browser); forwarding.localHTMLURL = url
+        }
+        func webView(_ view: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     preferences: WKWebpagePreferences,
+                     decisionHandler: @escaping (WKNavigationActionPolicy, WKWebpagePreferences) -> Void) {
+            forwarding.webView(view, decidePolicyFor: action, preferences: preferences, decisionHandler: decisionHandler)
+        }
+        func webView(_ view: WKWebView, decidePolicyFor response: WKNavigationResponse,
+                     decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            forwarding.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler)
+        }
+        func webView(_ view: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            forwarding.webView(view, didStartProvisionalNavigation: navigation)
+        }
+        func webView(_ view: WKWebView, didCommit navigation: WKNavigation!) {
+            forwarding.webView(view, didCommit: navigation); onCommit()
+        }
+        func webView(_ view: WKWebView, didFinish navigation: WKNavigation!) {
+            forwarding.webView(view, didFinish: navigation); onFinish()
+        }
+        func webView(_ view: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            forwarding.webView(view, didFail: navigation, withError: error)
+        }
+        func webView(_ view: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            forwarding.webView(view, didFailProvisionalNavigation: navigation, withError: error)
+        }
+    }
+
+    static func runPersistenceRace() async throws -> [String: Any] {
+        var assertions = 0
+        func check(_ condition: @autoclosure () throws -> Bool, _ name: String) throws {
+            guard try condition() else { throw Failure(check: name) }; assertions += 1
+        }
+        var results: [[String: Any]] = []
+        for interruptAtCommit in [true, false] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-search-race-" + UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let file = root.appendingPathComponent("library.vault"), keys = BrowserSearchKeys()
+            func vault() -> EncryptedLearningFile { EncryptedLearningFile(url: file, keys: keys) }
+            let workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault())
+            let browser = workspace.selected, host = try BrowserSiteModesAppChecks.Host()
+            defer { workspace.cancelAllWork(); host.close() }
+            try check(workspace.addSearchEngine(name: "Fixture Search", template: "https://research.example.invalid/search?q=%s&lang=en"),
+                      "custom engine save succeeds before navigation")
+            let engine = workspace.library.searchSettings.selected
+            let query = "fixture cats & dogs/+%"
+            let url = try engine.searchURL(query: query)
+            let beforeNavigation = try Data(contentsOf: file)
+            let probe = PersistenceProbe(browser, url: url)
+            host.attach(browser); browser.webView.navigationDelegate = probe
+            var committed = false, completed = false
+            var checkpointFailure: Error?
+            var checkpoints: [[String: Any]] = []
+            func checkpoint(_ stage: String, expectedHistory: Int) throws {
+                // Same value source used by BrowserView.pageAddress/addressPill;
+                // this does not claim SwiftUI rendering or native accessibility.
+                let pillURL = browser.webView.url ?? browser.loadedURL ?? URL(string: browser.address)
+                try check(pillURL.flatMap { workspace.library.searchSettings.match($0) }?.query == query,
+                          stage + ": address-pill source already matches query")
+                let disk = try vault().load(BrowserLibraryState.self)
+                try check(disk?.history.count == expectedHistory, stage + ": independent decrypt reads expected history")
+                try check(disk?.searchSettings.selected == engine, stage + ": persisted custom engine retained")
+                let reopened = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault())
+                defer { reopened.cancelAllWork() }
+                try check(reopened.available && reopened.errorText == nil, stage + ": fresh workspace loads and validates vault")
+                try check(reopened.library == disk, stage + ": published library equals independently decrypted disk")
+                try check(reopened.library.history.count == expectedHistory, stage + ": reload history count")
+                try check(reopened.selected.address.isEmpty && reopened.selected.loadedURL == nil,
+                          stage + ": restarted session is the start page")
+                try check(reopened.selected.manualSearchSettings().selected == engine,
+                          stage + ": fresh session resolves custom engine")
+                try check(expectedHistory == 0 || reopened.library.history.first?.url == url,
+                          stage + ": history contains exact escaped search URL")
+                checkpoints.append(["stage": stage, "history_count": expectedHistory,
+                                    "engine_restored": true, "pill_source_matches": true,
+                                    "workspace_available": reopened.available,
+                                    "load_diagnostics": browser.manualLoadDiagnostics ?? ""])
+            }
+            probe.onCommit = {
+                do {
+                    try check(probe.forwarding.finishes == 0, "commit checkpoint precedes every finish callback")
+                    try check(workspace.library.history.isEmpty, "commit has not published history")
+                    try check(try Data(contentsOf: file) == beforeNavigation, "commit has not changed saved bytes")
+                    #if DEBUG
+                    try check(browser.manualLoadDiagnostics?.hasPrefix("phase=committed;") == true,
+                              "commit diagnostics are present and not yet ready")
+                    #endif
+                    try checkpoint("commit", expectedHistory: 0)
+                    if interruptAtCommit {
+                        // Model loss of future callbacks on process termination;
+                        // no synthetic didFinish and no actual app kill are used.
+                        browser.webView.navigationDelegate = nil
+                        browser.cancel()
+                    }
+                } catch { checkpointFailure = error }
+                committed = true
+            }
+            probe.onFinish = {
+                do {
+                    try check(workspace.errorText == nil && workspace.library.history.count == 1,
+                              "real didFinish returns only after successful history publication")
+                    try check(try Data(contentsOf: file) != beforeNavigation, "finish changed encrypted saved bytes")
+                    #if DEBUG
+                    try check(browser.manualLoadDiagnostics?.hasPrefix("phase=ready;") == true,
+                              "finish diagnostics expose the exact ready raw value after history save")
+                    #endif
+                    try checkpoint("finish", expectedHistory: 1)
+                } catch { checkpointFailure = error }
+                completed = true
+            }
+            browser.address = url.absoluteString
+            browser.manualNavigation(to: url) {
+                browser.webView.loadSimulatedRequest(URLRequest(url: url), responseHTML: "<!doctype html><title>Search fixture</title><p>Local search fixture</p>")
+            }
+            try await BrowserSiteModesAppChecks.wait("search persistence checkpoint") {
+                checkpointFailure != nil || (interruptAtCommit ? committed : completed)
+            }
+            if let checkpointFailure { throw checkpointFailure }
+            try check(probe.forwarding.failures == 0 && probe.forwarding.externallyCancelledURLs.isEmpty,
+                      "scheduled document used actual local WebKit without failed/external navigation")
+            try check(probe.forwarding.finishes == (interruptAtCommit ? 0 : 1), "expected real finish count")
+            try checkpoint("final_reload", expectedHistory: interruptAtCommit ? 0 : 1)
+            results.append(["interrupt_at_commit": interruptAtCommit,
+                            "real_commits": probe.forwarding.events.filter { $0 == "commit" }.count,
+                            "real_finishes": probe.forwarding.finishes, "checkpoints": checkpoints])
+        }
+        return ["assertions": assertions, "cases": results, "actual_webkit": true,
+                "real_encrypted_save_and_load": true, "workspace_reconstruction_only": true,
+                "actual_process_relaunch": false, "native_ui_execution": false,
+                "external_network_or_personal_keychain": false]
+    }
     @MainActor private final class URLChangeEvidence {
         private var observation: NSKeyValueObservation?
         private(set) var urls: [URL] = []
@@ -319,6 +458,11 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let app = NSApplication.shared; app.setActivationPolicy(.prohibited)
         Task { @MainActor in
             do {
+                if ProcessInfo.processInfo.arguments.contains("--persistence-race-only") {
+                    let result = try await BrowserSearchAppChecks.runPersistenceRace()
+                    print(String(decoding: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys]), as: UTF8.self))
+                    exit(0)
+                }
                 let spaHash = try await BrowserSearchAppChecks.runSPAHash()
                 var result = try await BrowserSearchAppChecks.run()
                 result["spa_hash"] = spaHash
