@@ -16,6 +16,7 @@ enum CheckChatScrollFollow {
         expect(follow.observe(sample(1200, 1200)))
         expect(!follow.observe(sample(1200, 500))) // first scrollTo reaches the tail
         expect(follow.followsTail)
+        expect(follow.canScrollToTail)
 
         // A short transcript cannot scroll. Even a large finger movement and
         // temporary rubber-band bounce must not turn off following.
@@ -61,6 +62,119 @@ enum CheckChatScrollFollow {
         expect(mergedWithViewportChange.observe(sample(1200, 500)))
         expect(!mergedWithViewportChange.observe(sample(1320, 740, 420)))
         expect(!mergedWithViewportChange.followsTail)
+
+        // Native 281, 11:20:47: keyboard/composer layout moved bottomY from
+        // 532 to 716 with height 42822 and viewport 528 unchanged. Later the
+        // viewport shrank to 187. A declared layout transition preserves follow.
+        var keyboardLayout = ChatScrollFollowPolicy()
+        keyboardLayout.presentationChanged(to: sample(42822, 588, 584), followsTail: true)
+        keyboardLayout.beginLayoutTransition()
+        let firstLayoutRevision = keyboardLayout.pendingSettleRevision!
+        for position in [sample(42822, 588, 528), sample(42822, 532, 528)] {
+            expect(!keyboardLayout.observe(position, contentRevision: 4))
+            expect(keyboardLayout.followsTail)
+        }
+        let beforeKeyboardEvent = keyboardLayout.pendingSettleRevision!
+        keyboardLayout.beginLayoutTransition() // keyboard follows the focus/Done change
+        expect(keyboardLayout.pendingSettleRevision != beforeKeyboardEvent)
+        for position in [sample(42822, 532, 494), sample(42822, 532, 528),
+                         sample(42822, 716, 528), sample(42822, 716, 481),
+                         sample(42822, 485, 481), sample(42822, 485, 187),
+                         sample(42822, 712, 187)] {
+            expect(!keyboardLayout.observe(position, contentRevision: 4))
+            expect(keyboardLayout.followsTail)
+            expect(!keyboardLayout.needsTailScroll)
+            expect(!keyboardLayout.canScrollToTail)
+        }
+        expect(!keyboardLayout.settle(expectedRevision: firstLayoutRevision))
+        expect(!keyboardLayout.settle(expectedRevision: beforeKeyboardEvent))
+        let duringKeyboardLayout = keyboardLayout
+        expect(keyboardLayout.settle(expectedRevision: keyboardLayout.pendingSettleRevision!))
+        expect(keyboardLayout.pendingSettleRevision == nil)
+        expect(keyboardLayout.followsTail)
+        expect(keyboardLayout.canScrollToTail)
+        expect(keyboardLayout.needsTailScroll)
+        expect(!keyboardLayout.observe(sample(42822, 191, 187), contentRevision: 4)) // catch-up reaches tail
+        expect(!keyboardLayout.needsTailScroll)
+        // Once layout settles, unannounced platform scrolling still holds.
+        expect(!keyboardLayout.observe(sample(42822, 311, 187), contentRevision: 4))
+        expect(!keyboardLayout.followsTail)
+        keyboardLayout.beginLayoutTransition()
+        expect(keyboardLayout.pendingSettleRevision == nil)
+        expect(!keyboardLayout.observe(sample(42822, 311, 528), contentRevision: 4))
+        expect(!keyboardLayout.followsTail)
+        expect(!keyboardLayout.needsTailScroll)
+        expect(!keyboardLayout.canScrollToTail)
+
+        // Pure streaming growth keeps the content-origin offset fixed. It must
+        // neither restart the layout quiet timer nor bypass it on a new revision.
+        var streamingLayout = ChatScrollFollowPolicy()
+        streamingLayout.presentationChanged(to: sample(1200, 500), followsTail: true)
+        streamingLayout.beginLayoutTransition()
+        let streamingLayoutRevision = streamingLayout.pendingSettleRevision!
+        for step in 1...6 {
+            let growth = Double(step * 20)
+            expect(!streamingLayout.observe(sample(1200 + growth, 500 + growth), contentRevision: UInt64(step)))
+            expect(streamingLayout.pendingSettleRevision == streamingLayoutRevision)
+            expect(streamingLayout.followsTail)
+            expect(!streamingLayout.canScrollToTail)
+        }
+        // The original timer can catch up while the reply is still streaming.
+        expect(streamingLayout.settle(expectedRevision: streamingLayoutRevision))
+        expect(streamingLayout.canScrollToTail)
+        expect(streamingLayout.needsTailScroll)
+        expect(!streamingLayout.observe(sample(1320, 500), contentRevision: 6))
+        expect(!streamingLayout.needsTailScroll)
+        expect(streamingLayout.observe(sample(1340, 520), contentRevision: 7))
+        expect(streamingLayout.followsTail)
+
+        // A real drag takes its baseline AFTER the keyboard's displacement.
+        // A no-op gesture must not inherit that displacement; a subsequent
+        // actual 20 pt move must hold, even if keyboard events keep arriving.
+        var layoutNoOpDrag = duringKeyboardLayout
+        layoutNoOpDrag.beginDrag()
+        expect(!layoutNoOpDrag.canScrollToTail)
+        layoutNoOpDrag.userDraggedTowardEarlierContent()
+        layoutNoOpDrag.endDrag()
+        expect(!layoutNoOpDrag.canScrollToTail)
+        expect(layoutNoOpDrag.settle(expectedRevision: layoutNoOpDrag.pendingSettleRevision!))
+        expect(layoutNoOpDrag.followsTail)
+        expect(layoutNoOpDrag.canScrollToTail)
+        // A tail request queued by settle must not survive a new drag before consumption.
+        layoutNoOpDrag.beginDrag()
+        expect(!layoutNoOpDrag.canScrollToTail)
+        var layoutReader = duringKeyboardLayout
+        let interruptedLayoutRevision = layoutReader.pendingSettleRevision!
+        layoutReader.beginDrag()
+        layoutReader.userDraggedTowardEarlierContent()
+        layoutReader.beginLayoutTransition() // active drag has priority
+        expect(layoutReader.pendingSettleRevision == nil)
+        expect(!layoutReader.settle(expectedRevision: interruptedLayoutRevision))
+        expect(!layoutReader.observe(sample(42822, 732, 187), contentRevision: 4))
+        layoutReader.endDrag()
+        let readerSettleRevision = layoutReader.pendingSettleRevision!
+        layoutReader.beginLayoutTransition() // reader deceleration also has priority
+        expect(layoutReader.pendingSettleRevision == readerSettleRevision)
+        expect(layoutReader.settle(expectedRevision: readerSettleRevision))
+        expect(!layoutReader.followsTail)
+        expect(!layoutReader.canScrollToTail)
+        layoutReader.beginLayoutTransition()
+        expect(layoutReader.pendingSettleRevision == nil)
+        expect(!layoutReader.needsTailScroll)
+
+        // Explicit navigation/reset cancels old layout timers and suppression.
+        var resetLayout = duringKeyboardLayout
+        let resetLayoutRevision = resetLayout.pendingSettleRevision!
+        resetLayout.userRequestedLatest()
+        expect(resetLayout.pendingSettleRevision == nil)
+        expect(!resetLayout.settle(expectedRevision: resetLayoutRevision))
+        expect(!resetLayout.observe(sample(42822, 732, 187), contentRevision: 4))
+        expect(!resetLayout.followsTail)
+        resetLayout = duringKeyboardLayout
+        resetLayout.conversationChanged()
+        expect(resetLayout.pendingSettleRevision == nil)
+        expect(!resetLayout.settle(expectedRevision: resetLayoutRevision))
+        expect(resetLayout.observe(sample(300, 300), contentRevision: 0))
 
         // An intentional small upward scroll is a reading choice, even though
         // it ends well inside the former 240-point auto-rearm window.
@@ -215,6 +329,21 @@ enum CheckChatScrollFollow {
             }
         }
         expect(progressiveGranted == ChatScrollFollowPolicy.maximumTailScrollsWithoutGrowth)
+        // Repeated known layout events invalidate timers, not the scroll budget.
+        var layoutBudget = progressive
+        for step in 0..<6 {
+            let height = 3600.0 + Double(step * 20)
+            layoutBudget.beginLayoutTransition()
+            let oldLayoutRevision = layoutBudget.pendingSettleRevision!
+            layoutBudget.beginLayoutTransition()
+            expect(!layoutBudget.settle(expectedRevision: oldLayoutRevision))
+            let beforeGrowth = layoutBudget.pendingSettleRevision!
+            expect(!layoutBudget.observe(sample(height, height - 1000), contentRevision: 1))
+            expect(layoutBudget.pendingSettleRevision == beforeGrowth) // pure growth does not restart the timer
+            expect(layoutBudget.settle(expectedRevision: beforeGrowth))
+            expect(layoutBudget.followsTail)
+            expect(!layoutBudget.observe(sample(height + 1, height - 999), contentRevision: 1))
+        }
         // A real streaming update restores the budget even if its geometry
         // is smaller than a previous lazy-layout maximum.
         expect(progressive.observe(sample(3200, 2200), contentRevision: 2))

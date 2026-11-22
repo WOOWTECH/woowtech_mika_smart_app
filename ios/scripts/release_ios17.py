@@ -43,7 +43,7 @@ UI_SHARDS = {
     # ui-startup (37 methods) exceeded the 30-minute slice on iOS 18 CI runners; chat classes are their own shard.
     # The account sign-in fixture tests open the same model settings pages.
     "ui-startup": ["WoowAssistantUITests", "ModelAccountSignInUITests"],
-    "ui-chat": ["SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests"],
+    "ui-chat": ["SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests", "ChatReturnToLatestUITests"],
     "ui-language": ["AppLanguageUITests", "AppLanguagePhase2UITests"],
     "ui-notifications": ["NotificationUITests"],
     "ui-archive": ["ConversationArchiveUITests", "ChatLongHistoryUITests"],

@@ -25,7 +25,7 @@ SAMPLE_SECONDS = 3
 SAMPLE_COMMAND_SECONDS = 15
 POLL_SECONDS = 0.2
 FIXTURE_CLASSES = frozenset({
-    "WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests", "AppLanguageUITests", "AppLanguagePhase2UITests", "ConversationArchiveUITests", "ChatAttachmentUITests", "BrowserWorkspaceUITests",
+    "WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatReturnToLatestUITests", "ChatVoiceUITests", "AppLanguageUITests", "AppLanguagePhase2UITests", "ConversationArchiveUITests", "ChatAttachmentUITests", "BrowserWorkspaceUITests",
     "BrowserLoginUITests", "BrowserSiteModesUITests", "BrowserSearchUITests", "BrowserExternalOpenUITests", "BrowserInteractionUITests", "BrowserUploadUITests",
     "BrowserLearningUITests", "MemoryUITests",
     "MemoryRaceUITests", "MemoryToolUITests",

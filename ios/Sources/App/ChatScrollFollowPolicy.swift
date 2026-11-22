@@ -104,6 +104,7 @@ struct ChatScrollFollowPolicy {
     private var previous: ChatTranscriptViewport?
     private var isDragging = false
     private var isSettling = false
+    private var layoutSettling = false
     private var deliberatelyReadingEarlier = false
     private var draggedTowardEarlier = false
     private var draggedTowardLatest = false
@@ -119,9 +120,22 @@ struct ChatScrollFollowPolicy {
     static let maximumTailScrollsWithoutGrowth = 3
 
     var pendingSettleRevision: Int? { isSettling ? movementRevision : nil }
+    /// Recheck when consuming a queued scroll: a drag may have started since it was requested.
+    var canScrollToTail: Bool { followsTail && !isDragging && !isSettling }
     var needsTailScroll: Bool {
-        guard followsTail, !isDragging, !isSettling, let previous, previous.isValid else { return false }
+        guard canScrollToTail, let previous, previous.isValid else { return false }
         return previous.bottomY - previous.viewportHeight > Self.tailArrivalTolerance
+    }
+
+    /// A known keyboard/composer change can move the content origin without
+    /// reader input. Keep the current follow intent until geometry is quiet;
+    /// never replace a drag, its deceleration, or an existing reading hold.
+    mutating func beginLayoutTransition() {
+        guard followsTail, !deliberatelyReadingEarlier, !isDragging,
+              !isSettling || layoutSettling else { return }
+        isSettling = true
+        layoutSettling = true
+        movementRevision += 1
     }
 
     mutating func beginDrag() {
@@ -130,13 +144,14 @@ struct ChatScrollFollowPolicy {
         // A drag that starts before the previous one settled continues it: two
         // quick flicks back to the end are one move toward the latest text, even
         // when the second only bounces at the end.
-        if !isSettling {
+        if !isSettling || layoutSettling {
             draggedTowardEarlier = false
             draggedTowardLatest = false
             dragStartOffset = previous.map { $0.contentHeight - $0.bottomY }
         }
         isDragging = true
         isSettling = false
+        layoutSettling = false
         movementRevision += 1
     }
 
@@ -156,6 +171,7 @@ struct ChatScrollFollowPolicy {
         guard isDragging else { return }
         isDragging = false
         isSettling = true
+        layoutSettling = false
         movementRevision += 1
     }
 
@@ -164,10 +180,12 @@ struct ChatScrollFollowPolicy {
         guard isSettling, !isDragging, movementRevision == expectedRevision else { return false }
         isSettling = false
         defer {
+            layoutSettling = false
             dragStartOffset = nil
             draggedTowardEarlier = false
             draggedTowardLatest = false
         }
+        if layoutSettling { return true }
         guard let previous, previous.isValid else { return true }
         let atBottom = previous.bottomY - previous.viewportHeight <= Self.tailArrivalTolerance
         // contentHeight - bottomY is the content's offset from the viewport
@@ -197,6 +215,7 @@ struct ChatScrollFollowPolicy {
         followsTail = true
         isDragging = false
         isSettling = false
+        layoutSettling = false
         dragStartOffset = nil
         draggedTowardEarlier = false
         draggedTowardLatest = false
@@ -274,6 +293,7 @@ struct ChatScrollFollowPolicy {
         tailScrollsWithoutGrowth = 0
         isDragging = false
         isSettling = false
+        layoutSettling = false
         deliberatelyReadingEarlier = false
         draggedTowardEarlier = false
         draggedTowardLatest = false

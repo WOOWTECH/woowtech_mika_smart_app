@@ -561,6 +561,13 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     }
 }
 
+private struct ChatComposerHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    // Siblings without a measurement contribute zero; they must not erase
+    // the composer's height. Reduction starts fresh when the composer shrinks.
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 /// Only this subtree observes keystrokes; transcript layout does not.
 @MainActor
 private struct ChatDraftObserver<Content: View>: View {
@@ -612,6 +619,7 @@ private struct ChatView: View {
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
+    @State private var measuredComposerHeight: CGFloat?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     private var webTaskColors: ChatWebTaskColors {
         ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
@@ -866,6 +874,22 @@ private struct ChatView: View {
         attachmentPreview = ChatAttachmentPreviewTarget(url: url)
     }
 
+    /// Keyboard and composer resizing can move UIKit's content offset without
+    /// a reader gesture. Keep the existing follow intent until layout settles.
+    private func composerLayoutChanged() {
+        // VoiceOver can scroll without the drag events that cancel this grace
+        // period. Preserve its existing conservative reading protection.
+        guard !UIAccessibility.isVoiceOverRunning, pageIncludesLatest,
+              !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil else { return }
+        updateFollow { $0.beginLayoutTransition() }
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
+            NSLog("%@", "TRANSCRIPT_LAYOUT pending=\(String(describing: scrollFollow.pendingSettleRevision)) following=\(scrollFollow.followsTail)")
+        }
+#endif
+        scheduleScrollSettle()
+    }
+
     private func scheduleScrollSettle() {
         guard let revision = scrollFollow.pendingSettleRevision else {
             cancelScrollSettle()
@@ -878,6 +902,11 @@ private struct ChatView: View {
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
             let settled = updateFollow { $0.settle(expectedRevision: revision) }
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
+                NSLog("%@", "TRANSCRIPT_SETTLE revision=\(revision) settled=\(settled) needs=\(scrollFollow.needsTailScroll) pending=\(String(describing: scrollFollow.pendingSettleRevision))")
+            }
+#endif
             if settled && scrollFollow.followsTail { trackLatestPage() }
             if settled && scrollFollow.needsTailScroll {
                 // A no-op drag may have paused scrolling while a new fragment
@@ -1045,6 +1074,7 @@ private struct ChatView: View {
         }
         .coordinateSpace(name: "chat.transcript.viewport")
         .accessibilityIdentifier("chat.transcript")
+        .contentShape(Rectangle())
         // A simultaneous drag observes scrolling without taking the long
         // press away from the message menu or the streaming reply's text.
         .simultaneousGesture(DragGesture(minimumDistance: 5)
@@ -1097,7 +1127,7 @@ private struct ChatView: View {
             let shouldScroll = updateFollow { $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }
 #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
-                print("TRANSCRIPT_TRACE revision=\(session.transcriptContentRevision) height=\(position.contentHeight) bottom=\(position.bottomY) viewport=\(position.viewportHeight) followed=\(followed) following=\(scrollFollow.followsTail) scroll=\(shouldScroll) submitting=\(session.isSubmitting)")
+                NSLog("%@", "TRANSCRIPT_TRACE revision=\(session.transcriptContentRevision) height=\(position.contentHeight) bottom=\(position.bottomY) viewport=\(position.viewportHeight) followed=\(followed) following=\(scrollFollow.followsTail) scroll=\(shouldScroll) submitting=\(session.isSubmitting)")
             }
 #endif
             if shouldScroll {
@@ -1113,30 +1143,37 @@ private struct ChatView: View {
             navigateTranscript(.latest)
         }
         .onChange(of: scrollToTailRequest) { _, _ in
-            guard pageIncludesLatest, scrollFollowBox.pageBasis == transcriptBasis else { return }
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
+                NSLog("%@", "TRANSCRIPT_REQUEST latest=\(pageIncludesLatest) basis=\(scrollFollowBox.pageBasis == transcriptBasis) canScroll=\(scrollFollow.canScrollToTail)")
+            }
+#endif
+            guard pageIncludesLatest, scrollFollowBox.pageBasis == transcriptBasis,
+                  scrollFollow.canScrollToTail else { return }
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
-        .overlay(alignment: .bottomTrailing) {
-            // Paged histories already expose Latest above the viewport. A second
-            // floating button can cover the final reply in a short viewport.
-            if session.entries.count <= ChatTranscriptPage.maximumMessages,
-               showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
-                // A landscape keyboard plus a multiline draft and notice can
-                // leave less height than this button. The transcript must stay
-                // clipped, so defer the overlay until the whole control fits.
-                // As an overlay this does not change the transcript's geometry.
-                ViewThatFits(in: .vertical) {
-                    Button {
-                        navigateTranscript(.latest)
-                    } label: {
-                        Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(palette.accent)
-                    .accessibilityIdentifier("chat.returnToLatest")
-                    .padding(12)
-                    Color.clear.frame(width: 0, height: 0).accessibilityHidden(true)
+    }
+
+    /// Reserve a separate row so the control cannot cover transcript text.
+    /// The transcript measures its remaining viewport, excluding this row.
+    @ViewBuilder private var returnToLatestControl: some View {
+        // Paged histories already expose Latest above the viewport.
+        if session.entries.count <= ChatTranscriptPage.maximumMessages,
+           showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
+            // Keep the compact-height fallback for landscape keyboard layouts.
+            ViewThatFits(in: .vertical) {
+                Button {
+                    navigateTranscript(.latest)
+                } label: {
+                    Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(palette.accent)
+                .accessibilityIdentifier("chat.returnToLatest")
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+                Color.clear.frame(width: 0, height: 0).accessibilityHidden(true)
             }
         }
     }
@@ -1382,11 +1419,19 @@ private struct ChatView: View {
     private func chatColumn(availableHeight: CGFloat) -> some View {
         VStack(spacing: 12) {
             chatHeader
-            transcript
+            VStack(spacing: 0) {
+                transcript
+                returnToLatestControl
+            }
             VStack(spacing: 12) {
                 composerContext(availableHeight: availableHeight)
                 ChatDraftObserver(draft: session.draftModel) { draft in
                     composer(draft: draft, availableHeight: availableHeight)
+                }
+                .background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: ChatComposerHeightPreferenceKey.self, value: geometry.size.height)
+                    }
                 }
                 attachPanel
                 if isEditingDraft && !showsAttachPanel {
@@ -1405,6 +1450,17 @@ private struct ChatView: View {
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
+        .onPreferenceChange(ChatComposerHeightPreferenceKey.self) { height in
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
+                NSLog("%@", "TRANSCRIPT_COMPOSER height=\(height) previous=\(String(describing: measuredComposerHeight))")
+            }
+#endif
+            guard height.isFinite, height > 0 else { return }
+            let previous = measuredComposerHeight
+            measuredComposerHeight = height
+            if let previous, abs(height - previous) > 0.5 { composerLayoutChanged() }
+        }
     }
 
     private var chatColumn: some View {
@@ -1424,7 +1480,16 @@ private struct ChatView: View {
                 photoLimit: photoPickerLimit,
                 add: { files in Task { await session.addAttachments(files) } },
                 loadingStarted: { session.attachmentsLoadingStarted() }))
-            .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
+            .onChange(of: isEditingDraft) { _, editing in
+                if editing { showsAttachPanel = false }
+                composerLayoutChanged()
+#if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
+                    NSLog("%@", "TRANSCRIPT_FOCUS editing=\(editing) submitting=\(session.isSubmitting) following=\(scrollFollow.followsTail) entries=\(session.entries.count)")
+                }
+#endif
+            }
+            .onChange(of: keyboardDock.frameInWindow) { _, _ in composerLayoutChanged() }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps, owners: session.mcpStepOwners) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }

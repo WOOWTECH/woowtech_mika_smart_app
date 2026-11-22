@@ -7,7 +7,26 @@ final class ChatAttachmentUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
-    override func tearDownWithError() throws { app.terminate() }
+    private var fixtureSendDiagnostics: String?
+    override func tearDownWithError() throws {
+        if (testRun?.failureCount ?? 0) > 0, let diagnostics = fixtureSendDiagnostics {
+            let state = app.state
+            let details = XCTAttachment(string: "epoch=\(Date().timeIntervalSince1970) appState=\(state.rawValue)\n" + diagnostics)
+            details.name = "attachment-fixture-send-state"
+            details.lifetime = .keepAlways
+            add(details)
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "attachment-fixture-send-failure"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let hierarchy = XCTAttachment(string: state == .runningForeground
+                ? app.debugDescription : "App is not foreground (state=\(state.rawValue)); AX was not requested.")
+            hierarchy.name = "attachment-fixture-send-hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        app.terminate()
+    }
 
     func testSettingsAndChatKeyboardDoneInIsolatedTranscriptFixture() {
         exerciseSettingsAndChatDone()
@@ -243,14 +262,66 @@ final class ChatAttachmentUITests: XCTestCase {
 
     @discardableResult
     private func sendFixtureTurn(_ prompt: String, userIndex: Int, expectedReply: String? = nil) -> XCUIElement {
-        write(prompt, field: chatDraftControl(in: app), scroll: false)
-        tap("chat.dismissKeyboard"); tap("chat.send")
-        return completedFixtureReply(userIndex: userIndex, containing: expectedReply ?? "測試回覆：" + prompt)
+        fixtureSendDiagnostics = "userIndex=\(userIndex) phase=write"
+        let draft = chatDraftControl(in: app)
+        write(prompt, field: draft, scroll: false)
+        tap("chat.dismissKeyboard")
+        let send = app.buttons["chat.send"].firstMatch
+        let reply = identifiedText("chat.message.\(userIndex + 1).assistant")
+        var previousFrame: CGRect?
+        var previousObservation: TimeInterval = 0
+        var stableObservations = 0
+        // Use the existing 10-second ready budget for both keyboard exit and geometry.
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let now = ProcessInfo.processInfo.systemUptime
+            guard now - previousObservation >= 0.25 else { return false }
+            previousObservation = now
+            guard self.app.state == .runningForeground,
+                  !self.app.keyboards.firstMatch.exists,
+                  !self.app.buttons["chat.dismissKeyboard"].firstMatch.exists,
+                  send.exists, send.isEnabled, send.isHittable else {
+                previousFrame = nil; stableObservations = 0
+                self.fixtureSendDiagnostics = "userIndex=\(userIndex) phase=settle controlsNotReady"
+                return false
+            }
+            let frame = send.frame
+            guard !frame.isEmpty, self.app.frame.contains(frame) else {
+                previousFrame = nil; stableObservations = 0
+                self.fixtureSendDiagnostics = "userIndex=\(userIndex) phase=settle invalidFrame=\(frame)"
+                return false
+            }
+            stableObservations = previousFrame == frame ? stableObservations + 1 : 1
+            self.fixtureSendDiagnostics = "userIndex=\(userIndex) phase=settle previous=\(String(describing: previousFrame)) current=\(frame) stableObservations=\(stableObservations)"
+            previousFrame = frame
+            return stableObservations >= 2
+        }, object: nil)
+        guard XCTWaiter.wait(for: [settled], timeout: 10) == .completed else {
+            XCTFail("Keyboard exit and two stable Send observations must fit the existing ready budget")
+            return reply
+        }
+        send.tap() // Exactly one tap; no activation, retry, or recovery scroll.
+        let replyDeadline = ProcessInfo.processInfo.systemUptime + 15
+        fixtureSendDiagnostics = "userIndex=\(userIndex) phase=accepted-send sendFrame=\(String(describing: previousFrame))"
+        let user = identifiedText("chat.message.\(userIndex).user")
+        let accepted = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard user.exists, user.label == prompt, draft.exists,
+                  let value = draft.value as? String else { return false }
+            // UIKit can expose the placeholder as an empty text field's AX value.
+            return value.isEmpty || value == draft.placeholderValue
+        }, object: nil)
+        guard XCTWaiter.wait(for: [accepted], timeout: max(0, replyDeadline - ProcessInfo.processInfo.systemUptime)) == .completed else {
+            XCTFail("The single Send tap must append user\(userIndex) and clear its draft before waiting for a reply")
+            return reply
+        }
+        fixtureSendDiagnostics = "userIndex=\(userIndex) phase=reply acceptedUserAndClearedDraft=true"
+        // Acceptance and reply share the original 15-second reply budget.
+        return completedFixtureReply(userIndex: userIndex, containing: expectedReply ?? "測試回覆：" + prompt,
+                                     replyTimeout: max(0, replyDeadline - ProcessInfo.processInfo.systemUptime))
     }
 
-    private func completedFixtureReply(userIndex: Int, containing expected: String) -> XCUIElement {
+    private func completedFixtureReply(userIndex: Int, containing expected: String, replyTimeout: TimeInterval = 15) -> XCUIElement {
         let reply = identifiedText("chat.message.\(userIndex + 1).assistant")
-        assertContains(reply, expected)
+        assertContains(reply, expected, timeout: replyTimeout)
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
         XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
@@ -416,10 +487,10 @@ final class ChatAttachmentUITests: XCTestCase {
         }
         XCTAssertEqual(element.label, value)
     }
-    private func assertContains(_ element: XCUIElement, _ value: String) {
+    private func assertContains(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 15) {
         let predicate = NSPredicate(format: "exists == true AND label CONTAINS %@", value)
         if !predicate.evaluate(with: element) {
-            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 15), .completed)
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: timeout), .completed)
         }
         XCTAssertTrue(element.label.contains(value), element.label)
     }

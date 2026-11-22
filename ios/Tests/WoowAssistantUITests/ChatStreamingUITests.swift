@@ -314,7 +314,7 @@ final class ChatStreamingUITests: XCTestCase {
         for _ in 0..<3 where returnButton.exists { transcript.swipeUp() }
         assertGone(returnButton, seconds: 8)
         wait(NSPredicate(format: "label CONTAINS %@", "RETURN_SECOND_END"), on: partial, seconds: 50)
-        assertTranscriptTailVisible(partial, in: transcript)
+        assertTranscriptTailVisible(partial, in: transcript, minimumVisibleHeight: 44)
 
         swipeEarlierOnce(partial, in: transcript, returnButton: returnButton)
         ready(returnButton)
@@ -323,7 +323,7 @@ final class ChatStreamingUITests: XCTestCase {
         returnButton.tap()
         assertGone(returnButton, seconds: 5)
         wait(NSPredicate(format: "label CONTAINS %@", "RETURN_THIRD_END"), on: partial, seconds: 50)
-        assertTranscriptTailVisible(partial, in: transcript)
+        assertTranscriptTailVisible(partial, in: transcript, minimumVisibleHeight: 44)
     }
 
     private func swipeEarlierOnce(_ text: XCUIElement, in transcript: XCUIElement, returnButton: XCUIElement) {
@@ -343,17 +343,43 @@ final class ChatStreamingUITests: XCTestCase {
                        "One native swipe must move the real transcript toward earlier text")
         ready(returnButton)
         XCTAssertEqual(text.label, beforeLabel, "Displacement must precede the next stream fragment")
+        let separateControl = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard text.exists else { return false }
+            let current = transcript.frame
+            let visible = text.frame.intersection(current).intersection(self.app.frame)
+            return !current.isEmpty && abs(current.minY - viewport.minY) < 1
+                && current.height < viewport.height
+                && returnButton.frame.minY >= current.maxY - 1
+                && !visible.isEmpty && visible.height >= 44
+                && current.maxY <= mikaUnobscuredBottom(in: self.app)
+                && self.app.frame.contains(returnButton.frame)
+                && returnButton.frame.maxY <= mikaUnobscuredBottom(in: self.app)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [separateControl], timeout: 5), .completed,
+                       "Return control must reserve space below the transcript without covering reply text")
         XCTAssertLessThan(abs(transcript.frame.minY - viewport.minY), 1,
                           "The transcript viewport must not move during the swipe")
-        XCTAssertLessThan(abs(transcript.frame.height - viewport.height), 1,
-                          "The transcript viewport must not resize during the swipe")
+        let visible = text.frame.intersection(transcript.frame).intersection(app.frame)
+        XCTAssertFalse(visible.isEmpty)
+        XCTAssertGreaterThanOrEqual(visible.height, 44,
+                                   "The held long reply must retain readable space above the return control")
+        XCTAssertGreaterThanOrEqual(returnButton.frame.minY, transcript.frame.maxY - 1)
         XCTAssertGreaterThanOrEqual(text.frame.minY - before.minY, 24,
                                     "The displacement must remain after the return button appears")
     }
 
-    private func assertTranscriptTailVisible(_ text: XCUIElement, in transcript: XCUIElement) {
+    private func assertTranscriptTailVisible(_ text: XCUIElement, in transcript: XCUIElement,
+                                             minimumVisibleHeight: CGFloat = 0) {
         let atTail = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            text.exists && abs(text.frame.maxY - transcript.frame.maxY) < 65
+            guard text.exists else { return false }
+            let viewport = transcript.frame
+            let frame = text.frame
+            let visible = frame.intersection(viewport).intersection(self.app.frame)
+            return !viewport.isEmpty && !visible.isEmpty
+                && visible.height >= minimumVisibleHeight
+                && viewport.maxY <= mikaUnobscuredBottom(in: self.app)
+                && frame.maxY <= viewport.maxY + 1
+                && abs(frame.maxY - viewport.maxY) < 65
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [atTail], timeout: 10), .completed,
                        "The real later fragment must remain visible at the transcript tail")
