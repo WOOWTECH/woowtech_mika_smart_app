@@ -15,3 +15,5 @@ Parent取回report／result／manifest與6份安全JSON，逐項bytes／SHA核�
 - `6d8b6d482d10a39c3fb83339bbfc39b58dc1358a6b6496e6622b2bfb514007b3`
 
 原UserProfile兩檔hash本輪重算仍同；22則A31／原圖片／記憶保留僅承接前輪封存，本次未重新操作手機驗證。沒有產生需清理的裝置資料。結果為證據恢復通過、錯誤細分類缺證；新增診斷只能改善未來觀察，不能追溯補造原錯誤原因。
+
+後續已實作[分類後的安全日誌](IOS_MCP_RESULT_DIAGNOSTIC_20261122.md)，native303精確22/22及實際OS日誌222事件／111組通過；原iPhone及真Apporo仍待新build／有效服務，不將這些合成或loopback結果回填為舊兩錯誤已修。

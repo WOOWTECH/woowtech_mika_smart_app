@@ -15,6 +15,7 @@
 - **[R]** [TestFlight273發佈](TESTFLIGHT_273_RELEASE.md)：來源`4e2c8c64`、真Validation／Upload成功、IPA／App／dSYM及完整archive gate留證；Apple處理／可安裝及273實機尚待，不以302替代。
 - **[H]** [Android MCP執行修補](ANDROID_MCP_EXECUTION_CONTRACT_20261122.md)：初批62/62、三transport安全診斷92/92；對話步驟unknown／截斷consumer及語系40/40、兩品牌compile成功。含文件八語系38 keys補齊及PDF256頁文案修正；實機／真服務仍待，不將unit當商用驗收。
 - **[E]** [241既存兩筆MCP錯誤取證](MCP_241_STORED_ERRORS_REVIEW_20261122.md)：找回4／4／2及8條dispatch；completed在isError檢查前記錄，缺精確結果locator／code，細分類仍未知，沒有重放工具。
+- **[L]** [iOS分類後安全日誌修補](IOS_MCP_RESULT_DIAGNOSTIC_20261122.md)：native303精確22/22，實際Simulator日誌222事件／111組完整關聯；返回結果／工具錯誤／協定異常與拋錯分開。新來源尚未裝原iPhone，不能回填241舊錯誤原因。
 - **[U]** [回尾／鍵盤修補驗證](CHAT_RETURN_CONTROL_VALIDATION_20261122.md)：同runtime五個native案例分批通過，保留287 AX逾時及288單案重驗；尚非271實機驗收。
 - **[M]** [iPhone270手動記憶CRUD](IPHONE_270_MEMORY_CRUD.md)：新增／同ID修改、關鍵字重啟讀回、限定刪除及第二次重啟限定PASS；38檔獨立核對與原資料保留另有證據。模型記憶／技能語意仍未測，不增加24輪正常完成數。
 - **[F]** [TestFlight 270 發佈與原 iPhone 實測](TESTFLIGHT_270_RELEASE.md)，尤其「原 iPhone 實裝與部分驗證」；機器摘要為 T/`iphone270-validation-summary.json`，觀察時間 `2026-11-22T02:13:49Z`。私密原始工具輸出留在 T，不複製進本文件。

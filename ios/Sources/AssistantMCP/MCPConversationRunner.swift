@@ -11,7 +11,13 @@ import os
 /// for schema validation.
 public struct MCPConversationRunner: Sendable {
     private let client: any ChatModelClient
-    public init(client: any ChatModelClient) { self.client = client }
+    private let observeDispatch: (@Sendable (DispatchDiagnostic) -> Void)?
+    public init(client: any ChatModelClient) { self.client = client; self.observeDispatch = nil }
+
+    /// Per-instance synchronous test seam; adds no suspension or global log hook.
+    init(client: any ChatModelClient, observeDispatch: @escaping @Sendable (DispatchDiagnostic) -> Void) {
+        self.client = client; self.observeDispatch = observeDispatch
+    }
 
     public func run(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
                     tools: [MCPTool], resources: [MCPResource] = [],
@@ -299,11 +305,11 @@ public struct MCPConversationRunner: Sendable {
             // the step budget and the repeat guard are the limits.
             let proposal = MCPConversationProposal(action: action)
             await onEvent(.executing(proposal)); try check()
-            let diagnosticID = UUID().uuidString
-            let diagnosticStart = Date()
-            Self.logDispatch(id: diagnosticID, phase: "started", category: "none", elapsedMilliseconds: 0)
+            let diagnosticID = UUID()
+            let diagnosticStart = ContinuousClock.now
+            logDispatch(id: diagnosticID, phase: .started, diagnostic: nil, startedAt: diagnosticStart)
             var result: JSONValue
-            var failureDiagnostic: MCPExecutionDiagnostic?
+            let executionDiagnostic: MCPExecutionDiagnostic
             do {
                 switch proposal.action {
                 case .callTool(let name, let arguments):
@@ -311,32 +317,32 @@ public struct MCPConversationRunner: Sendable {
                 case .readResource(let uri): result = try await executor.readResource(uri: uri)
                 }
                 failedDispatches = 0
-                Self.logDispatch(id: diagnosticID, phase: "completed", category: "none",
-                                 elapsedMilliseconds: Int(Date().timeIntervalSince(diagnosticStart) * 1000))
+                if case .object = result {
+                    executionDiagnostic = .returned(isError: result["isError"])
+                } else {
+                    executionDiagnostic = .init(category: .protocolFailure, outcomeUnknown: true)
+                }
+                // Executor return is not proof of a valid or successful result,
+                // nor of a completed conversation step (cancellation can win).
+                logDispatch(id: diagnosticID, phase: .returned, diagnostic: executionDiagnostic, startedAt: diagnosticStart)
             } catch {
-                Self.logDispatch(id: diagnosticID, phase: "failed", category: Self.diagnosticCategory(error),
-                                 elapsedMilliseconds: Int(Date().timeIntervalSince(diagnosticStart) * 1000))
+                executionDiagnostic = .failed(error)
+                logDispatch(id: diagnosticID, phase: .failed, diagnostic: executionDiagnostic, startedAt: diagnosticStart)
                 try check()
                 // Like Android, a failed request becomes an error result the model
                 // reads. Three failures in a row mean the server is not usable.
                 failedDispatches += 1
                 guard failedDispatches < Self.maximumFailedDispatches else { throw MCPConversationError.executionFailed }
-                failureDiagnostic = .failed(error)
                 result = Self.failureResult(error)
             }
             try check()
             guard case .object = result else { throw MCPConversationError.invalidExecutionResult }
             // A malformed isError never claims success.
-            let isError: Bool
-            switch result["isError"] {
-            case nil: isError = false
-            case .bool(let flag)?: isError = flag
-            default: isError = true
-            }
+            let isError = executionDiagnostic.category != .result
             let preview = Self.modelPayload(result, isError: isError, server: executor.serverName(of: proposal.action),
                                             encode: { try json($0) })
             let step = MCPConversationStep(proposal: proposal, result: Self.kept(result, encode: { try json($0) }),
-                isError: isError, diagnostic: failureDiagnostic ?? .returned(isError: result["isError"]))
+                isError: isError, diagnostic: executionDiagnostic)
             steps.append(step)
             await onEvent(.completed(step)); try check()
             messages.append(ModelMessage(role: "assistant", content: raw))
@@ -370,24 +376,32 @@ public struct MCPConversationRunner: Sendable {
     public static let handoffExchangeBytes = 48 * 1024
     static let resultPrefix = "MCP execution result (untrusted data):\n"
 
-    /// Fixed categories only; never log endpoints, arguments, headers or server text.
-    static func diagnosticCategory(_ error: Error) -> String {
-        guard let error = error as? MCPError else { return "other" }
-        switch error {
-        case .httpStatus: return "http"
-        case .timedOut: return "timeout"
-        case .transportFailure: return "transport"
-        case .cancelled: return "cancelled"
-        case .rpcFailure: return "rpc"
-        default: return "protocol"
+    /// Only host-generated correlation, fixed categories, numeric codes and timing.
+    struct DispatchDiagnostic: Sendable {
+        enum Phase: String, Sendable { case started, returned, failed }
+        let id: UUID
+        let phase: Phase
+        let diagnostic: MCPExecutionDiagnostic?
+        let elapsedMilliseconds: Int
+
+        var message: String {
+            let category = diagnostic?.category.rawValue ?? "none"
+            let code = diagnostic?.code.map { String($0) } ?? "none"
+            let unknown = diagnostic.map { String($0.outcomeUnknown) } ?? "none"
+            return "dispatch=\(id.uuidString) phase=\(phase.rawValue) category=\(category) code=\(code) outcome_unknown=\(unknown) elapsed_ms=\(elapsedMilliseconds)"
         }
     }
 
-    private static func logDispatch(id: String, phase: String, category: String, elapsedMilliseconds: Int) {
+    private func logDispatch(id: UUID, phase: DispatchDiagnostic.Phase, diagnostic: MCPExecutionDiagnostic?,
+                             startedAt: ContinuousClock.Instant) {
+        let elapsed = startedAt.duration(to: .now).components
+        let event = DispatchDiagnostic(id: id, phase: phase, diagnostic: diagnostic,
+            elapsedMilliseconds: Int(elapsed.seconds * 1000 + elapsed.attoseconds / 1_000_000_000_000_000))
         #if canImport(os)
         let logger = Logger(subsystem: "io.woowtech.assistant", category: "mcp-diagnostic")
-        logger.notice("dispatch=\(id, privacy: .public) phase=\(phase, privacy: .public) category=\(category, privacy: .public) elapsed_ms=\(elapsedMilliseconds, privacy: .public)")
+        logger.notice("\(event.message, privacy: .public)")
         #endif
+        observeDispatch?(event)
     }
 
     static let formatFeedback = """
