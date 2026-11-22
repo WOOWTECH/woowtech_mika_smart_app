@@ -715,7 +715,8 @@ private struct ChatView: View {
         }
         if !session.pendingAttachments.isEmpty {
             ChatAttachmentTray(items: session.pendingAttachments, store: session.attachmentStore,
-                               colors: attachmentColors, text: attachmentText, canRemove: !session.isSubmitting) { session.removeAttachment(id: $0) }
+                               colors: attachmentColors, text: attachmentText, canRemove: !session.isSubmitting,
+                               onOpen: openAttachment, onRemove: { session.removeAttachment(id: $0) })
         }
     }
 
@@ -871,8 +872,17 @@ private struct ChatView: View {
     }
 
     private func openAttachment(_ item: ChatAttachmentItem) {
+        guard attachmentPreview == nil else { return }
         let url = session.attachmentStore.url(for: item)
-        guard FileManager.default.fileExists(atPath: url.path) else { session.attachmentNotice = .missing; return }
+        guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
+              FileManager.default.isReadableFile(atPath: url.path) else {
+            session.attachmentNotice = .missing
+            return
+        }
+        // Imports already live in the store. Opening and closing the modal must
+        // leave the draft, pending items and stored bytes untouched.
+        voice.cancel()
+        isEditingDraft = false
         attachmentPreview = ChatAttachmentPreviewTarget(url: url)
     }
 
@@ -1532,7 +1542,12 @@ private struct ChatView: View {
             // Like Android's chat screen: reports waiting on this device are sent while the chat is shown.
             .task { await AIResponseReportService.shared.deliverDueWhileVisible() }
             .onDisappear { voice.cancel() }
-            .onChange(of: session.conversationID) { _, _ in voice.cancel() }
+            .onChange(of: session.conversationID) { _, _ in
+                voice.cancel()
+                // An explicit conversation reset owns disposal of unsent copies.
+                // Do not leave its old URL presented in the new conversation.
+                attachmentPreview = nil
+            }
             .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { voice.cancel(interrupted: true) }

@@ -62,6 +62,9 @@ LIVE_UI_CLASSES = {"LiveMCPUITests", "LiveMCPConversationUITests", "LiveModelUIT
 DOCUMENT_SCOPES = {
     "documents-chat": [
         "WoowAssistantUITests/ChatAttachmentUITests/testPlusOpensAttachPanelWithAndroidTilesAndClosesBackToKeyboard",
+        "WoowAssistantUITests/ChatAttachmentUITests/testSystemPhotoPickerCancelPreservesDraftAndAllowsFilePickerCancel",
+        "WoowAssistantUITests/ChatAttachmentUITests/testDraftFileAndPhotoPreviewPreservesDraftAndAttachments",
+        "WoowAssistantUITests/ChatAttachmentUITests/testDraftRemoveRemainsIndependentAfterPreview",
         "WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
         "WoowAssistantUITests/ChatAttachmentUITests/testPhotoReachesModelOnlyAfterSeesImagesIsOn",
         "WoowAssistantUITests/ChatAttachmentUITests/testSixEntryTranscriptAcceptsFourthTurnWithKeyboardAttachmentsAndMemory",

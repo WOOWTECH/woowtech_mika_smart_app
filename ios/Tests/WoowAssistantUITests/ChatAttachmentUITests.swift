@@ -192,6 +192,89 @@ final class ChatAttachmentUITests: XCTestCase {
         assertRecentTitle("fixture-notes.txt")
     }
 
+    /// Local PNG/TXT fixtures only. No model setup, Send, assistant response or
+    /// system picker is involved. Physical-device PDF rendering is a separate check.
+    func testDraftFileAndPhotoPreviewPreservesDraftAndAttachments() {
+        launch(attachments: true)
+        addFixtureAttachments()
+        let draft = chatDraftControl(in: app)
+        let words = "Keep this unsent draft"
+        write(words, field: draft, scroll: false)
+        let status = app.staticTexts["chat.status"].firstMatch.label
+
+        // Start with the keyboard up, then reopen the file after viewing the photo.
+        // Reopening also catches accidental cleanup when the first sheet dismissed.
+        for (index, name) in [(1, "fixture-notes.txt"), (0, "fixture-photo.png"), (1, "fixture-notes.txt")] {
+            let open = app.buttons["chat.attach.open.\(index)"].firstMatch
+            XCTAssertEqual(open.label, name)
+            tap("chat.attach.open.\(index)")
+            let preview = identifiedText("chat.attach.preview")
+            XCTAssertTrue(preview.waitForExistence(timeout: 10), "The real Quick Look controller must appear")
+            if index == 1 {
+                let note = "fixture note: 茶 hello"
+                let rendered = app.descendants(matching: .any).matching(NSPredicate(
+                    format: "label CONTAINS %@ OR value CONTAINS %@", note, note)).firstMatch
+                XCTAssertTrue(rendered.waitForExistence(timeout: 10), "Quick Look must render the stored note's bytes")
+            }
+            tap("chat.attach.preview.close")
+            let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: preview)
+            XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 10), .completed)
+
+            XCTAssertEqual(draft.value as? String, words)
+            for (slot, expected) in [(0, "fixture-photo.png"), (1, "fixture-notes.txt")] {
+                let retained = app.buttons["chat.attach.open.\(slot)"].firstMatch
+                ready(retained)
+                XCTAssertEqual(retained.label, expected)
+                let remove = app.buttons["chat.attach.remove.\(slot)"].firstMatch
+                ready(remove)
+                XCTAssertEqual(remove.label, "去掉" + expected)
+            }
+            XCTAssertFalse(identifiedText("chat.attach.item.2").exists, "Preview must not reimport the file")
+            XCTAssertFalse(identifiedText("chat.message.0.attachments").exists)
+            XCTAssertFalse(identifiedText("chat.message.0.user").exists)
+            XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
+            XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
+            XCTAssertFalse(identifiedText("chat.attach.notice").exists)
+            XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
+            XCTAssertEqual(app.staticTexts["chat.status"].firstMatch.label, status)
+        }
+    }
+
+    func testDraftRemoveRemainsIndependentAfterPreview() {
+        launch(attachments: true)
+        addFixtureAttachments()
+        tap("chat.attach.open.0")
+        XCTAssertTrue(identifiedText("chat.attach.preview").waitForExistence(timeout: 10))
+        tap("chat.attach.preview.close")
+        let previewGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                    object: identifiedText("chat.attach.preview"))
+        XCTAssertEqual(XCTWaiter.wait(for: [previewGone], timeout: 10), .completed)
+
+        tap("chat.attach.remove.0")
+        let reindexed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND label == %@", "fixture-notes.txt"),
+            object: app.buttons["chat.attach.open.0"].firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [reindexed], timeout: 10), .completed)
+        XCTAssertFalse(identifiedText("chat.attach.item.1").exists)
+        XCTAssertFalse(identifiedText("chat.attach.preview").exists, "Remove must not activate the sibling preview")
+        XCTAssertEqual(app.buttons["chat.attach.remove.0"].firstMatch.label, "去掉fixture-notes.txt")
+
+        // The remaining file still opens after its tray index changes.
+        tap("chat.attach.open.0")
+        XCTAssertTrue(identifiedText("chat.attach.preview").waitForExistence(timeout: 10))
+        tap("chat.attach.preview.close")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: identifiedText("chat.attach.preview"))], timeout: 10), .completed)
+        tap("chat.attach.remove.0")
+        let trayGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                object: identifiedText("chat.attach.tray"))
+        XCTAssertEqual(XCTWaiter.wait(for: [trayGone], timeout: 10), .completed)
+        XCTAssertFalse(identifiedText("chat.attach.preview").exists)
+        XCTAssertFalse(identifiedText("chat.message.0.attachments").exists)
+        XCTAssertFalse(identifiedText("chat.message.0.user").exists)
+        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
+    }
+
     func testPhotoReachesModelOnlyAfterSeesImagesIsOn() {
         launch(attachments: true); configure()
         addFixtureAttachments()
