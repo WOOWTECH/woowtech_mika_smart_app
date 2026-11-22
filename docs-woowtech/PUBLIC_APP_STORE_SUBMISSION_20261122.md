@@ -53,6 +53,7 @@
 - 政策`https://assistant-relay.woowtech.io/privacy/ios`與App連結一致，先前單次公開GET200、46,455 bytes、SHA256 `8b248286fcd50d2e0cca42c82cbe96cf1dae8f74efc75228301536a1a551ecc4`。政策描述檢舉最長30天及雜湊IP防濫用；本工作樹未找到對應後端部署，未驗伺服器刪除。
 - 現有年齡問卷unrestrictedWebAccess=true、override18+／舊17+；本批未降級或改答案。未找到App自有帳號註冊、StoreKit或廣告追蹤SDK；不由此推論所有外部服務都不收集資料。
 - 原zh-Hant有iPad13吋2064×2752、iPhone大型1320×2868、中型1206×2622，各五張delivery COMPLETE。已實際下載及親看iPad／大型iPhone各首張，都是11月15日前後舊UI；iPad仍呈舊左右背景差異，不能說是274最新視覺驗收。其餘13張本批未逐張檢視；舊圖應在最終送審前核內容及刷新，保留至有合格替代品。
+- 2026-11-22T16:06Z再查本機實體裝置，只有第9代iPad available／paired，沒有13吋實機；僅讀清單，未啟動裝置服務、安裝或操作原資料。Apple現行13吋必填尺寸為2064×2752或2048×2732（及其橫向）；不能將第9代原圖放大當原生13吋圖。既有13吋舊圖不是缺檔，缺的是更新後內容；需可用13吋Simulator取得新版真畫面，或13吋裝置。沒有機械重跑先前失敗的Simulator批次。
 - 先前Simulator素材Release build135.93秒PASS；截圖批303.12秒FAIL／暖啟106秒FAIL均保留；只刪自有兩個新建Shutdown空裝置，原container恢復。本批沒有重跑舊成功建置或冒充新實機結果。
 
 新原生圖只含產品固定範例與自有未送19字草稿，無私人對話、帳密或工具資料；原唯一操作者已清草稿、回原A31，原資料保留依其收據。原1178寬WDA候選不符合列出尺寸，仍未上傳或修圖。
@@ -61,7 +62,7 @@
 
 `T=/Users/woowtech/Documents/WOOWTECH-iOS-validation/documents-20261120/testflight-20261122`，本批私密收據在`T/public-app-store-20261122/`，目錄0700、檔案0600。沒有儲存Apple臨時上傳URL／header能力或審查憑證。
 
-主要收據：`version-alignment-mutation-receipt.json`、`selected-build274-readback.json`、兩語系`public-metadata-*-mutation.json`、`native-library-upload-receipt.json`、`native-placement-receipt.json`、`native-placement-ordering-receipt.json`、`placement-preflight-readonly.json`、`original-rejection-messages-sanitized.json`、`review-service-descriptive-client-control-safe.json`、`authenticated-privacy-safe.json`、`current-age-rating.json`及`public-support-link-safe.json`。
+主要收據：`version-alignment-mutation-receipt.json`、`selected-build274-readback.json`、兩語系`public-metadata-*-mutation.json`、`native-library-upload-receipt.json`、`native-placement-receipt.json`、`native-placement-ordering-receipt.json`、`placement-preflight-readonly.json`、`original-rejection-messages-sanitized.json`、`review-service-descriptive-client-control-safe.json`、`authenticated-privacy-safe.json`、`current-age-rating.json`、`public-support-link-safe.json`及`ipad-13inch-asset-availability-safe.json`。
 
 完成產品事實及可用審查服務後，補全九題回覆與操作路線、核實隱私／素材及關鍵未通過項，再依既有授權提交並讀回真狀態；核准後手動發佈並核公開頁。原A31高CPU、兩筆MCP錯誤、間歇15秒source逾時、Android同步及文件接收端等[商用缺口](ACCEPTANCE_GAPS_20261122.md)仍未關閉。文件草稿、Apple素材處理及單元／fixture PASS都不代表完整商用驗收。
 
