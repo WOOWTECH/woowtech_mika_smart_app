@@ -138,6 +138,76 @@ enum ModelHTTPFailureDiagnosticChecks {
         try expect(held.requests == 1, "cancellation never resends")
     }
 
+    /// Regression: the 100 ms request deadline expires during the 500 ms diagnostic read.
+    /// Headers already prove rejection; diagnostic latency must not turn it into a timeout.
+    static func deadlinePreserves429(streamed: Bool) async throws {
+        let fixture = OfflineModelFailureProtocol.Fixture(holdAfterHeaders: true)
+        let (session, config) = fixture.sessionAndConfiguration()
+        defer { session.invalidateAndCancel(); fixture.remove() }
+        let records = OfflineModelFailureRecords()
+        let client = HTTPChatModelClient(session: session, timeoutNanoseconds: 100_000_000,
+                                        observeHTTPFailure: { records.add($0) })
+        let start = ContinuousClock.now
+        let error = await failure(client, config: config, streamed: streamed)
+        try expect(records.values.first?.status == 429, "regression fixture delivered immediate HTTP 429 headers")
+        try expect(error as? HTTPChatModelError == .httpStatus(429), "100ms deadline must preserve known HTTP 429")
+        try expect(start.duration(to: .now) < .seconds(1), "known rejection does not extend deadline")
+        try expect(fixture.requests == 1, "100ms deadline rejection never resends")
+    }
+
+    static func deadlineAndCancellationScope() async throws {
+        for streamed in [false, true] {
+            // Neither missing headers nor a stalled success may be reclassified as HTTP 429.
+            for beforeHeaders in [false, true] {
+                let fixture = OfflineModelFailureProtocol.Fixture(status: 200, holdAfterHeaders: true,
+                                                                  holdBeforeHeaders: beforeHeaders)
+                let (session, config) = fixture.sessionAndConfiguration()
+                defer { session.invalidateAndCancel(); fixture.remove() }
+                let records = OfflineModelFailureRecords()
+                let client = HTTPChatModelClient(session: session, timeoutNanoseconds: 100_000_000,
+                                                observeHTTPFailure: { records.add($0) })
+                let error = await failure(client, config: config, streamed: streamed)
+                try expect(error as? HTTPChatModelError == .timedOut, "unrelated deadlines retain timedOut")
+                try expect(records.values.isEmpty && fixture.requests == 1, "no invented status or resend")
+            }
+            let fixture = OfflineModelFailureProtocol.Fixture(holdAfterHeaders: true)
+            let (session, config) = fixture.sessionAndConfiguration()
+            defer { session.invalidateAndCancel(); fixture.remove() }
+            let records = OfflineModelFailureRecords()
+            let client = HTTPChatModelClient(session: session, timeoutNanoseconds: 2_000_000_000,
+                                            observeHTTPFailure: { records.add($0) })
+            let task = Task { () -> Error in
+                do {
+                    if streamed {
+                        for try await _ in client.stream(messages: input, configuration: config, apiKey: marker,
+                            onDispatch: {}, onProducerFinished: { records.finished() }) {}
+                    } else {
+                        _ = try await client.complete(messages: input, configuration: config, apiKey: marker)
+                    }
+                    // AsyncThrowingStream may end normally when its consuming task is cancelled.
+                    try Task.checkCancellation()
+                    return Failure(name: "expected caller cancellation")
+                } catch { return error }
+            }
+            for _ in 0..<100 {
+                if !records.values.isEmpty { break }
+                try await Task.sleep(nanoseconds: 5_000_000)
+            }
+            task.cancel()
+            let cancelled = await task.value
+            try expect(records.values.first?.status == 429, "caller cancelled during known-429 inspection")
+            try expect(cancelled is CancellationError, "caller cancellation takes precedence over latched 429")
+            if streamed {
+                for _ in 0..<100 {
+                    if records.producerFinished { break }
+                    try await Task.sleep(nanoseconds: 5_000_000)
+                }
+                try expect(records.producerFinished, "cancelled stream producer settles")
+            }
+            try expect(fixture.requests == 1, "caller cancellation never resends")
+        }
+    }
+
     static func accountSemantics() async throws {
         for kind in [ModelAccountKind.chatGPT, .xai] {
             for streamed in [false, true] {
@@ -194,7 +264,10 @@ enum ModelHTTPFailureDiagnosticChecks {
 private final class OfflineModelFailureRecords: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: [ModelHTTPFailureDiagnostic] = []
+    private var settled = false
     func add(_ value: ModelHTTPFailureDiagnostic) { lock.lock(); defer { lock.unlock() }; stored.append(value) }
+    func finished() { lock.lock(); defer { lock.unlock() }; settled = true }
+    var producerFinished: Bool { lock.lock(); defer { lock.unlock() }; return settled }
     var values: [ModelHTTPFailureDiagnostic] { lock.lock(); defer { lock.unlock() }; return stored }
 }
 
@@ -212,13 +285,16 @@ private final class OfflineModelFailureProtocol: URLProtocol {
         let status: Int
         let body: Data
         let holdAfterHeaders: Bool
+        let holdBeforeHeaders: Bool
         let failure: URLError?
         private let lock = NSLock()
         private var count = 0
         var requests: Int { lock.lock(); defer { lock.unlock() }; return count }
         func seen() { lock.lock(); defer { lock.unlock() }; count += 1 }
-        init(status: Int = 429, body: Data = Data(), holdAfterHeaders: Bool = false, failure: URLError? = nil) {
+        init(status: Int = 429, body: Data = Data(), holdAfterHeaders: Bool = false,
+             holdBeforeHeaders: Bool = false, failure: URLError? = nil) {
             self.status = status; self.body = body; self.holdAfterHeaders = holdAfterHeaders; self.failure = failure
+            self.holdBeforeHeaders = holdBeforeHeaders
         }
         func sessionAndConfiguration() -> (URLSession, ModelConfiguration) {
             OfflineModelFailureProtocol.registry.lock.lock(); OfflineModelFailureProtocol.registry.fixtures[id + ".invalid"] = self; OfflineModelFailureProtocol.registry.lock.unlock()
@@ -245,6 +321,7 @@ private final class OfflineModelFailureProtocol: URLProtocol {
         }
         fixture.seen()
         if let failure = fixture.failure { client?.urlProtocol(self, didFailWithError: failure); return }
+        if fixture.holdBeforeHeaders { return }
         let response = HTTPURLResponse(url: url, statusCode: fixture.status, httpVersion: "HTTP/1.1",
                                        headerFields: ["Content-Type": "application/json", "Retry-After": "7"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -259,6 +336,21 @@ private final class OfflineModelFailureProtocol: URLProtocol {
 @main enum ModelHTTPFailureHarness {
     static func main() async {
         do {
+            var regressions = 0
+            for streamed in [false, true] {
+                do {
+                    try await ModelHTTPFailureDiagnosticChecks.deadlinePreserves429(streamed: streamed)
+                    print("OFFLINE PASS: 100ms known-429 deadline, streamed=\(streamed)")
+                } catch let error as ModelHTTPFailureDiagnosticChecks.Failure {
+                    print("OFFLINE FAIL: 100ms known-429 deadline, streamed=\(streamed): \(error.name)")
+                    regressions += 1
+                }
+            }
+            guard regressions == 0 else {
+                throw ModelHTTPFailureDiagnosticChecks.Failure(name: "known-429 deadline regressions")
+            }
+            try await ModelHTTPFailureDiagnosticChecks.deadlineAndCancellationScope()
+            print("OFFLINE PASS: unrelated deadlines and caller cancellation retain semantics")
             try ModelHTTPFailureDiagnosticChecks.classification()
             print("OFFLINE PASS: closed classification, redaction, Retry-After")
             try await ModelHTTPFailureDiagnosticChecks.transport()

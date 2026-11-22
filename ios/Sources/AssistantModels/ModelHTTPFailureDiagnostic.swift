@@ -111,6 +111,22 @@ struct ModelHTTPFailureDiagnostic: Equatable, Sendable {
     }
 }
 
+/// One request's deadline decision, shared only with its diagnostic reader. HTTP 429 is
+/// terminal here (never a streaming fallback), so keep it latched through the handoff
+/// from inspection to validation. A new bounded request always gets a fresh instance.
+/// Caller cancellation still wins via Task.checkCancellation and existing sanitization.
+/// Other errors/deadlines are never remapped; this stores no response or provider data.
+final class ModelHTTPDiagnosticDeadline: @unchecked Sendable {
+    private let lock = NSLock()
+    private var known429 = false
+
+    func record429() { lock.lock(); defer { lock.unlock() }; known429 = true }
+    var errorAtDeadline: HTTPChatModelError {
+        lock.lock(); defer { lock.unlock() }
+        return known429 ? .httpStatus(429) : .timedOut
+    }
+}
+
 /// Chat/completions formerly discarded every 429 body immediately. Read only a short,
 /// complete body with a separate 500 ms budget; diagnostics must not turn rejection into
 /// a ten-minute wait. On failure retain the HTTP status; cancellation still propagates.

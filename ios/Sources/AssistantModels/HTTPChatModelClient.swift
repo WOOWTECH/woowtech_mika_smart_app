@@ -46,12 +46,12 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         let meter = ModelUsageMeter(sink: usageSink, configuration: configuration)
         do {
             let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: false)
-            let reply: Reply = try await bounded {
+            let reply: Reply = try await bounded { diagnosticDeadline in
                 try Task.checkCancellation()
                 meter.dispatching()
                 let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects(onDispatch: onDispatch))
                 defer { bytes.task.cancel() }
-                try await diagnoseHTTPFailure(response, bytes: bytes)
+                try await diagnoseHTTPFailure(response, bytes: bytes, deadline: diagnosticDeadline)
                 try Self.validate(response, stream: false)
                 return try await withTaskCancellationHandler {
                     var data = Data()
@@ -96,7 +96,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                     let includeUsage = !Self.declinedUsageOptions.contains(option)
                     let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey,
                                                    stream: true, includeUsage: includeUsage)
-                    let usage: ModelTokenUsage? = try await bounded {
+                    let usage: ModelTokenUsage? = try await bounded { diagnosticDeadline in
                         try Task.checkCancellation()
                         meter.dispatching()
                         let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects(onDispatch: onDispatch))
@@ -104,7 +104,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                         // A response proves this request has started even when
                         // URLSession omitted the body-progress delegate callback.
                         onDispatch()
-                        try await diagnoseHTTPFailure(response, bytes: bytes)
+                        try await diagnoseHTTPFailure(response, bytes: bytes, deadline: diagnosticDeadline)
                         if let http = response as? HTTPURLResponse {
                             if (200..<300).contains(http.statusCode), http.mimeType?.lowercased() == "application/json" {
                                 // A complete-only endpoint ignored stream=true. Use its
@@ -190,12 +190,14 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         }
     }
 
-    private func bounded<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T {
-        try await withThrowingTaskGroup(of: T.self) { group in
-            group.addTask(operation: operation)
+    private func bounded<T: Sendable>(_ operation: @escaping @Sendable (ModelHTTPDiagnosticDeadline) async throws -> T) async throws -> T {
+        let diagnosticDeadline = ModelHTTPDiagnosticDeadline()
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation(diagnosticDeadline) }
             group.addTask {
                 try await Task.sleep(nanoseconds: timeoutNanoseconds)
-                throw HTTPChatModelError.timedOut
+                try Task.checkCancellation()
+                throw diagnosticDeadline.errorAtDeadline
             }
             defer { group.cancelAll() }
             guard let result = try await group.next() else { throw CancellationError() }
@@ -238,9 +240,11 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         return request
     }
 
-    private func diagnoseHTTPFailure(_ response: URLResponse, bytes: URLSession.AsyncBytes) async throws {
+    private func diagnoseHTTPFailure(_ response: URLResponse, bytes: URLSession.AsyncBytes,
+                                     deadline: ModelHTTPDiagnosticDeadline) async throws {
         guard let http = response as? HTTPURLResponse,
               let diagnostic = ModelHTTPFailureDiagnostic(response: http) else { return }
+        if http.statusCode == 429 { deadline.record429() }
         // Publish headers first, so a stalled/truncated body cannot erase the actual status.
         observeHTTPFailure(diagnostic)
         if http.statusCode == 429 {
