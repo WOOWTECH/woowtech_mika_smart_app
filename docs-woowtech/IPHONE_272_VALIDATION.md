@@ -50,3 +50,20 @@ Mendel獨立取得60個filesystem GET均200、無截斷，共91257 bytes，59/96
 「非帳號API類型」僅依272 providerLine固定文案的來源映射推論；列表未直接提供更細來源型別或憑證設定，strict credential布林保留null。**清單「已連線」是固定文字，不能當有效金鑰或服務可用性。** source審查亦確認keyStatus在metadata查詢失敗時可能fallback已儲存；本次沒有為此讀secret、匯出providers.json或完整設定AX／截圖。
 
 本機`T/multi-provider-readiness-path/`另有實際來源路徑／副作用審查：App使用全域roles.main、無per-conversation override；部分picker會隱含發固定probe、切換會持久化consent／revision。這是只讀來源分析，未切換實機或新增診斷入口。只有一個既有供應商，沒有可直接使用的既有替代項；不將單一模型限流推成全供應商故障。完成真服務驗收仍需App內可用的模型／已授權替代帳號，憑證不貼入報告。
+
+## 17:21原A31再測：159筆連續CPU樣本，仍無正常回答
+
+後續獨立批次 `A31-service272-20261122-1710`，同一272／來源`21a884b8`，不替換上述15:08紀錄。App內只有既有已選模型；「重新測試」按鈕在既有已驗證狀態不提供，前置檢查沒有發probe。之後依原授權直接在原A31送出一次相同36字唯讀訂單問題，沒有更換模型、重送或業務寫入。
+
+| 觀察 | 實際結果 |
+| --- | --- |
+| UI時序（台北） | 17:21:54.961989送出意圖；57.105279首次觀察已接受；59.988209首次觀察限流終態。意圖至終態5.026220秒，同程序monotonic為5.026209667秒；不是上游精確延遲 |
+| 模型／MCP | 實送1、正常0、重試0，仍顯示模型請求太頻繁。raw HTTP status未知；無訂單最終回覆／資料來源，MCP counter為null。空syslog且無控制事件，不能推論服務端零請求 |
+| CPU | 原始160行，剔除首行warmup null後159筆有效，PID3358每筆存在；最高58.426470739%，0筆≥90%。送出前45、意圖至終態10、終態後含收鍵盤104筆，最大接收間隔0.725691秒 |
+| 互動 | Done實際收鍵盤成功，未觀察持續100%或無回應；沒有取得busy-loop stack。快速限流仍未覆蓋成功模型／長串流／MCP路徑，原卡死根因未證修復 |
+| 原資料 | 原20則逐項顯示hash等於最終22則前綴；新增user／錯誤終態保留，草稿清空。兩筆記憶ID／顯示hash、原4270-byte PNG及兩個UserProfile收據一致 |
+| Learning界線 | 檔案20772→20787 bytes；escaped slash308→323只解釋+15外層長度。sealed ciphertext也改變，沒有解密或證明plaintext相同，不能宣稱只是編碼重寫 |
+
+Parent獨立取得3份主報告及17份選定證據，20個GET均200，所選檔案大小／SHA與manifest一致；重算CPU、ISO時間窗與原20prefix，見 `T/iphone-272-A31-service-evidence/parent-independent-verification.json`。操作者跨程序monotonic的freshness guard不採用，Parent以ISO接收時間與原始CPU連續性另核，沒有為修正分析再送一次。
+
+report／result／manifest SHA256依序為 `d9b81f2fa8c31c999f93580c59545149dab72915d3dbf29784a2473ab593a64c`、`a80b176900f46984610f1f1f32b8e67de2c1ebd27f90d96c7105461af88680bf`、`c40b2ac88e16d6c12dadaf28241bae2279451b87080d33b86eef498557d8cb64`。這是第二個獨立失敗終態，不增加正常完成輪次；服務條件改變前不再送模型請求。

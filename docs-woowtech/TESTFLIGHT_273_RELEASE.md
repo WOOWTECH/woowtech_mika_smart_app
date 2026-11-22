@@ -48,3 +48,11 @@
 另外，272限定盤點6個明確QA對話／12個可用assistant觀察，最長182字、單行、無表格標記，沒有匯出。96是觀測到的不同UI row hash數，不是完整archive稽核；業務尾段排除，原始未封存page3 snapshot被後續resume取代的界線亦保留。CSV／長篇PDF正向因此仍未測，報告及manifest位於 `T/iphone-272-csv-readiness/evidence/`，不可用這次盤點冒充CSV產檔。
 
 Apple官方管理分頁登入已過期，既有帳號登入流程目前需要擁有者在官方頁輸入密碼／必要2FA；不讀取、猜測或要求聊天提供憑證。另一次官方altool唯讀build-status因缺明示認證回error30，不能以此當processing失敗。Xcode既有distribution登入已完成真Validation／Upload，兩種登入狀態分開記錄。等待管理頁恢復期間，另安排**272**現有同provider一次有界可用性確認，結果須獨立綁272，不回填273。
+
+## 17:57後續可見性檢查
+
+上傳完成逾一小時後，唯一原操作者正常進入版本群組一次，**17:57:56+08:00仍只見272／271／270**，沒有273；未刷新、未安裝或重簽。Parent另親看 `T/resume-20261122/testflight273-visibility-recheck-20261122/06-build-list.png`，SHA256 `3321e0c4051a700ed3a3eda14df687060120c50576d1afa1db9057aaa1f6ad88`。17:58:32裝機仍272／TestFlight簽章；273來源與UUID未在手機驗證，字級／鍵盤／PDF回歸仍未測。
+
+此時A31為22則，源自[17:21原A31失敗終態](IPHONE_272_VALIDATION.md)；本輪前後22項hash一致、空草稿，原兩vault、PNG及UserProfile收據一致。沒有模型／MCP新請求。四個自然程序的20次WDA呼叫／140事件留存，不額外產生探測請求；本批沒有重現15秒逾時，仍不能證USB／App根因。
+
+本輪report／result／manifest SHA256依序為 `2b52adf6e1271dc65cfd8729aad407a6d611e50358be5a797ce96f34c01ce891`、`94a892221b7938465f9c816f32169885017d9a8bb0cce678c84da233b8bdd6df`、`7886c035d0bda1b369d0c0092b09576d5823a669e9f65e398105bded569abb5a`。Parent取回主報告、選定原始JSON／PNG／timing並核manifest；詳細範圍與重算見同目錄的Parent收據。Apple處理／合規／群組／帳號哪一階段尚未有官方證據，不猜原因、不重上傳同一包；官方管理頁登入仍待擁有者完成。
