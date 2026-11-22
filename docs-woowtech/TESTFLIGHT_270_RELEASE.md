@@ -23,7 +23,7 @@
 
 ## Apple 狀態
 
-**正式上傳成功；使用者明確授權後已完成出口合規申報，並將 270 加入既有內部群組。Apple 已回傳 `IN_BETA_TESTING`，可供該群組下載 0.1.0 (270)。原 iPhone 是否已安裝仍未確認。**
+**270 已開放內部測試，並於 11/22 在原 iPhone 透過 TestFlight 原地更新及部分實測。已核裝機 0.1.0 (270) 與 `TestFlight Beta Distribution`；回尾按鈕遮字及模型限流阻擋 MCP 等缺口仍在，未完成商用驗收。**
 
 - 線上 Validate：2026-11-22 07:39:35–07:41:10（台北），exit 0。`IDEDistributionMethodiOSAppStoreValidation` 與成功 marker 均已確認。最初 CLI 將 validation 的 destination 設成 export 而在啟動前 exit 70；改為 Xcode 要求的 upload destination 後，執行的是 Validate 方法，非正式發佈。
 - 正式 upload：07:41:22–07:43:01（台北），exit 0，`UPLOAD SUCCEEDED with no errors`。Apple `buildUploads` id `bc04b9de-6ff3-474e-9b1d-bb61ed8995f5` 從 AWAITING_UPLOAD 變為 PROCESSING；`uploadedDate` 為 `2026-11-21T15:43:00-08:00`，即台北 11/22 07:43:00。遠端 errors／warnings 均為空。
@@ -51,12 +51,26 @@
 - 證據：T/`web-status/export-submit-receipt.json`、`post-declaration-build.json`、`270-existing-group-association-click.json`、`270-assigned-status.json`、`verified-ready-state.json`。最新彙整為 T/`release-status.json`；原申報前觀察檔仍保留。
 - 後續來源設定在 Debug／Release 的 Info.plist 加入布林值 `ITSAppUsesNonExemptEncryption=false`。`plutil` 與逐鍵比對確認格式有效且只增加該欄位；這不是新一輪 archive 或實機測試。此設定不在已封存的 270 內；270 使用本次遠端申報。日後若新增自製或第三方加密能力，須重新審查該設定。
 
-iPhone 操作：開啟 TestFlight →「渥屋助理」→ 安裝／更新，核對已安裝版本為 **0.1.0 (270)**。若先顯示舊的 1.0.0，從「先前的建置版本」選 0.1.0 的 270。本機目前未連到原 iPhone，無法讀取其已安裝版本；不要刪除原 App 或對話來更新。
+iPhone 操作：開啟 TestFlight →「渥屋助理」→ 安裝／更新，核對已安裝版本為 **0.1.0 (270)**。若先顯示舊的 1.0.0，從「先前的建置版本」選 0.1.0 的 270。08:06 時本機未連到原 iPhone；後續由另一台 Mac 的既有 iPhone 分支完成，見下節。不要刪除原 App 或對話來更新。
+
+## 原 iPhone 實裝與部分驗證（2026-11-22 09:32–10:08，台北）
+
+10:11 透過 Omnigent 原有登入權限唯讀核對 [iPhone 分支](https://omnigent.woowtech.io/c/3f02db4920244c69bcb403ece7494237)，包含實際工具輸出，非僅沿用助理的完成聲明。該分支在 `/Users/elmolin` 操作同一支 iPhone16,1／iOS26.5；本機未同時啟動另一個手機控制器。查詢時分支為 idle，host／runner 均 online。
+
+- 09:32 已配對無線開發通道及 WDA ready；USB 問題並未因此證明修復。09:45 裝機查詢為 `io.woowtech.assistant`、0.1.0、270；09:55 再核 `SignerIdentity=TestFlight Beta Distribution`，並有 TestFlight 指定270／打開及首次啟動畫面。這是實際 TestFlight 更新證據，來源仍綁定本報告的7026c468；未將249／250／251結果套用。
+- 原地更新後、送出測試前，conversations 與 learning vault 的 SHA-256 皆與更新前一致。後續原 A31、真圖片與兩個記憶項目仍可讀，記憶ID／文字比對相同；原圖片清理前後雜湊相同。之後正常保存可能改變加密檔案bytes，未宣稱整輪測試前後所有vault不變。
+- 原 A31（送出前16則訊息）中文輸入、鍵盤開啟、唯讀訂單查詢送出一次後仍可操作。CPU採樣為13.25%、22.19%、2.65%（包含UI操作），本輪未重現持續100%；最終仍是模型「請求太頻繁」，沒有MCP最終結果，不能認定原卡死根因已修。
+- `chat.returnToLatest` 仍遮住最後的錯誤文字，原生元素座標及 `45-270-original-after-send.jpg` 有證據。取回與270相容的84行候選patch，SHA-256 `da2c035179637e66a554227c5ad9eb4fa808b8dc4f0b82437a47e2bcf7834b9b`；保留80則顯示分頁與新版navigateTranscript路徑。該候選尚未套入本分支、建置或裝機，語法／隔離套用通過不是修復驗收。
+- 使用既有真實中文回答完成短篇PDF／HTML產生、App預覽、實際存入「我的iPhone」及系統閱讀器重新開啟；取消操作未誤報完成。HTML重開初次導航失敗及自動化逾時保留，後續在檔案清單選正確項目才成功。不是長篇跨頁PDF、CSV正向或外部分享接收端驗收。
+- 真正terminate／launch後，既有瀏覽歷史與搜尋引擎保留；未新增搜尋，因此不是新增歷史寫入時序問題的回歸。270僅有清除全部歷史，沒有單筆QA清理入口，本輪保留原歷史。
+- 5個本輪QA文件副本／暫存檔逐一比對雜湊後刪除並驗不存在；沒有刪原對話、圖片或記憶。249上的手動記憶新增／修改／重啟測試另屬249證據，不當作270全流程通過。
+
+本機證據：T/`iphone270-validation-summary.json`、`iphone270-verified-tool-excerpts.private.json`、`iphone-check-270-evidence-20261122.private.json`、`270-return-row-candidate-export.patch`。私密完整紀錄不進儲存庫。T/`release-status.json` 已更新為270實機部分測試；先前未實裝狀態保留於 `release-status-before-iphone270-validation.json`。
 
 ## 實機範圍與尚未驗收
 
-269 iPad 與原生回歸見 [IPAD_269_TEAM_VALIDATION.md](IPAD_269_TEAM_VALIDATION.md)。270 的 TestFlight 實際下載／安裝／啟動尚未測試。原 iPhone A31 同歷史同附件、真 Apporo 兩筆錯誤、偶發長延遲、Android 同步視覺對照及完整外部檔案接收端仍待驗收。
+269 iPad 與原生回歸見 [IPAD_269_TEAM_VALIDATION.md](IPAD_269_TEAM_VALIDATION.md)。270 的 TestFlight下載／安裝／啟動及上節限定情境已在原iPhone驗證。原 A31 根因與穩定回歸、真 Apporo 兩筆錯誤／最終MCP、遮字修補、多供應商／斷線逾時、偶發長延遲、CSV正向／多頁PDF、大檔與相機相簿、瀏覽器登入跳轉下載、Android同步視覺對照及完整外部檔案接收端仍待驗收。
 
 保留原對話與附件。分支仍要求附件重新加入；沒有為測試修改此既定行為。沒有刪除手機資料或重開手機測試服務。本次只停止授權的兩個本機測試容器，建置結束均已恢復。
 
-TestFlight 下載後優先核版本 270，保留原 A31 對話，重測開啟→中文輸入→送出→可操作→唯讀 MCP 最終結果與來源；再測鍵盤、附件及 PDF／HTML／CSV。未知結果的業務寫入不可盲目重送。
+接續優先整合遮字候選並在新版本回歸；保持原A31及附件，完成開啟→中文輸入→送出→可操作→唯讀MCP最終結果與來源。模型限流未解除前不把錯誤回覆當MCP通過；未知結果的業務寫入不可盲目重送。
