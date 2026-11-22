@@ -907,11 +907,19 @@ private struct ChatView: View {
     /// The latest messages that render outside the lazy list (three turns).
     private static let eagerRecentEntries = 6
 
+    private var layoutDiagnosticFields: [ChatLayoutDiagnostics.Field: ChatLayoutDiagnostics.Value] {
+        [.entries: .count(UInt64(session.entries.count)), .revision: .count(session.transcriptContentRevision),
+         .submitting: .flag(session.isSubmitting), .preview: .flag(session.replyPreview != nil),
+         .following: .flag(scrollFollowBox.policy.followsTail)]
+    }
+
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
         let rows = Array(session.entries.enumerated())
         let lazyEnd = max(0, rows.count - Self.eagerRecentEntries)
+        ChatLayoutDiagnostics.shared.record(.transcriptLayout, fields: layoutDiagnosticFields.merging(
+            [.lazyEnd: .count(UInt64(lazyEnd)), .viewportHeight: .number(viewportHeight)]) { _, new in new })
         return VStack(alignment: .leading, spacing: 16) {
             // The welcome stays out of the lazy list: inside a LazyVStack it hung the
             // main thread on iPhone SE (iOS 18.5 CI) when an example shrank the input
@@ -1011,9 +1019,14 @@ private struct ChatView: View {
             // An empty conversation is a browsable list, not a transcript
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
+            ChatLayoutDiagnostics.shared.record(.transcriptPosition, fields: layoutDiagnosticFields.merging(
+                [.contentHeight: .number(position.contentHeight), .bottomY: .number(position.bottomY),
+                 .viewportHeight: .number(position.viewportHeight)]) { _, new in new })
             let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
             if updateFollow({ $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }) {
+                ChatLayoutDiagnostics.shared.record(.scrollGeometryBegin, fields: layoutDiagnosticFields)
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                ChatLayoutDiagnostics.shared.record(.scrollGeometryEnd, fields: layoutDiagnosticFields)
             }
             scheduleScrollSettle()
         }
@@ -1021,17 +1034,24 @@ private struct ChatView: View {
             cancelScrollSettle()
             updateFollow { $0.conversationChanged() }
             if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
+                ChatLayoutDiagnostics.shared.record(.scrollConversationBegin, fields: layoutDiagnosticFields)
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                ChatLayoutDiagnostics.shared.record(.scrollConversationEnd, fields: layoutDiagnosticFields)
             }
         }
         .onChange(of: session.isSubmitting) { _, submitting in
+            ChatLayoutDiagnostics.shared.record(.submittingChanged, fields: layoutDiagnosticFields)
             guard submitting else { return }
             cancelScrollSettle()
             updateFollow { $0.userSubmitted() }
+            ChatLayoutDiagnostics.shared.record(.scrollSubmittingBegin, fields: layoutDiagnosticFields)
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            ChatLayoutDiagnostics.shared.record(.scrollSubmittingEnd, fields: layoutDiagnosticFields)
         }
         .onChange(of: scrollToTailRequest) { _, _ in
+            ChatLayoutDiagnostics.shared.record(.scrollRequestBegin, fields: layoutDiagnosticFields)
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            ChatLayoutDiagnostics.shared.record(.scrollRequestEnd, fields: layoutDiagnosticFields)
         }
         .overlay(alignment: .bottomTrailing) {
             if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
@@ -1184,10 +1204,19 @@ private struct ChatView: View {
                 .accessibilityIdentifier("chat.cancel")
             }
             Button {
+                ChatLayoutDiagnostics.shared.beginSend(fields: layoutDiagnosticFields.merging(
+                    [.editing: .flag(isEditingDraft), .panel: .flag(showsAttachPanel),
+                     .docked: .flag(keyboardDock.frameInWindow != nil),
+                     .keyboardTop: .number(Double(keyboardDock.frameInWindow?.minY ?? 0)),
+                     .keyboardHeight: .number(Double(keyboardDock.frameInWindow?.height ?? 0))]) { _, new in new })
                 voice.cancel()
+                ChatLayoutDiagnostics.shared.record(.dismissKeyboardBegin)
                 isEditingDraft = false
                 showsAttachPanel = false
+                ChatLayoutDiagnostics.shared.record(.dismissKeyboardEnd)
+                ChatLayoutDiagnostics.shared.record(.sendAttemptBegin, fields: layoutDiagnosticFields)
                 session.attemptSend(mcp: mcp)
+                ChatLayoutDiagnostics.shared.record(.sendAttemptEnd, fields: layoutDiagnosticFields)
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
                     cancelScrollSettle()

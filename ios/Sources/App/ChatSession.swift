@@ -1256,12 +1256,25 @@ final class ChatSession: ObservableObject {
 
     private func endTurn(id: UUID, assistant: ChatEntry) {
         guard requestID == id else { return }
+        ChatLayoutDiagnostics.shared.record(.endTurnBegin, fields: [
+            .entries: .count(UInt64(entries.count)), .revision: .count(transcriptContentRevision),
+            .submitting: .flag(isSubmitting), .preview: .flag(replyPreview != nil)])
+        defer { ChatLayoutDiagnostics.shared.record(.endTurnEnd) }
         if let turn = pendingTurn, turn.requestID == id, entries.last?.id == turn.user.id {
+            ChatLayoutDiagnostics.shared.record(.archiveTurnBegin, fields: [.archiveAvailable: .flag(archive != nil)])
             archiveTurn(turn, assistant: assistant)
+            ChatLayoutDiagnostics.shared.record(.archiveTurnEnd)
+            ChatLayoutDiagnostics.shared.record(.appendBegin, fields: [.entries: .count(UInt64(entries.count))])
             entries.append(assistant)
+            ChatLayoutDiagnostics.shared.record(.appendEnd, fields: [
+                .entries: .count(UInt64(entries.count)), .revision: .count(transcriptContentRevision)])
         }
+        ChatLayoutDiagnostics.shared.record(.previewClearBegin)
         replyPreview = nil
+        ChatLayoutDiagnostics.shared.record(.previewClearEnd, fields: [.revision: .count(transcriptContentRevision)])
+        ChatLayoutDiagnostics.shared.record(.finishBegin)
         finish(id: id)
+        ChatLayoutDiagnostics.shared.record(.finishEnd, fields: [.submitting: .flag(isSubmitting)])
     }
 
     /// Saves the whole conversation with this turn. Conversations that gave way
@@ -1281,7 +1294,14 @@ final class ChatSession: ObservableObject {
             let record = try ArchivedConversation(id: turn.archiveID, destination: destination,
                 updatedAt: Date(), turns: turns)
             pendingArchiveSave = (record, turn.prior)
-            let evicted = try archive.save(record, expected: turn.prior)
+            let evicted: [UUID]
+            do {
+                ChatLayoutDiagnostics.shared.record(.archiveSaveBegin)
+                var saved = false
+                defer { ChatLayoutDiagnostics.shared.record(.archiveSaveEnd, fields: [.success: .flag(saved)]) }
+                evicted = try archive.save(record, expected: turn.prior)
+                saved = true
+            }
             pendingArchiveSave = nil
             archiveNotice = nil
             deleteAttachments(ofEvicted: evicted)
