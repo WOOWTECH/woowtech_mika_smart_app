@@ -158,8 +158,9 @@ func navigateMikaSection(_ section: String, in app: XCUIApplication,
     let menu = app.buttons["chat.menu"]
     func reachChatRoot() -> Bool {
         func isReady(_ element: XCUIElement) -> Bool {
-            let expectation = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element)
+            let predicate = NSPredicate(format: "exists == true AND hittable == true")
+            if predicate.evaluate(with: element) { return true }
+            let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
             return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
         }
         for _ in 0..<2 {
@@ -183,11 +184,12 @@ func navigateMikaSection(_ section: String, in app: XCUIApplication,
     }
     // Re-selecting an open route must not dismiss its WebKit document or
     // interrupt a task merely to satisfy an old bottom-tab tap.
-    if app.buttons["section.back"].isHittable && app.staticTexts["\(section).status"].exists { return }
+    let back = app.buttons["section.back"]
+    if back.exists && back.isHittable && app.staticTexts["\(section).status"].exists { return }
     guard reachChatRoot() else { return }
     let row = app.buttons["navigation.\(section)"]
     tapExpecting(menu, row)
-    guard row.waitForExistence(timeout: 10), row.isHittable else {
+    guard row.exists || row.waitForExistence(timeout: 10), row.isHittable else {
         XCTFail("Drawer route \(section) must be visible and hittable", file: file, line: line); return
     }
     XCTAssertTrue(tapExpecting(row, app.buttons["section.back"]), file: file, line: line)

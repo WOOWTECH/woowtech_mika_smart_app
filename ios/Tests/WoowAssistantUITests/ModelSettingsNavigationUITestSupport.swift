@@ -24,15 +24,17 @@ func openModelSettings(in app: XCUIApplication, file: StaticString = #filePath, 
         revealLearningElement(custom, in: app, file: file, line: line)
         XCTAssertTrue(tapExpecting(custom, app.textFields["settings.baseURL"]), file: file, line: line)
     }
-    XCTAssertFalse(link.isHittable, file: file, line: line)
-    XCTAssertFalse(app.buttons["section.back"].isHittable,
+    XCTAssertFalse(link.exists && link.isHittable, file: file, line: line)
+    let rootBack = app.buttons["section.back"]
+    XCTAssertFalse(rootBack.exists && rootBack.isHittable,
                    "The root shortcut must not cover the native model-detail Back button.", file: file, line: line)
 }
 
 func returnFromModelSettings(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
     let detail = app.navigationBars["模型"]
     XCTAssertTrue(detail.waitForExistence(timeout: 10), file: file, line: line)
-    XCTAssertFalse(app.buttons["section.back"].isHittable,
+    let rootBack = app.buttons["section.back"]
+    XCTAssertFalse(rootBack.exists && rootBack.isHittable,
                    "Model detail must return to Settings one level at a time.", file: file, line: line)
     let back = detail.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
     XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isEnabled && back.isHittable,
@@ -40,7 +42,8 @@ func returnFromModelSettings(in app: XCUIApplication, file: StaticString = #file
     back.tap()
     XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10), file: file, line: line)
     XCTAssertTrue(app.buttons["settings.modelJump"].waitForExistence(timeout: 5), file: file, line: line)
-    XCTAssertFalse(app.textFields["settings.baseURL"].isHittable, file: file, line: line)
+    let baseURL = app.textFields["settings.baseURL"]
+    XCTAssertFalse(baseURL.exists && baseURL.isHittable, file: file, line: line)
 }
 
 /// After a tap on 不測試，直接儲存 (settings.save): confirm 仍然儲存. As on the
