@@ -43,8 +43,8 @@ native289保留一次PDF `Publishing changes from within view updates`及一次h
 
 原A31的18則前綴、原圖、兩筆記憶與UserProfile未提交檔保留。更新前採當下實際vault值作基準；271後續探測前後learning.vault的20789→20768 bytes差額已由外層JSON slash escaping325→304完全解釋，但未解密證明完整Learning state相同。詳見[271服務探測](IPHONE_271_SERVICE_PROBE.md)，不以先前UI批次hash相同覆蓋後續差異。
 
-272交接先驗版本／TestFlight簽章與更新保留，再驗既有來源文件預覽、關閉重開、取消、草稿及原附件。缺乏無效來源、64KiB CSV或多頁長表資料時明記未測，不偽造商用來源。
+272文件及原A31兩個批次已執行並封存，[限定驗證](IPHONE_272_VALIDATION.md)保留實檔／CPU／清理及失敗。短HTML／PDF保存副本與cache相同，實際可見系統取消成功；無效來源、64KiB CSV及多頁長表等仍未測。
 
-接著在原A31只做一次已授權唯讀問題的送出回歸，保存CPU／互動／終態及原18則前綴。若仍429，只能判該請求在模型限流處失敗，不能稱MCP已派發；測試新增訊息如無單刪入口則保留並明記，不直接修改vault或刪原對話。原24輪仍為實送2／正常0／未送22，後續獨立探測不混算。
+原A31實際只送一次已授權唯讀問題，約5.0207秒觀察到模型限流終態，沒有raw provider HTTP或MCP最終結果。17個CPU樣本最高52.5128%，終態後8筆中7筆0%，未重現持續100%，仍有15秒手勢client逾時。原18prefix保留，新增本次兩則合計20則，沒有直接修改vault或刪原對話。原24輪仍為實送2／正常0／未送22，後續獨立探測不混算。272淺深色／鍵盤及可恢復無障礙的限定外觀批次續做，未先宣告通過。
 
 原A31高CPU根因、真Apporo兩筆tool_errors／unknown、模型／多供應商恢復、超時斷線、長表PDF／CSV接收端、Android同步視覺及其他[驗收缺口](ACCEPTANCE_GAPS_20261122.md)均未因此結案。
