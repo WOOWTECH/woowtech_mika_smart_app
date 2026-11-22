@@ -34,3 +34,17 @@
 [鍵盤發布修補](KEYBOARD_ANIMATION_PUBLISHING_FIX_20261122.md) 的299為真publisher紅燈、300三案通過；[字級及外觀證據](IPHONE_272_APPEARANCE_AND_FONT.md) 保留301一過一失敗，以及302只加暫時觀測後兩案通過。302實際手勢、錯誤可讀及四行草稿斷言通過，但沒有觸發動態字級變化；觀測patch已精確撤回，不能當273實機字級修復證據。301拖曳、295串流的間歇失敗仍未證根因。
 
 原iPhone唯一操作者已收到帶來源／UUID的273原地更新及限定回歸指令（T/iphone-273-handoff/，HTTP202）。尚須核TestFlight可見／實裝、資料保留、空白未聚焦字級循環、四行／鍵盤／Return與PDF預覽。既有模型限流與缺少QA表格／長文來源不以mock補驗收；原A31真MCP、Android同步與接收端等仍依[缺口矩陣](ACCEPTANCE_GAPS_20261122.md)。
+
+## 原iPhone可見性與被動時序：16:55封存
+
+2026-11-22 **16:50:47+08:00**，原操作者由既有TestFlight版本入口檢查一次，只見272／271／270；沒有273、install tap或循環刷新。Parent已親看 `T/iphone-273-availability-evidence/06-TestFlight-build-list.png`，SHA256 `d4f1be89b0d993196f020f156275a8a4c77f7becfa0d6c85626096e96398c6cc`。16:51:08重新核手機仍0.1.0(272)／TestFlight簽章；273的字級、PDF、模型及MCP測試未執行。此為該手機／帳號的可見性，不足以判斷Apple processing、compliance或內測群組原因。
+
+原A31的20則／18prefix、圖片、兩筆記憶、設定與兩個UserProfile保護檔均有前後收據，parent另核20則display-hash及跨批baseline一致、保護檔收據一致；未下載／解密vault。回App第一次source缺draft的AssertionError保留，後續恢復不證其根因。
+
+後續既定收尾程序首次實際附掛先前已審的被動計時：helper與ui.py hash吻合，未改原15秒／idle／request，無額外裝置請求，finally撤回原call／OPENER binding，logging failure0。Parent逐行重算147事件／21次呼叫，每次均有7個有序階段；最長call1,572.493708ms、open到headers1,571.107209ms。首個自然source控制事件964.843208ms，有headers／read／parse／complete。這批沒有15秒症狀，也沒有CPU或server receive／handler／reply時序，不能據此歸因USB／主執行緒；首次缺draft在附掛前，不能將後來正常trace移作其診斷。
+
+273可見性report／result／manifest SHA256依序為 `961e1ff622957a9dcd8c75a8414b48e9f4a2401cb89f6bde6d1ddda8e2b279bd`、`3d765368d89dd5bb68936ec7a6bb606ef9a7faec1547eb728033b4f6e47acf20`、`cdd4fec72e38d11df9dec91ea0be1325810d9de98b0abbc91cfb7f148f538ecb`。Parent取得兩批共6份主報告與20份選定證據，全部HTTP200、bytes／SHA吻合；上述重算見同目錄 `independent-verification.json`，不是重新操作手機。
+
+另外，272限定盤點6個明確QA對話／12個可用assistant觀察，最長182字、單行、無表格標記，沒有匯出。96是觀測到的不同UI row hash數，不是完整archive稽核；業務尾段排除，原始未封存page3 snapshot被後續resume取代的界線亦保留。CSV／長篇PDF正向因此仍未測，報告及manifest位於 `T/iphone-272-csv-readiness/evidence/`，不可用這次盤點冒充CSV產檔。
+
+Apple官方管理分頁登入已過期，既有帳號登入流程目前需要擁有者在官方頁輸入密碼／必要2FA；不讀取、猜測或要求聊天提供憑證。另一次官方altool唯讀build-status因缺明示認證回error30，不能以此當processing失敗。Xcode既有distribution登入已完成真Validation／Upload，兩種登入狀態分開記錄。等待管理頁恢復期間，另安排**272**現有同provider一次有界可用性確認，結果須獨立綁272，不回填273。
