@@ -251,7 +251,7 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
     # An attachment preview's share menu offers Save Image; without the
     # add-only prompt, saving there terminates the app.
     for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription",
-                "NSPhotoLibraryAddUsageDescription"):
+                "NSPhotoLibraryAddUsageDescription", "NSLocalNetworkUsageDescription"):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ReleaseError("Release App 缺少媒體或語音辨識權限用途說明：" + key)

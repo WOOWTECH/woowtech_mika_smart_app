@@ -2,5 +2,5 @@
 "NSMicrophoneUsageDescription" = "woowtech agent uses the microphone for your voice input or when you allow a website to use it.";
 "NSSpeechRecognitionUsageDescription" = "woowtech agent uses on-device speech recognition to add your spoken words to the chat draft.";
 "NSCameraUsageDescription" = "woowtech agent uses the camera when you take a photo to attach in chat, or when you allow a website to use it.";
-"NSPhotoLibraryUsageDescription" = "woowtech agent shows your recent photos in the chat attachment panel so you can pick ones to attach.";
+"NSLocalNetworkUsageDescription" = "woowtech agent connects to a device on your local network only when you set a model service or MCP server to a local address.";
 "NSPhotoLibraryAddUsageDescription" = "woowtech agent saves a photo to your library only when you choose Save Image in the share menu of an attachment preview.";

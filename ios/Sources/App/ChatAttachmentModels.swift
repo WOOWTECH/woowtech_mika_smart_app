@@ -220,6 +220,8 @@ struct ChatAttachmentStore: Sendable {
             do {
                 try manager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try manager.moveItem(at: file.temporaryURL, to: destination)
+                // A moved file keeps the class it had in tmp, so it gets the store's own.
+                Self.protect(destination)
             } catch {
                 outcome.refused.append(.init(name: name, reason: .unavailable)); continue
             }
@@ -259,13 +261,24 @@ struct ChatAttachmentStore: Sendable {
     }
 
     /// Attachments can be large and are recreated by the user, so they stay out of backups.
+    /// Like the vaults they can be read only while the device is unlocked; they are read
+    /// when a message is sent or previewed, with the app in front.
     private func prepareRoot() {
-        guard !FileManager.default.fileExists(atPath: root.path) else { return }
-        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        var folder = root
-        try? folder.setResourceValues(values)
+        if !FileManager.default.fileExists(atPath: root.path) {
+            try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            var folder = root
+            try? folder.setResourceValues(values)
+        }
+        Self.protect(root)
+    }
+
+    /// Complete data protection for a stored file or folder; new files in a folder take its class.
+    static func protect(_ url: URL) {
+        #if os(iOS)
+        try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
+        #endif
     }
 
     private func dedupeIdentity(name: String, size: Int64) -> String? {
@@ -328,7 +341,7 @@ extension ChatAttachmentImport {
         let url = folder.appendingPathComponent(name)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try jpeg.write(to: url, options: .atomic)
+            try jpeg.write(to: url, options: [.atomic, .completeFileProtection])
         } catch { return nil }
         return ChatPickedFile(temporaryURL: url, suggestedName: name, contentType: "public.jpeg", dedupeKey: nil)
     }
