@@ -61,6 +61,7 @@ public struct MemoryExtractor: Sendable {
             switch proposal.op {
             case "add", "update":
                 guard let rawContent = proposal.content, !matching.contains(where: MemorySafety.oneOff),
+                      !matching.allSatisfy(MemorySafety.notDurable), !MemorySafety.describesRequest(rawContent),
                       !MemorySafety.deniesUpdate(matching) else { continue }
                 let content = MemorySafety.clean(rawContent)
                 let words: [String]
@@ -137,6 +138,10 @@ public struct MemoryExtractor: Sendable {
     Quote an exact supporting passage from utterances. Never invent specific names, numbers, locations or preferences.
     Content restates only what the user said: never add conditions, confirmations, steps or details they did not say.
     Exclude credentials, identification/payment numbers, ephemeral task parameters, web pages, tool output and assistant suggestions.
+    Only propose what the user stated as lasting about themselves, their household or how the assistant should behave later.
+    Never turn into memories: questions; what the user asked for in this conversation (something to write, find, compare,
+    translate or summarize); quiz, test or puzzle values such as code words, secret phrases or sample numbers; anything
+    read from attached files, pictures or web pages. When in doubt, return {"ops":[]}.
     For a lasting correction, use op "update" with the related target label and replacement content instead of adding a duplicate.
     For an explicit unambiguous user request to forget, use op "forget" with its target and exact quote. Negated deletion is not permission.
     Procedures describe future behavior the user requests; they still require later user approval before use.

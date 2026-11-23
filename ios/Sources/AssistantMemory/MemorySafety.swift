@@ -94,6 +94,27 @@ enum MemorySafety {
         matches(#"這次|这次|這一次|这一次|今天先|僅這次|仅这次|\bthis\s+time\b|\bjust\s+today\b|\bfor\s+now\b"#, text)
     }
 
+    /// Words that are not a lasting fact about the user unless they ask for it to be
+    /// remembered: a question, a task for this conversation (write, find, compare...),
+    /// or a test or puzzle value (a code word, a secret phrase). Small models proposed
+    /// such passages as memories (iPhone run of 283).
+    static func notDurable(_ text: String) -> Bool {
+        let asked = #"記住|記得|记住|记得|以後|以后|往後|往后|每次|一律|今後|今后|\bremember\b|\bfrom\s+now\s+on\b|\balways\b"#
+        if matches(asked, text) { return false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters).subtracting(CharacterSet(charactersIn: "?？")))
+        if trimmed.hasSuffix("?") || trimmed.hasSuffix("？") || trimmed.hasSuffix("嗎") || trimmed.hasSuffix("吗") || trimmed.hasSuffix("呢") {
+            return true
+        }
+        let task = #"^(?:請|请|麻煩|麻烦|幫我|帮我|可以|能不能|能否|please\b|can\s+you\b|could\s+you\b)|(?:幫我|帮我|請你|请你)\s*(?:寫|写|找|查|搜|比較|比较|翻譯|翻译|算|整理|列|說明|说明|分析|摘要|產生|生成|畫|画|做|讀|读|看)"#
+        let puzzle = #"暗號|暗号|代號|代号|密語|密语|通關|通关|謎題|谜题|測試標記|测试标记|\bcode\s*word\b|\bsecret\s+(?:word|phrase)\b|\bpassphrase\b"#
+        return matches(task, trimmed) || matches(puzzle, text)
+    }
+
+    /// Content that only reports what the user asked for this time.
+    static func describesRequest(_ content: String) -> Bool {
+        matches(#"用戶請求|用户请求|使用者請求|用戶要求|用户要求|使用者要求|\bthe\s+user\s+(?:asked|requested|wants\s+(?:me|the\s+assistant)\s+to)\b"#, content)
+    }
+
     static func forgetRequested(quote: String, fullMessages: [String]) -> Bool {
         let positive = #"忘掉|忘記|忘记|別記|别记|不要記|不要记|不用記|不用记|刪除|删除|刪掉|删掉|\b(?:forget|delete|remove)\b"#
         let negative = #"(?:不|別|别|無需|无需|不用|不必|不要|不能|不准|禁止|不想)\s*(?:要|用|再|去)?\s*(?:刪|删|忘)|\b(?:do\s+not|don't|don’t|dont|never|not\s+to)\s+(?:delete|forget|remove)\b"#

@@ -605,6 +605,7 @@
 "chat.status.waiting" = "Working";
 "chat.turn.notDone" = "Not finished";
 "chat.turn.stopped" = "Stopped.";
+"chat.mcp.leftScreen" = "iOS stops an MCP query when the app leaves the screen, so this one did not finish. Ask again when you are back in the app.";
 "chat.turn.working" = "Working";
 "chat.visionLooking" = "The vision model is looking at the pictures";
 "chat.status.configured" = "Model configured";
@@ -696,6 +697,7 @@
 "chat.attach.visionFailed" = "The vision model %1$@ couldn’t look at the pictures, so they weren’t sent to the main model. %2$@";
 "chat.attach.visionFailed.again" = "Try again, or choose another vision model on the model settings page.";
 "chat.attach.visionFailed.noPictures" = "It may not take pictures, or the provider may not have it. Choose a model that can see images on the model settings page.";
+"chat.attach.unreadable" = "These attachments could not be read and were not added:";
 "chat.message.copy" = "Copy";
 "chat.message.copied" = "Copied";
 "chat.message.quote" = "Quote";

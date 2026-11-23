@@ -618,6 +618,7 @@ enum AppText: Equatable {
     case chatStatusWaiting
     case chatTurnNotDone
     case chatTurnStopped
+    case chatMcpLeftScreen
     case chatTurnWorking
     case chatVisionLooking
     case chatStatusConfigured
@@ -711,6 +712,7 @@ enum AppText: Equatable {
     case chatAttachVisionFailed(model: String, reason: String)
     case chatAttachVisionFailedAgain
     case chatAttachVisionFailedNoPictures
+    case chatAttachUnreadable
     case chatMessageCopy
     case chatMessageCopied
     case chatMessageQuote
@@ -1720,6 +1722,7 @@ enum AppText: Equatable {
         case .chatStatusWaiting: return "chat.status.waiting"
         case .chatTurnNotDone: return "chat.turn.notDone"
         case .chatTurnStopped: return "chat.turn.stopped"
+        case .chatMcpLeftScreen: return "chat.mcp.leftScreen"
         case .chatTurnWorking: return "chat.turn.working"
         case .chatVisionLooking: return "chat.visionLooking"
         case .chatStatusConfigured: return "chat.status.configured"
@@ -1813,6 +1816,7 @@ enum AppText: Equatable {
         case .chatAttachVisionFailed: return "chat.attach.visionFailed"
         case .chatAttachVisionFailedAgain: return "chat.attach.visionFailed.again"
         case .chatAttachVisionFailedNoPictures: return "chat.attach.visionFailed.noPictures"
+        case .chatAttachUnreadable: return "chat.attach.unreadable"
         case .chatMessageCopy: return "chat.message.copy"
         case .chatMessageCopied: return "chat.message.copied"
         case .chatMessageQuote: return "chat.message.quote"
@@ -2949,6 +2953,7 @@ enum AppText: Equatable {
         case .chatStatusWaiting: return "正在處理"
         case .chatTurnNotDone: return "沒有完成"
         case .chatTurnStopped: return "已停止。"
+        case .chatMcpLeftScreen: return "App 離開畫面時，iOS 會停止正在進行的 MCP 查詢，這次沒有完成。回到 App 後可以再問一次。"
         case .chatTurnWorking: return "正在處理"
         case .chatVisionLooking: return "看圖模型正在看圖"
         case .chatStatusConfigured: return "模型已設定"
@@ -3042,6 +3047,7 @@ enum AppText: Equatable {
         case .chatAttachVisionFailed: return "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@"
         case .chatAttachVisionFailedAgain: return "請再試一次，或到設定的模型頁換一個看圖模型。"
         case .chatAttachVisionFailedNoPictures: return "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。"
+        case .chatAttachUnreadable: return "這些附件讀不到內容，沒有加入："
         case .chatMessageCopy: return "複製"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"

@@ -112,7 +112,7 @@ struct ContentView: View {
             // stops the MCP work of a running request, and the connections come back
             // when the app is active. A plain reply keeps its extra background time.
             if phase == .background {
-                session.cancelMCP()
+                session.cancelMCP(leavingScreen: true)
                 mcpServers.appWillLeaveForeground()
                 session.appLeftScreen()
                 keepReplyRunningInBackground()

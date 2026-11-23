@@ -605,6 +605,7 @@
 "chat.status.waiting" = "正在處理";
 "chat.turn.notDone" = "沒有完成";
 "chat.turn.stopped" = "已停止。";
+"chat.mcp.leftScreen" = "App 離開畫面時，iOS 會停止正在進行的 MCP 查詢，這次沒有完成。回到 App 後可以再問一次。";
 "chat.turn.working" = "正在處理";
 "chat.visionLooking" = "看圖模型正在看圖";
 "chat.status.configured" = "模型已設定";
@@ -696,6 +697,7 @@
 "chat.attach.visionFailed" = "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@";
 "chat.attach.visionFailed.again" = "請再試一次，或到設定的模型頁換一個看圖模型。";
 "chat.attach.visionFailed.noPictures" = "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。";
+"chat.attach.unreadable" = "這些附件讀不到內容，沒有加入：";
 "chat.message.copy" = "複製";
 "chat.message.copied" = "已複製";
 "chat.message.quote" = "引用";

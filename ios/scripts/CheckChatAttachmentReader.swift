@@ -115,7 +115,7 @@ enum CheckChatAttachmentReader {
         // Oversized, broken and undrawable pictures.
         let strip = directory.appendingPathComponent("strip.png")
         write([bitmap(9000, 10) { fill($0, 9000, 10, red: 0, green: 0, blue: 0) }], .png, to: strip)
-        expect(read(strip, .photo) == .unreadable("這張圖片太大，沒能讀取"), "over 8192 px a side")
+        expect(read(strip, .photo) == .unreadable("這張圖片太大或太長，沒能交給模型；可以裁成幾張再附上"), "over 8192 px a side")
         let broken = try fixture("broken.jpg", Data("not a picture".utf8))
         expect(read(broken, .photo) == .unreadable("這張圖片沒能讀取"), "broken photo")
         let garbage = try fixture("garbage.png", Data([0x00, 0x01, 0x02, 0x03, 0x00]))

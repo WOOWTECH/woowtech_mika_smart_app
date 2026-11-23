@@ -38,6 +38,8 @@ COVERED = {
     # Web tasks started from chat: every step of the task, and the account after 停止.
     'Sources/AssistantBrowser/ChatWebTaskRunner.swift': ['return AISafetyRules.appended(to: """',
                                                         'ModelMessage(role: "system", content: AISafetyRules.appended(to: """'],
+    # A chat picture described by the vision model for a main model that cannot see it.
+    'Sources/App/ChatAttachmentPreparation.swift': ['static let instruction = AISafetyRules.appended(to: """'],
     # Background requests whose text the user sees: memories and skill drafts.
     'Sources/AssistantMemory/MemoryExtractor.swift': ['private static let instructions = AISafetyRules.appended(to: """'],
     'Sources/AssistantSkills/SkillLearningService.swift': ['private static let draftInstructions = AISafetyRules.appended(to: """'],

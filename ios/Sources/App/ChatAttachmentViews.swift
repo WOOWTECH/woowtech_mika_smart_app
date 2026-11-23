@@ -27,7 +27,7 @@ struct ChatAttachmentText {
     }
     func refused(_ failures: [ChatAttachmentImportFailure]) -> String {
         let reasons: [ChatAttachmentImportFailure.Reason] = [.insufficientSpace, .tooLarge, .unavailable]
-        return reasons.compactMap { reason -> String? in
+        let grouped = reasons.compactMap { reason -> String? in
             let names = failures.filter { $0.reason == reason }.map(\.name)
             guard !names.isEmpty else { return nil }
             let joined = names.joined(separator: localizer.language == .english ? ", " : "、")
@@ -35,8 +35,20 @@ struct ChatAttachmentText {
             case .insufficientSpace: return localizer.text(.chatAttachInsufficientSpace(names: joined))
             case .tooLarge: return localizer.text(.chatAttachTooLarge(names: joined))
             case .unavailable: return localizer.text(.chatAttachRefused(names: joined))
+            case .unreadable: return nil
             }
-        }.joined(separator: "\n")
+        }
+        let unread = unreadable(failures)
+        return (grouped + (unread.isEmpty ? [] : [unread])).joined(separator: "\n")
+    }
+    /// Each file the model could not read, with the reader's reason.
+    private func unreadable(_ failures: [ChatAttachmentImportFailure]) -> String {
+        let lines = failures.compactMap { failure -> String? in
+            guard case .unreadable(let reason) = failure.reason else { return nil }
+            return failure.name + (localizer.language == .english ? ": " : "：") + reason
+        }
+        guard !lines.isEmpty else { return "" }
+        return localizer.text(.chatAttachUnreadable) + "\n" + lines.joined(separator: "\n")
     }
     func imagesNotSeen(_ n: Int) -> String { localizer.text(.chatAttachImagesNotSeen(count: n)) }
     func visionFailed(_ failure: ChatVisionFailure) -> String {

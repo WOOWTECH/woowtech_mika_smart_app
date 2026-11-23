@@ -122,7 +122,9 @@ enum ChatAttachmentLines {
 
 /// A refusal keeps its cause so small files are never described as oversized.
 struct ChatAttachmentImportFailure: Equatable, Sendable {
-    enum Reason: Equatable, Sendable { case tooLarge, insufficientSpace, unavailable }
+    /// unreadable: the content cannot reach the model (an encrypted or scanned PDF, a Word
+    /// or zip file, an empty file, a picture too large), with the reader's words for why.
+    enum Reason: Equatable, Sendable { case tooLarge, insufficientSpace, unavailable, unreadable(String) }
     let name: String
     let reason: Reason
 }
@@ -212,6 +214,11 @@ struct ChatAttachmentStore: Sendable {
             }
             guard conversationBytes + size <= ChatAttachmentLimits.maximumConversationBytes else {
                 outcome.refused.append(.init(name: name, reason: .unavailable)); continue
+            }
+            // Said when it is added, not after sending: a file the model would not get.
+            let probeKind: ChatAttachmentKind = file.dedupeKey != nil || ChatAttachmentNaming.kind(forName: name) == .photo ? .photo : .file
+            if let problem = ChatAttachmentReader.problem(fileURL: file.temporaryURL, kind: probeKind, contentType: file.contentType) {
+                outcome.refused.append(.init(name: name, reason: .unreadable(problem))); continue
             }
             let unique = ChatAttachmentNaming.uniqued(name, taken: taken)
             let id = UUID()

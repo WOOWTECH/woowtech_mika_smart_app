@@ -166,6 +166,19 @@ enum MemoryChecks {
         }
         let oneOff = try MemoryExtractor.parse(response([["op": "add", "kind": "preference", "content": "用戶喝咖啡", "quote": "喝咖啡"]]), input: .init(utterances: ["這次喝咖啡"]), state: state)
         try check.expect(oneOff.operationCount == 0, "One-off context checked outside substring")
+        // Small models proposed puzzle values, this conversation's requests and questions (iPhone run of 283).
+        let puzzle = try MemoryExtractor.parse(response([["op": "add", "kind": "fact", "content": "中間的暗號是琥珀色", "quote": "中間的暗號是琥珀色"]]),
+                                               input: .init(utterances: ["中間的暗號是琥珀色"]), state: state)
+        try check.expect(puzzle.operationCount == 0, "A puzzle value is not a memory")
+        let request = try MemoryExtractor.parse(response([["op": "add", "kind": "fact", "content": "用戶請求寫一篇文章", "quote": "幫我寫一篇文章"]]),
+                                                input: .init(utterances: ["幫我寫一篇文章"]), state: state)
+        try check.expect(request.operationCount == 0, "A request for this conversation is not a memory")
+        let question = try MemoryExtractor.parse(response([["op": "add", "kind": "fact", "content": "圖中間的數字", "quote": "圖中間的數字"]]),
+                                                 input: .init(utterances: ["圖中間的數字是多少？"]), state: state)
+        try check.expect(question.operationCount == 0, "A question is not a memory")
+        let asked = try MemoryExtractor.parse(response([["op": "add", "kind": "fact", "content": "小孩對花生過敏", "quote": "小孩對花生過敏"]]),
+                                              input: .init(utterances: ["請記住：我們家小孩對花生過敏"]), state: state)
+        try check.expect(asked.operationCount == 1, "An explicit 記住 keeps a request-shaped sentence")
         let negative = try MemoryExtractor.parse(response([["op": "forget", "target": state.memories[0].id.uuidString, "quote": "刪除茶的記憶"]]), input: .init(utterances: ["不要刪除茶的記憶"]), state: state)
         try check.expect(negative.operationCount == 0, "Negated delete is not authorization")
         let forgotten = try MemoryExtractor.parse(response([["op": "forget", "target": "#1", "quote": "請忘記茶的記憶"]]), input: .init(utterances: ["請忘記茶的記憶"]), state: state)

@@ -21,7 +21,7 @@ enum ChatAttachmentReader {
     /// Nested so it cannot collide with another file's `ChatAttachmentText`:
     /// a top-level private enum still clashes with an internal one of that name.
     enum ChatAttachmentText {
-        static let imageTooLarge = "這張圖片太大，沒能讀取"
+        static let imageTooLarge = "這張圖片太大或太長，沒能交給模型；可以裁成幾張再附上"
         static let imageFailed = "這張圖片沒能讀取"
         static let pdfLocked = "這份 PDF 有密碼保護，沒能讀取內容"
         static let pdfNoText = "這份 PDF 沒有可讀取的文字（可能是掃描檔）"
@@ -29,6 +29,7 @@ enum ChatAttachmentReader {
         static let notText = "這個檔案不是文字檔，沒能讀取內容"
         static let fileTooLarge = "檔案太大，沒能讀取"
         static let fileFailed = "這個檔案沒能讀取"
+        static let empty = "這個檔案是空的"
         static let missing = "這個附件已經不在了"
     }
 
@@ -45,6 +46,16 @@ enum ChatAttachmentReader {
 
     /// Reads the app's own stored copy. Never throws: failures become `.unreadable` with a short reason.
     /// `textByteLimit` bounds UTF-8 bytes of returned text (cut at a character boundary; `truncated` = true when cut).
+    /// Why a picked file could not reach the model, checked when it is added so the
+    /// person hears it before sending; nil when its content can be read.
+    static func problem(fileURL: URL, kind: ChatAttachmentKind, contentType: String?) -> String? {
+        if let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == 0 { return ChatAttachmentText.empty }
+        if case .unreadable(let reason) = read(fileURL: fileURL, kind: kind, contentType: contentType, textByteLimit: 1024).content {
+            return reason
+        }
+        return nil
+    }
+
     static func read(fileURL: URL, kind: ChatAttachmentKind, contentType: String?, textByteLimit: Int) -> ChatAttachmentReadResult {
         // Bounded so the read-window arithmetic below cannot overflow.
         let limit = min(max(0, textByteLimit), Int(Int32.max))

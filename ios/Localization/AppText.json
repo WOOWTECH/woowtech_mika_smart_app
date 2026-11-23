@@ -5841,6 +5841,15 @@
       }
     },
     {
+      "case": "chatMcpLeftScreen",
+      "key": "chat.mcp.leftScreen",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "App 離開畫面時，iOS 會停止正在進行的 MCP 查詢，這次沒有完成。回到 App 後可以再問一次。",
+        "en": "iOS stops an MCP query when the app leaves the screen, so this one did not finish. Ask again when you are back in the app."
+      }
+    },
+    {
       "case": "chatTurnWorking",
       "key": "chat.turn.working",
       "parameters": [],
@@ -6768,6 +6777,15 @@
       "translations": {
         "zh-Hant": "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。",
         "en": "It may not take pictures, or the provider may not have it. Choose a model that can see images on the model settings page."
+      }
+    },
+    {
+      "case": "chatAttachUnreadable",
+      "key": "chat.attach.unreadable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這些附件讀不到內容，沒有加入：",
+        "en": "These attachments could not be read and were not added:"
       }
     },
     {

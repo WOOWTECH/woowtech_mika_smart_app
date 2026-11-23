@@ -17,15 +17,17 @@ struct ChatReplyBlocksView: View {
                 case .text(let text):
                     Text(text).fixedSize(horizontal: false, vertical: true)
                 case .code(let lines):
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    // The bar flashes when it appears, so wider content shows it scrolls.
+                    ScrollView(.horizontal, showsIndicators: true) {
                         Text(verbatim: lines.joined(separator: "\n"))
                             .font(.system(size: codeFontSize, design: .monospaced))
                             .fixedSize(horizontal: true, vertical: true)
                             .padding(.horizontal, 12).padding(.vertical, 10)
                     }
+                    .scrollIndicatorsFlash(onAppear: true)
                     .background(ink.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
                 case .table(let header, let rows):
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    ScrollView(.horizontal, showsIndicators: true) {
                         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
                             GridRow {
                                 ForEach(header.indices, id: \.self) { column in
@@ -45,6 +47,7 @@ struct ChatReplyBlocksView: View {
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(ink.opacity(0.2), lineWidth: 1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .scrollIndicatorsFlash(onAppear: true)
                 }
             }
         }

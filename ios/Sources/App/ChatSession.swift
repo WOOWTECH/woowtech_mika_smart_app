@@ -1050,8 +1050,15 @@ final class ChatSession: ObservableObject {
         }
         // Android visionModelFactory, for chat pictures: when the main model cannot
         // see them, the vision role's own model (agreed to) looks at them first.
+        // A follow-up about the pictures of an earlier turn ("再看一次", "照片裡…"): without
+        // new attachments, the vision model looks at them again with this question.
+        let revisited: [ChatAttachmentItem] = {
+            guard attachmentsAtStart.isEmpty, configuration.vision != .supported,
+                  ChatVisionHandoff.asksAboutPictures(utterance) else { return [] }
+            return entries.last(where: { $0.role == "user" && !$0.attachments.isEmpty })?.attachments ?? []
+        }()
         let visionRoute: (configuration: ModelConfiguration, key: String, model: String)? = {
-            guard configuration.vision != .supported, !attachmentsAtStart.isEmpty,
+            guard configuration.vision != .supported, !(attachmentsAtStart.isEmpty && revisited.isEmpty),
                   let settings = try? repository.roleSettings(.vision), settings.seesImages == true,
                   let visionKey = try? repository.key(for: settings) else { return nil }
             return (settings.configuration(conversation: conversationID), visionKey, settings.model)
@@ -1121,6 +1128,25 @@ final class ChatSession: ObservableObject {
                     }
                     outgoing.append(ModelMessage(userText: ChatAttachmentPreparation.promptText(last.content, notes: notes),
                                                  attachments: prepared.attachments))
+                } else if !revisited.isEmpty, let visionRoute, let last = outgoing.popLast() {
+                    var note: String?
+                    do {
+                        self?.visionLooking = true
+                        defer { self?.visionLooking = false }
+                        do {
+                            if let described = try await ChatVisionHandoff.describe(
+                                revisited, store: attachmentStore, question: utterance, client: client,
+                                configuration: visionRoute.configuration, key: visionRoute.key) {
+                                note = ChatVisionHandoff.lookedAgainNote(described)
+                            }
+                        } catch {
+                            try Task.checkCancellation()
+                            // The earlier description stays the only source; the reply says so.
+                        }
+                    }
+                    try Task.checkCancellation()
+                    outgoing.append(ModelMessage(role: last.role,
+                                                 content: ChatAttachmentPreparation.promptText(last.content, notes: note.map { [$0] } ?? [])))
                 }
                 // Like Android, every request connects the enabled servers first,
                 // all at once and for at most 15 s together; one that is down or
@@ -1567,9 +1593,13 @@ final class ChatSession: ObservableObject {
     /// Stops the request while its MCP step runs: the app is leaving the
     /// screen, or a server's connection or tool choice changed. A plain reply,
     /// a web task or a skill step goes on.
-    func cancelMCP() {
+    func cancelMCP(leavingScreen: Bool = false) {
         guard isMCPRun else { return }
-        cancel()
+        guard leavingScreen, let id = requestID else { cancel(); return }
+        updateMCPDiagnostics(failure: "cancelled")
+        request?.cancel()
+        // Not the person's 已停止。: iOS stops MCP work in the background, so the turn says why.
+        failTurn(id: id, text: .chatMcpLeftScreen)
     }
 
     // MARK: Web tasks from chat

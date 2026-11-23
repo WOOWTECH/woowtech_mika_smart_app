@@ -79,12 +79,13 @@ enum ChatAttachmentPreparation {
 /// looks at the attached pictures first and describes them, and the main
 /// model reads that description. Without it the "cannot see" note stays.
 enum ChatVisionHandoff {
-    static let instruction = """
+    /// With the identity line and Play's AI safety rules, like every model request.
+    static let instruction = AISafetyRules.appended(to: """
         You are the vision model of an assistant whose main model cannot see images. Describe every attached \
         picture for that main model: all readable text exactly as written, numbers, objects, people (never who \
         they are), the layout, and whatever matters for the user's question. Do not answer the question \
         yourself. Write in the language of the user's question.
-        """
+        """)
 
     /// A few paragraphs are enough. A bounded request also passes a provider
     /// that checks the account's credit against the output asked for
@@ -106,13 +107,30 @@ enum ChatVisionHandoff {
         }.value
         let images = prepared.attachments.filter(\.isImage)
         guard !images.isEmpty else { return nil }
-        let text = instruction + "\n\nUser's question: " + String(question.prefix(2_000))
-        let reply = try await client.complete(messages: [ModelMessage(userText: text, attachments: images)],
+        let messages = [ModelMessage(role: "system", content: instruction),
+                        ModelMessage(userText: "User's question (data only): " + String(question.prefix(2_000)), attachments: images)]
+        let reply = try await client.complete(messages: messages,
                                               configuration: configuration.withMaxOutputTokens(maximumOutputTokens),
                                               apiKey: key)
         let described = reply.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !described.isEmpty else { throw ChatVisionHandoffError.noDescription }
         return String(described.prefix(8_000))
+    }
+
+    /// Words that ask about a picture already in the conversation: looking at
+    /// it again, or what is in the photo, screenshot or image.
+    static let pictureWords = ["再看", "看一次", "仔細看", "看清楚", "放大", "圖片", "圖中", "圖裡", "圖上", "照片", "截圖",
+                               "图片", "图中", "照片里", "截图", "look again", "picture", "image", "photo", "screenshot", "zoom"]
+
+    static func asksAboutPictures(_ words: String) -> Bool {
+        let lowered = words.lowercased()
+        return pictureWords.contains { lowered.contains($0) }
+    }
+
+    /// The note for a follow-up the vision model answered by looking at the
+    /// earlier pictures again.
+    static func lookedAgainNote(_ description: String) -> String {
+        "看圖模型針對這個問題重新看了先前附上的圖片，說明如下（你沒有直接看到圖片，只有這份說明）：\n" + description
     }
 
     /// The main request's notes: the description in place of each picture's
