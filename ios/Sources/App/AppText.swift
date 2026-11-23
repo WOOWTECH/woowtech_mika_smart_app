@@ -777,6 +777,8 @@ enum AppText: Equatable {
     case chatModelFailedTruncated
     case chatReplyTruncatedNote
     case chatReplyInterruptedNote
+    case chatReplyClosedNote
+    case chatReplyClosedReason
     case chatModelFailedUnreadable
     case chatModelFailedServer(status: Int)
     case chatModelFailedStatus(status: Int)
@@ -1881,6 +1883,8 @@ enum AppText: Equatable {
         case .chatModelFailedTruncated: return "chat.modelFailed.truncated"
         case .chatReplyTruncatedNote: return "chat.reply.truncatedNote"
         case .chatReplyInterruptedNote: return "chat.reply.interruptedNote"
+        case .chatReplyClosedNote: return "chat.reply.closedNote"
+        case .chatReplyClosedReason: return "chat.reply.closedReason"
         case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
         case .chatModelFailedServer: return "chat.modelFailed.server"
         case .chatModelFailedStatus: return "chat.modelFailed.status"
@@ -3112,6 +3116,8 @@ enum AppText: Equatable {
         case .chatModelFailedTruncated: return "呼叫模型失敗：回覆超過模型的輸出上限，沒有完整結束。請換個比較短的問法再試。"
         case .chatReplyTruncatedNote: return "（回覆超過模型的輸出上限，到這裡被截斷了。）"
         case .chatReplyInterruptedNote: return "（App 離開畫面後連線中斷，回覆到這裡為止。可以再問一次。）"
+        case .chatReplyClosedNote: return "（回覆沒有完成：App 在回答時離開畫面後被關閉，這裡是當時收到的部分。可以再問一次。）"
+        case .chatReplyClosedReason: return "App 在回答時離開畫面後被關閉，回覆沒有完成。可以再問一次。"
         case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。"
         case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。"
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。"

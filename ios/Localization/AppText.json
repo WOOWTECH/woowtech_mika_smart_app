@@ -7404,6 +7404,24 @@
       }
     },
     {
+      "case": "chatReplyClosedNote",
+      "key": "chat.reply.closedNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "（回覆沒有完成：App 在回答時離開畫面後被關閉，這裡是當時收到的部分。可以再問一次。）",
+        "en": "(The reply did not finish: the app was closed after it left the screen. This is what had arrived. You can ask again.)"
+      }
+    },
+    {
+      "case": "chatReplyClosedReason",
+      "key": "chat.reply.closedReason",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "App 在回答時離開畫面後被關閉，回覆沒有完成。可以再問一次。",
+        "en": "The app was closed after it left the screen during the reply, so the reply did not finish. You can ask again."
+      }
+    },
+    {
       "case": "chatModelFailedUnreadable",
       "key": "chat.modelFailed.unreadable",
       "parameters": [],

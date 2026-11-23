@@ -232,9 +232,11 @@ final class ChatSession: ObservableObject {
         let user: ChatEntry
         let archiveID: UUID
         let destination: ConversationDestination?
-        let prior: ArchivedConversation?
+        var prior: ArchivedConversation?
     }
     private var pendingTurn: PendingTurn?
+    /// The request whose turn was already saved as unfinished when the app left the screen.
+    private var checkpointedRequestID: UUID?
     /// When the request on its way started; the working row shows the time since.
     @Published private(set) var requestStartedAt: Date?
     @Published private(set) var archiveNotice: String?
@@ -1351,20 +1353,47 @@ final class ChatSession: ObservableObject {
 
     /// Saves the whole conversation with this turn. Conversations that gave way
     /// for it (oldest, never pinned) take their attachment files with them.
+    /// The whole conversation with this turn answered by `assistant`.
+    private func archivedRecord(_ turn: PendingTurn, assistant: ChatEntry) throws -> ArchivedConversation {
+        guard let destination = turn.destination else { throw ConversationArchiveError.invalidData }
+        let all = entries + [assistant]
+        guard all.count % 2 == 0 else { throw ConversationArchiveError.invalidData }
+        let turns = try stride(from: 0, to: all.count, by: 2).map { index in
+            try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
+                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf,
+                attachments: all[index].attachments.map { try $0.archived() }, outcome: all[index + 1].outcome)
+        }
+        return try ArchivedConversation(id: turn.archiveID, destination: destination, updatedAt: Date(), turns: turns)
+    }
+
+    /// The app left the screen with a reply still arriving. iOS may suspend or close it
+    /// before the reply ends (Android keeps a foreground service), so the turn is saved
+    /// now: what has arrived with a note that it did not finish, or 沒有完成 when nothing
+    /// has. A reply that then finishes replaces it, since the turn's prior becomes this save.
+    func checkpointPendingTurn() {
+        guard isSubmitting, let turn = pendingTurn, checkpointedRequestID != turn.requestID, let archive,
+              entries.last?.id == turn.user.id else { return }
+        let words = AppLocalizer(language: interfaceLanguage())
+        let arrived = replyPreview?.id == turn.requestID ? (replyPreview?.text ?? "") : ""
+        let assistant = arrived.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? ChatEntry(role: "assistant", content: words.text(.chatReplyClosedReason), outcome: .failed)
+            : ChatEntry(role: "assistant", content: arrived + "\n\n" + words.text(.chatReplyClosedNote))
+        do {
+            let record = try archivedRecord(turn, assistant: assistant)
+            let evicted = try archive.save(record, expected: turn.prior)
+            pendingTurn?.prior = record
+            checkpointedRequestID = turn.requestID
+            deleteAttachments(ofEvicted: evicted)
+        } catch {
+            // The final save still tries; nothing else depends on this one.
+        }
+    }
+
     private func archiveTurn(_ turn: PendingTurn, assistant: ChatEntry) {
         guard let archive else { return }
         pendingArchiveSave = nil
         do {
-            guard let destination = turn.destination else { throw ConversationArchiveError.invalidData }
-            let all = entries + [assistant]
-            guard all.count % 2 == 0 else { throw ConversationArchiveError.invalidData }
-            let turns = try stride(from: 0, to: all.count, by: 2).map { index in
-                try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
-                    userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf,
-                    attachments: all[index].attachments.map { try $0.archived() }, outcome: all[index + 1].outcome)
-            }
-            let record = try ArchivedConversation(id: turn.archiveID, destination: destination,
-                updatedAt: Date(), turns: turns)
+            let record = try archivedRecord(turn, assistant: assistant)
             pendingArchiveSave = (record, turn.prior)
             let evicted = try archive.save(record, expected: turn.prior)
             pendingArchiveSave = nil

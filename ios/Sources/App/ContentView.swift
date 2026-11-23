@@ -117,6 +117,9 @@ struct ContentView: View {
                 session.appLeftScreen()
                 keepReplyRunningInBackground()
             }
+            // Closing the app from the app switcher goes no further than inactive, so a
+            // reply still arriving is saved as unfinished as soon as the app leaves the front.
+            if phase != .active { session.checkpointPendingTurn() }
             if phase == .active {
                 mcpServers.appDidBecomeActive()
                 endReplyBackgroundTime()
