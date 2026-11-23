@@ -155,6 +155,16 @@ final class ModelAccountTokenTests: XCTestCase {
         }
     }
 
+    func testOpenRouterListSaysWhichModelsSeeImages() {
+        // OpenRouter (2026-11-23) puts the inputs under `architecture`; the older
+        // `modality` string still reads, and a list that says nothing stays unknown.
+        let body = #"{"data":[{"id":"openai/gpt-6.1-sol","context_length":400000,"architecture":{"modality":"text+image+file->text","input_modalities":["file","image","text"],"output_modalities":["text"]}},{"id":"z-ai/glm-5.3","architecture":{"input_modalities":["text"]}},{"id":"vendor/old","architecture":{"modality":"text+image->text"}},{"id":"vendor/old-text","architecture":{"modality":"text->text"}},{"id":"vendor/unsaid"}]}"#
+        let models = ChatGPTSignIn.listedModels(Data(body.utf8)) ?? []
+        XCTAssertEqual(models.map(\.id), ["openai/gpt-6.1-sol", "z-ai/glm-5.3", "vendor/old", "vendor/old-text", "vendor/unsaid"])
+        XCTAssertEqual(models.map(\.vision), [true, false, true, false, nil])
+        XCTAssertEqual(models.first?.contextTokens, 400000)
+    }
+
     func testProviderKindsAndAccountProvidersAreStoredBackwardCompatibly() throws {
         // A document from before the sign-ins reads unchanged.
         let old = #"{"version":2,"providers":[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"OpenRouter","kind":"openAICompatible","baseURL":"https:\/\/openrouter.ai\/api\/v1","credentialAccount":"6F9619FF-8B86-D011-B42D-00C04FC964FF","typedModels":["vendor\/a"]}],"roles":{"main":{"providerID":"6F9619FF-8B86-D011-B42D-00C04FC964FF","model":"vendor\/a"},"vision":{"use":"off"},"light":{"use":"sameAsMain"}}}"#

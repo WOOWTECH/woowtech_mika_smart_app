@@ -648,9 +648,16 @@ extension ChatGPTSignIn {
             if let visibility = entry["visibility"] as? String, visibility != "list" { continue }
             guard let id = ((entry["id"] as? String) ?? (entry["slug"] as? String)),
                   !id.trimmingCharacters(in: .whitespaces).isEmpty, seen.insert(id).inserted else { continue }
-            let inputs = (((entry["modalities"] as? [String: Any])?["input"]) ?? entry["input_modalities"]) as? [Any]
+            // OpenRouter puts the inputs under `architecture` (Android ModelCatalog reads
+            // `architecture.input_modalities`); its older `modality` reads "text+image->text".
+            let architecture = entry["architecture"] as? [String: Any]
+            let inputs = (((entry["modalities"] as? [String: Any])?["input"]) ?? entry["input_modalities"]
+                ?? architecture?["input_modalities"]) as? [Any]
             let vision = inputs.map { list in
                 list.contains { item in (item as? String).map { $0 == "image" || $0.hasPrefix("image/") } ?? false }
+            } ?? (architecture?["modality"] as? String).flatMap { modality -> Bool? in
+                guard let input = modality.components(separatedBy: "->").first, modality.contains("->") else { return nil }
+                return input.split(separator: "+").contains { $0.trimmingCharacters(in: .whitespaces) == "image" }
             }
             let context = [entry["context_length"], entry["context_window"], entry["max_context_length"]]
                 .lazy.compactMap { int64($0) }.first.map { Int($0) }
