@@ -12,9 +12,8 @@ def main():
         subprocess.run([
             "swiftc", "-warnings-as-errors", "-D", "CHAT_CONTEXT_WINDOW_STANDALONE",
             "-parse-as-library",
-            str(repo / "Sources/AssistantModels/ModelConfiguration.swift"),
-            str(repo / "Sources/AssistantModels/ModelAttachment.swift"),
-            str(repo / "Sources/AssistantModels/ChatContextWindow.swift"),
+            # The whole module: ModelConfiguration names types from other files (ModelAccountRoute).
+            *sorted(str(path) for path in (repo / "Sources/AssistantModels").glob("*.swift")),
             str(repo / "Tests/AssistantModelsTests/ChatContextWindowTests.swift"),
             "-o", str(binary),
         ], check=True, timeout=120, cwd=repo)

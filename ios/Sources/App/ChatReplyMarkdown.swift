@@ -167,9 +167,17 @@ enum ChatReplyMarkdown {
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
         options.allowsExtendedAttributes = false
-        let result = try AttributedString(markdown: source, options: options, baseURL: nil)
+        var result = try AttributedString(markdown: source, options: options, baseURL: nil)
         for run in result.runs {
             if let destination = run.link, !allowedLink(destination) { throw ParseError.unsafeLink }
+        }
+        // Chinese has no italic face, and inline code in a CJK sentence looks like the words
+        // around it: emphasis also gets a dotted underline, and inline code a light fill, so
+        // both show in any script (iPhone run of 283).
+        for (intent, range) in result.runs[\.inlinePresentationIntent] {
+            guard let intent else { continue }
+            if intent.contains(.code) { result[range].backgroundColor = Color.primary.opacity(0.08) }
+            if intent.contains(.emphasized) { result[range].underlineStyle = Text.LineStyle(pattern: .dot) }
         }
         return result
     }

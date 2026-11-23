@@ -23,6 +23,10 @@ enum CheckChatReplyMarkdown {
             && $0.inlinePresentationIntent?.contains(.emphasized) == true }, "Italic intent")
         expect(inline.text.runs.contains { String(inline.text[$0.range].characters) == "code"
             && $0.inlinePresentationIntent?.contains(.code) == true }, "Code intent")
+        expect(inline.text.runs.contains { String(inline.text[$0.range].characters) == "code" && $0.backgroundColor != nil },
+               "Inline code has a fill, so it shows in a CJK sentence")
+        expect(inline.text.runs.contains { String(inline.text[$0.range].characters) == "italic" && $0.underlineStyle != nil },
+               "Emphasis has a dotted underline, since Chinese has no italic")
         expect(inline.text.runs.contains { String(inline.text[$0.range].characters) == "removed"
             && $0.inlinePresentationIntent?.contains(.strikethrough) == true }, "Strike intent")
         expect(inline.text.runs.contains { $0.link?.absoluteString == "https://example.org" }, "Only explicit native link")

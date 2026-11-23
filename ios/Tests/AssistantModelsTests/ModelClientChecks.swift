@@ -264,7 +264,7 @@ enum ModelClientChecks {
             }
             try checks.expect(failed.requestCount == 1, "Failures never retry")
         }
-        let unsafe = URLError(.cannotConnectToHost, userInfo: [NSLocalizedDescriptionKey: "RAW_BODY_\(fakeKey)", NSURLErrorFailingURLStringErrorKey: base.absoluteString])
+        let unsafe = URLError(.cannotConnectToHost, userInfo: [NSLocalizedDescriptionKey: "RAW_BODY_\(fakeKey)", NSURLErrorFailingURLErrorKey: base])
         let failed = ModelProtocolFixture.Scenario(failure: unsafe)
         let url = ModelProtocolFixture.register(failed)
         defer { ModelProtocolFixture.remove(url) }
