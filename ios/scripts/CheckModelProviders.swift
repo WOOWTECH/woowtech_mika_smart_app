@@ -260,10 +260,11 @@ private final class Environment {
         let toolsID = UUID()
         let tools = ModelProvidersDocument(providers: [
             ModelProvider(id: toolsID, name: "Tools", baseURL: URL(string: "https://tools.example/v1")!, credentialAccount: UUID(),
-                          models: [ListedModel(id: "batch-x", tools: false), ListedModel(id: "chat-y"), ListedModel(id: "chat-z", tools: true)]),
+                          models: [ListedModel(id: "batch-x", tools: false), ListedModel(id: "chat-y"), ListedModel(id: "chat-y:batch", tools: true),
+                                   ListedModel(id: "chat-z", tools: true)]),
         ], roles: ModelRoles())
-        try check(tools.knownModels(of: toolsID) == ["chat-y", "chat-z", "batch-x"],
-                  "Android ofProvider: models that can be the main model first, the rest in the list's order")
+        try check(tools.knownModels(of: toolsID) == ["chat-y", "chat-z", "batch-x", "chat-y:batch"],
+                  "Android ofProvider: models that can be the main model first, the rest in the list's order, batch variants last")
         try check(!document.mainNeedsConsent, "the main provider was agreed to")
         document.consent = nil
         try check(document.mainNeedsConsent, "a main model never agreed to needs consent before anything is sent")

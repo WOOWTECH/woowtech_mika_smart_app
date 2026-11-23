@@ -184,7 +184,7 @@ extension ModelProvidersDocument {
     /// The models a provider's page and the main-model picker offer, Android
     /// sortedOptions: the main model first, then what the user typed or a test
     /// call confirmed, then the rest of the list in its own order, the ones
-    /// that can be the main model first.
+    /// that can be the main model first and batch variants last.
     public func knownModels(of providerID: UUID) -> [String] {
         guard let provider = provider(id: providerID) else { return [] }
         var seen = Set<String>(), ordered: [String] = []
@@ -193,9 +193,12 @@ extension ModelProvidersDocument {
         provider.typedModels.union(provider.verifiedModels)
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }.forEach(add)
         // Android ModelOptions.ofProvider: the ones that can be the main model
-        // (tool calls) first; a list that says a model cannot goes last.
+        // (tool calls) first; a list that says a model cannot goes after them.
+        // A batch variant (OpenRouter's "<model>:batch") answers later rather
+        // than in a chat, so it goes last whatever its tools.
         let listed = provider.models ?? []
-        (listed.filter { $0.tools != false } + listed.filter { $0.tools == false }).forEach { add($0.id) }
+        let batch = listed.filter { $0.id.hasSuffix(":batch") }, live = listed.filter { !$0.id.hasSuffix(":batch") }
+        (live.filter { $0.tools != false } + live.filter { $0.tools == false } + batch).forEach { add($0.id) }
         return ordered
     }
 

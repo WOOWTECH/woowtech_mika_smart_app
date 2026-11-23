@@ -182,11 +182,16 @@ struct DocumentExportView: View {
     }
 
     /// The reply's first line as a title without Markdown's marks: **bold**,
-    /// __bold__, `code`, a # heading, a > quote or a list's - or *.
+    /// __bold__, `code`, a # heading, a > quote, a list's - or *, or a
+    /// numbered item's "1." or "1)".
     static func titleText(_ line: String) -> String {
         var text = line
         for mark in ["**", "__", "`"] { text = text.replacingOccurrences(of: mark, with: "") }
-        return text.trimmingCharacters(in: CharacterSet(charactersIn: "#>*-").union(.whitespaces))
+        text = text.trimmingCharacters(in: CharacterSet(charactersIn: "#>*-").union(.whitespaces))
+        if let number = text.range(of: #"^\d{1,3}(?:[.)]\s+|、\s*)"#, options: .regularExpression), number.upperBound < text.endIndex {
+            text = String(text[number.upperBound...])
+        }
+        return text.trimmingCharacters(in: .whitespaces)
     }
 
     /// The reply as the chat shows its words: bold and the like rendered, not
