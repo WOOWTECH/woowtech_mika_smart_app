@@ -1,5 +1,6 @@
 import AssistantModels
 import Foundation
+import UniformTypeIdentifiers
 
 /// What one prompt's attachments become for the model: content it can read,
 /// plus short notes for anything it could not, so nothing is dropped silently.
@@ -85,21 +86,33 @@ enum ChatVisionHandoff {
         yourself. Write in the language of the user's question.
         """
 
-    /// The pictures' description, or nil when there was nothing to read or the
-    /// vision model did not answer.
+    /// A few paragraphs are enough. A bounded request also passes a provider
+    /// that checks the account's credit against the output asked for
+    /// (OpenRouter refuses an unbounded one when the credit is short), and
+    /// leaves a reasoning model room to think first.
+    static let maximumOutputTokens = 4_096
+
+    /// The pictures' description, or nil when none of the items is a picture.
+    /// A picture counts however it was attached (相簿, 相機, 檔案 or a share).
+    /// Throws what the vision model's call threw, or that it said nothing.
     static func describe(_ items: [ChatAttachmentItem], store: ChatAttachmentStore, question: String,
-                         client: any ChatModelClient, configuration: ModelConfiguration, key: String) async -> String? {
-        let photos = items.filter { $0.kind == .photo }
-        guard !photos.isEmpty else { return nil }
+                         client: any ChatModelClient, configuration: ModelConfiguration, key: String) async throws -> String? {
+        let pictures = items.filter { item in
+            item.kind == .photo || item.contentType.flatMap(UTType.init)?.conforms(to: .image) ?? true
+        }
+        guard !pictures.isEmpty else { return nil }
         let prepared = await Task.detached(priority: .userInitiated) {
-            ChatAttachmentPreparation.prepare(photos, store: store, vision: .supported, textBudgetBytes: 0)
+            ChatAttachmentPreparation.prepare(pictures, store: store, vision: .supported, textBudgetBytes: 0)
         }.value
-        guard !prepared.attachments.isEmpty else { return nil }
+        let images = prepared.attachments.filter(\.isImage)
+        guard !images.isEmpty else { return nil }
         let text = instruction + "\n\nUser's question: " + String(question.prefix(2_000))
-        guard let reply = try? await client.complete(messages: [ModelMessage(userText: text, attachments: prepared.attachments)],
-                                                     configuration: configuration, apiKey: key) else { return nil }
+        let reply = try await client.complete(messages: [ModelMessage(userText: text, attachments: images)],
+                                              configuration: configuration.withMaxOutputTokens(maximumOutputTokens),
+                                              apiKey: key)
         let described = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-        return described.isEmpty ? nil : String(described.prefix(8_000))
+        guard !described.isEmpty else { throw ChatVisionHandoffError.noDescription }
+        return String(described.prefix(8_000))
     }
 
     /// The main request's notes: the description in place of each picture's
@@ -107,5 +120,19 @@ enum ChatVisionHandoff {
     static func notes(_ notes: [String], description: String) -> [String] {
         notes.filter { !$0.hasSuffix(":" + ChatAttachmentPreparation.unseenImageReason) }
             + ["看圖模型對附圖的說明：\n" + description]
+    }
+}
+
+enum ChatVisionHandoffError: Error { case noDescription }
+
+/// Why the vision model did not describe this turn's pictures: its model, and
+/// the model call's failure when the chat has words for it.
+struct ChatVisionFailure: Equatable {
+    let model: String
+    let failure: ChatModelFailure?
+
+    init(model: String, error: Error) {
+        self.model = model
+        failure = ChatModelFailure(error)
     }
 }

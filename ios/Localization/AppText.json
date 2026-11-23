@@ -4932,8 +4932,8 @@
       "key": "models.offNote",
       "parameters": [],
       "translations": {
-        "zh-Hant": "圖片不交給模型",
-        "en": "Pictures are not sent to a model"
+        "zh-Hant": "主模型能看圖時才交給它",
+        "en": "Pictures go to the main model only if it can see images"
       }
     },
     {
@@ -5816,6 +5816,15 @@
       }
     },
     {
+      "case": "chatVisionLooking",
+      "key": "chat.visionLooking",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "看圖模型正在看圖",
+        "en": "The vision model is looking at the pictures"
+      }
+    },
+    {
       "case": "chatStatusConfigured",
       "key": "chat.status.configured",
       "parameters": [],
@@ -6654,6 +6663,24 @@
       }
     },
     {
+      "case": "settingsSeesImagesVision",
+      "key": "settings.seesImages.vision",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已用作看圖模型，算能看圖。要改，請換掉看圖模型。",
+        "en": "Used as the vision model, so it counts as able to see images. To change this, choose another vision model."
+      }
+    },
+    {
+      "case": "settingsSeesImagesListed",
+      "key": "settings.seesImages.listed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "服務商的模型清單寫明的，可以改。",
+        "en": "As the provider’s model list says. You can change it."
+      }
+    },
+    {
       "case": "chatAttachImagesNotSeen",
       "key": "chat.attach.imagesNotSeen",
       "parameters": [
@@ -6665,12 +6692,39 @@
       "plural": "count",
       "translations": {
         "zh-Hant": {
-          "other": "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+          "other": "主模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁選一個看圖模型。"
         },
         "en": {
-          "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
-          "other": "This model can’t see images, so %lld images weren’t sent to it. Turn on Sees images on the model settings page."
+          "one": "The main model can’t see images, so %lld image wasn’t sent to a model. Choose a vision model on the model settings page.",
+          "other": "The main model can’t see images, so %lld images weren’t sent to a model. Choose a vision model on the model settings page."
         }
+      }
+    },
+    {
+      "case": "chatAttachVisionFailed",
+      "key": "chat.attach.visionFailed",
+      "parameters": [
+        {
+          "name": "model",
+          "type": "String"
+        },
+        {
+          "name": "reason",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@",
+        "en": "The vision model %1$@ couldn’t look at the pictures, so they weren’t sent to the main model. %2$@"
+      }
+    },
+    {
+      "case": "chatAttachVisionFailedAgain",
+      "key": "chat.attach.visionFailed.again",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請再試一次，或到設定的模型頁換一個看圖模型。",
+        "en": "Try again, or choose another vision model on the model settings page."
       }
     },
     {

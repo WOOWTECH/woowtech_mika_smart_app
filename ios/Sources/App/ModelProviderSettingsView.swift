@@ -940,6 +940,12 @@ struct ModelMainPickerView: View {
 
 // MARK: - One provider (Android ProviderDetailContent)
 
+/// A role picked in the "用作" sheet, applied once the sheet has closed.
+private struct ModelRoleUseTarget {
+    let role: ModelSideRole
+    let model: String
+}
+
 /// The model a "用作" sheet is open for.
 private struct ModelUseTarget: Identifiable {
     let model: String
@@ -957,6 +963,7 @@ struct ModelProviderDetailView: View {
     @State private var confirmsDelete = false
     @State private var using: ModelUseTarget?
     @State private var mainAfterSheet: String?
+    @State private var roleAfterSheet: ModelRoleUseTarget?
     @State private var consent: ModelConsentRequest?
     @State private var retestTarget: String?
     @State private var retested: String?
@@ -1015,6 +1022,7 @@ struct ModelProviderDetailView: View {
         .sheet(item: $using, onDismiss: useAsDismissed) { target in
             ModelUseAsSheet(session: session, localizer: localizer, providerID: providerID, model: target.model,
                             useAsMain: { mainAfterSheet = target.model; using = nil },
+                            useAsRole: { roleAfterSheet = ModelRoleUseTarget(role: $0, model: target.model); using = nil },
                             close: { using = nil })
         }
         .sheet(item: $consent) { request in
@@ -1172,6 +1180,11 @@ struct ModelProviderDetailView: View {
     /// The "用作" sheet closed; 主模型 there asks for the consent now when
     /// it is another provider than the one agreed to.
     private func useAsDismissed() {
+        if let target = roleAfterSheet {
+            roleAfterSheet = nil
+            useAsRole(target.role, model: target.model)
+            return
+        }
         guard let model = mainAfterSheet, let provider else { return }
         mainAfterSheet = nil
         let ref = ModelRef(providerID: provider.id, model: model)
@@ -1183,6 +1196,22 @@ struct ModelProviderDetailView: View {
         consent = ModelConsentRequest(
             prompt: ModelConsentPrompt(provider: provider, purpose: .switchMain),
             agree: { session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: true) },
+            decline: {})
+    }
+
+    /// Android UseAsSheet's 看圖模型 and 輕量模型 rows: this model for the role,
+    /// after the consent when its provider was never agreed to.
+    private func useAsRole(_ role: ModelSideRole, model: String) {
+        guard let provider else { return }
+        let choice = ModelRoleChoice.model(ModelRef(providerID: provider.id, model: model))
+        guard document.choice(for: role) != choice else { return }
+        guard document.consentRequirement(for: choice) != nil else {
+            _ = session.chooseRoleModel(role, choice, consented: false)
+            return
+        }
+        consent = ModelConsentRequest(
+            prompt: ModelConsentPrompt(provider: provider, purpose: .role),
+            agree: { _ = session.chooseRoleModel(role, choice, consented: true) },
             decline: {})
     }
 
@@ -1223,7 +1252,8 @@ struct ModelProviderDetailView: View {
     }
 }
 
-/// Android UseAsSheet for phase 1: 主模型 and 能看圖. The answer applies at once.
+/// Android UseAsSheet: 「<服務商> · 用作」主模型 / 看圖模型 / 輕量模型, applied at
+/// once, then the 能看圖 switch with Android's note on where its answer comes from.
 @MainActor
 private struct ModelUseAsSheet: View {
     @ObservedObject var session: ChatSession
@@ -1231,13 +1261,25 @@ private struct ModelUseAsSheet: View {
     let providerID: UUID
     let model: String
     let useAsMain: () -> Void
+    let useAsRole: (ModelSideRole) -> Void
     let close: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
-    private var provider: ModelProvider? { session.providerDocument.provider(id: providerID) }
-    private var isMain: Bool { session.providerDocument.roles.main == ModelRef(providerID: providerID, model: model) }
-    private var sees: Bool? { provider?.visionOverrides[model] }
+    private var document: ModelProvidersDocument { session.providerDocument }
+    private var provider: ModelProvider? { document.provider(id: providerID) }
+    private var ref: ModelRef { ModelRef(providerID: providerID, model: model) }
+    private var isMain: Bool { document.roles.main == ref }
+    /// The vision role uses this model (用主模型 for the main one, or chosen): it sees images.
+    private var usedForVision: Bool { document.resolvedModel(for: .vision) == ref }
+    /// Android ModelOptions.seesImages: what the chat goes by.
+    private var sees: Bool { document.seesImages(ref) == true }
+    /// Android ModelsCopy.seesNote: the vision role, the person's own answer, the list, or unconfirmed.
+    private var seesNote: AppText {
+        if usedForVision { return .settingsSeesImagesVision }
+        if provider?.visionOverrides[model] != nil { return .settingsSeesImagesUser }
+        return document.seesImages(ref) == nil ? .settingsSeesImagesUnconfirmed : .settingsSeesImagesListed
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1253,17 +1295,27 @@ private struct ModelUseAsSheet: View {
                                  selected: isMain) { if !isMain { useAsMain() } }
                 .disabled(session.isSubmitting)
                 .accessibilityIdentifier("useAs.main")
+            ForEach(ModelSideRole.allCases, id: \.self) { role in
+                let picked = document.resolvedModel(for: role) == ref
+                Divider().padding(.leading, 16)
+                MikaSettingsRadioRow(title: localizer.text(role == .vision ? .roleVision : .roleLight),
+                                     subtitle: localizer.text(picked ? .modelsInUse : role == .vision ? .roleVisionWhat : .roleLightWhat),
+                                     selected: picked) { if !picked { useAsRole(role) } }
+                    .disabled(session.isSubmitting)
+                    .accessibilityIdentifier("useAs." + role.rawValue)
+            }
             Divider().padding(.leading, 16)
-            Toggle(isOn: Binding(get: { sees == true },
+            Toggle(isOn: Binding(get: { sees },
                                  set: { session.setModelVision(providerID: providerID, model: model, sees: $0) })) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(verbatim: localizer.text(.settingsSeesImages))
-                    Text(verbatim: localizer.text(sees == nil ? .settingsSeesImagesUnconfirmed : .settingsSeesImagesUser))
+                    Text(verbatim: localizer.text(seesNote))
                         .font(.footnote).foregroundStyle(palette.hint)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .disabled(session.isSubmitting)
+            // The vision role decides for the model it uses; change the role to change it.
+            .disabled(session.isSubmitting || usedForVision)
             .padding(.horizontal, 16).padding(.vertical, 12)
             .accessibilityIdentifier("useAs.seesImages")
             Divider().padding(.leading, 16)

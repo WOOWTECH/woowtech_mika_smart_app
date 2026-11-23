@@ -519,7 +519,7 @@
 "models.sameAsMain" = "用主模型";
 "models.mainNotPicked" = "主模型還沒選";
 "models.off" = "不用";
-"models.offNote" = "圖片不交給模型";
+"models.offNote" = "主模型能看圖時才交給它";
 "models.visionSameNote" = "主模型能看圖時選這個";
 "models.lightSameNote" = "和主模型同一個，不用另外選";
 "models.pickFrom" = "從已連線的服務商裡選";
@@ -605,6 +605,7 @@
 "chat.turn.notDone" = "沒有完成";
 "chat.turn.stopped" = "已停止。";
 "chat.turn.working" = "正在處理";
+"chat.visionLooking" = "看圖模型正在看圖";
 "chat.status.configured" = "模型已設定";
 "chat.status.unconfigured" = "尚未設定模型";
 "drawer.status.ready" = "一切就緒";
@@ -689,6 +690,10 @@
 "settings.seesImages" = "能看圖";
 "settings.seesImages.unconfirmed" = "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。";
 "settings.seesImages.user" = "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。";
+"settings.seesImages.vision" = "已用作看圖模型，算能看圖。要改，請換掉看圖模型。";
+"settings.seesImages.listed" = "服務商的模型清單寫明的，可以改。";
+"chat.attach.visionFailed" = "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@";
+"chat.attach.visionFailed.again" = "請再試一次，或到設定的模型頁換一個看圖模型。";
 "chat.message.copy" = "複製";
 "chat.message.copied" = "已複製";
 "chat.message.quote" = "引用";

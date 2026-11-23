@@ -142,6 +142,8 @@ enum ChatAttachmentNotice: Equatable {
     case cameraUnavailable
     /// Photos were sent as notes only because the model is not marked "能看圖".
     case imagesNotSeen(Int)
+    /// The vision model did not describe the photos, so they were sent as notes only.
+    case visionFailed(ChatVisionFailure)
     /// A recent photo was tapped while nine are already waiting.
     case trayFull
     /// A sent attachment's file was removed from the app's folder.

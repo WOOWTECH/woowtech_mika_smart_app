@@ -519,7 +519,7 @@
 "models.sameAsMain" = "Use the main model";
 "models.mainNotPicked" = "No main model yet";
 "models.off" = "None";
-"models.offNote" = "Pictures are not sent to a model";
+"models.offNote" = "Pictures go to the main model only if it can see images";
 "models.visionSameNote" = "Choose this when the main model can see images";
 "models.lightSameNote" = "Same as the main model; nothing more to choose";
 "models.pickFrom" = "Choose from connected providers";
@@ -605,6 +605,7 @@
 "chat.turn.notDone" = "Not finished";
 "chat.turn.stopped" = "Stopped.";
 "chat.turn.working" = "Working";
+"chat.visionLooking" = "The vision model is looking at the pictures";
 "chat.status.configured" = "Model configured";
 "chat.status.unconfigured" = "Model not configured";
 "drawer.status.ready" = "All set";
@@ -689,6 +690,10 @@
 "settings.seesImages" = "Can see images";
 "settings.seesImages.unconfirmed" = "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it.";
 "settings.seesImages.user" = "As you set it. When on, photos attached in chat go straight to the main model.";
+"settings.seesImages.vision" = "Used as the vision model, so it counts as able to see images. To change this, choose another vision model.";
+"settings.seesImages.listed" = "As the provider’s model list says. You can change it.";
+"chat.attach.visionFailed" = "The vision model %1$@ couldn’t look at the pictures, so they weren’t sent to the main model. %2$@";
+"chat.attach.visionFailed.again" = "Try again, or choose another vision model on the model settings page.";
 "chat.message.copy" = "Copy";
 "chat.message.copied" = "Copied";
 "chat.message.quote" = "Quote";

@@ -39,6 +39,10 @@ struct ChatAttachmentText {
         }.joined(separator: "\n")
     }
     func imagesNotSeen(_ n: Int) -> String { localizer.text(.chatAttachImagesNotSeen(count: n)) }
+    func visionFailed(_ failure: ChatVisionFailure) -> String {
+        localizer.text(.chatAttachVisionFailed(model: failure.model,
+                                               reason: localizer.text(failure.failure?.text ?? .chatAttachVisionFailedAgain)))
+    }
 }
 
 /// The chat palette's colors this file needs; ContentView keeps its palette private.
@@ -216,6 +220,7 @@ struct ChatAttachmentNoticeRow: View {
         case .refused(let failures): return text.refused(failures)
         case .cameraUnavailable: return text.noCamera
         case .imagesNotSeen(let n): return text.imagesNotSeen(n)
+        case .visionFailed(let failure): return text.visionFailed(failure)
         case .trayFull: return text.full()
         case .missing: return text.gone
         }

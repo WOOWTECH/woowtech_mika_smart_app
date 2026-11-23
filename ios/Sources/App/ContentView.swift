@@ -1060,7 +1060,8 @@ private struct ChatView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id(preview.id)
         } else if session.isSubmitting, session.webTask == nil, let started = session.requestStartedAt {
-            ChatWorkingRow(started: started, label: localizer.text(.chatTurnWorking), tint: palette.accent,
+            ChatWorkingRow(started: started, label: localizer.text(session.visionLooking ? .chatVisionLooking : .chatTurnWorking),
+                           tint: palette.accent,
                            ink: palette.ink, secondary: palette.secondaryInk)
         }
         if let task = session.webTask {

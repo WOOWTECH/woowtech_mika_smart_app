@@ -899,7 +899,18 @@ private final class Environment {
         try seeing.chooseRole(.vision, .sameAsMain, consentedAt: nil)
         try check(seeing.seesImages(main) == true && seeing.visionRoleUsesMain, "用主模型: the main model sees images")
         try seeing.setVision(false, providerID: first, model: "main-a")
-        try check(seeing.seesImages(main) == false, "the person's switch outranks the vision role")
+        try check(seeing.seesImages(main) == true, "用主模型 outranks the person's switch (Android's vision path reaches it)")
+        try seeing.chooseRole(.vision, .off, consentedAt: nil)
+        try check(seeing.seesImages(main) == false, "without the vision role the person's switch decides")
+        let chosen = ModelRef(providerID: first, model: "vision-b")
+        try seeing.setVision(false, providerID: first, model: "vision-b")
+        try seeing.chooseRole(.vision, .model(chosen), consentedAt: nil)
+        try check(seeing.seesImages(chosen) == true && seeing.seesImages(main) == false && !seeing.visionRoleUsesMain,
+                  "a chosen vision model sees images whatever its switch; the main model keeps its own answer")
+        try seeing.chooseRole(.vision, .off, consentedAt: nil)
+        try check(seeing.seesImages(chosen) == false, "once it is not the vision model its switch decides again")
+        try seeing.setVision(nil, providerID: first, model: "vision-b")
+        try check(seeing.seesImages(chosen) == true, "with no answer of the person's the model list decides")
         try scenario { env in
             let repository = env.repository()
             let saved = try repository.save(baseURL: "https://gateway.example/v1", model: "main-a", newKey: "k").record

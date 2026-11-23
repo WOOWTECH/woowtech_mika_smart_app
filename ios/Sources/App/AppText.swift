@@ -617,6 +617,7 @@ enum AppText: Equatable {
     case chatTurnNotDone
     case chatTurnStopped
     case chatTurnWorking
+    case chatVisionLooking
     case chatStatusConfigured
     case chatStatusUnconfigured
     case drawerStatusReady
@@ -702,7 +703,11 @@ enum AppText: Equatable {
     case settingsSeesImages
     case settingsSeesImagesUnconfirmed
     case settingsSeesImagesUser
+    case settingsSeesImagesVision
+    case settingsSeesImagesListed
     case chatAttachImagesNotSeen(count: Int)
+    case chatAttachVisionFailed(model: String, reason: String)
+    case chatAttachVisionFailedAgain
     case chatMessageCopy
     case chatMessageCopied
     case chatMessageQuote
@@ -1711,6 +1716,7 @@ enum AppText: Equatable {
         case .chatTurnNotDone: return "chat.turn.notDone"
         case .chatTurnStopped: return "chat.turn.stopped"
         case .chatTurnWorking: return "chat.turn.working"
+        case .chatVisionLooking: return "chat.visionLooking"
         case .chatStatusConfigured: return "chat.status.configured"
         case .chatStatusUnconfigured: return "chat.status.unconfigured"
         case .drawerStatusReady: return "drawer.status.ready"
@@ -1796,7 +1802,11 @@ enum AppText: Equatable {
         case .settingsSeesImages: return "settings.seesImages"
         case .settingsSeesImagesUnconfirmed: return "settings.seesImages.unconfirmed"
         case .settingsSeesImagesUser: return "settings.seesImages.user"
+        case .settingsSeesImagesVision: return "settings.seesImages.vision"
+        case .settingsSeesImagesListed: return "settings.seesImages.listed"
         case .chatAttachImagesNotSeen: return "chat.attach.imagesNotSeen"
+        case .chatAttachVisionFailed: return "chat.attach.visionFailed"
+        case .chatAttachVisionFailedAgain: return "chat.attach.visionFailed.again"
         case .chatMessageCopy: return "chat.message.copy"
         case .chatMessageCopied: return "chat.message.copied"
         case .chatMessageQuote: return "chat.message.quote"
@@ -2248,6 +2258,7 @@ enum AppText: Equatable {
         case .chatAttachTooLarge(let names): return [names]
         case .chatAttachInsufficientSpace(let names): return [names]
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
+        case .chatAttachVisionFailed(let model, let reason): return [model, reason]
         case .chatQuotingAssistant(let text): return [text]
         case .chatQuotingYou(let text): return [text]
         case .chatReportReference(let reference, let message): return [reference, message]
@@ -2840,7 +2851,7 @@ enum AppText: Equatable {
         case .modelsSameAsMain: return "用主模型"
         case .modelsMainNotPicked: return "主模型還沒選"
         case .modelsOff: return "不用"
-        case .modelsOffNote: return "圖片不交給模型"
+        case .modelsOffNote: return "主模型能看圖時才交給它"
         case .modelsVisionSameNote: return "主模型能看圖時選這個"
         case .modelsLightSameNote: return "和主模型同一個，不用另外選"
         case .modelsPickFrom: return "從已連線的服務商裡選"
@@ -2929,6 +2940,7 @@ enum AppText: Equatable {
         case .chatTurnNotDone: return "沒有完成"
         case .chatTurnStopped: return "已停止。"
         case .chatTurnWorking: return "正在處理"
+        case .chatVisionLooking: return "看圖模型正在看圖"
         case .chatStatusConfigured: return "模型已設定"
         case .chatStatusUnconfigured: return "尚未設定模型"
         case .drawerStatusReady: return "一切就緒"
@@ -3014,7 +3026,11 @@ enum AppText: Equatable {
         case .settingsSeesImages: return "能看圖"
         case .settingsSeesImagesUnconfirmed: return "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。"
         case .settingsSeesImagesUser: return "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。"
-        case .chatAttachImagesNotSeen: return "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+        case .settingsSeesImagesVision: return "已用作看圖模型，算能看圖。要改，請換掉看圖模型。"
+        case .settingsSeesImagesListed: return "服務商的模型清單寫明的，可以改。"
+        case .chatAttachImagesNotSeen: return "主模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁選一個看圖模型。"
+        case .chatAttachVisionFailed: return "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@"
+        case .chatAttachVisionFailedAgain: return "請再試一次，或到設定的模型頁換一個看圖模型。"
         case .chatMessageCopy: return "複製"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"

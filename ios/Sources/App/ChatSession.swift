@@ -294,6 +294,8 @@ final class ChatSession: ObservableObject {
     @Published private(set) var pickMainProvider: UUID?
     private var consentMCP: MCPServers?
     @Published private(set) var mcpActivity: String?
+    /// The vision model is looking at this turn's pictures for the main model (ChatVisionHandoff).
+    @Published private(set) var visionLooking = false
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
     /// Which server and tool each step used, for the results list.
     @Published private(set) var mcpStepOwners: [UUID: MCPStepOwner] = [:]
@@ -1048,11 +1050,11 @@ final class ChatSession: ObservableObject {
         }
         // Android visionModelFactory, for chat pictures: when the main model cannot
         // see them, the vision role's own model (agreed to) looks at them first.
-        let visionRoute: (configuration: ModelConfiguration, key: String)? = {
-            guard configuration.vision != .supported, attachmentsAtStart.contains(where: { $0.kind == .photo }),
+        let visionRoute: (configuration: ModelConfiguration, key: String, model: String)? = {
+            guard configuration.vision != .supported, !attachmentsAtStart.isEmpty,
                   let settings = try? repository.roleSettings(.vision), settings.seesImages == true,
                   let visionKey = try? repository.key(for: settings) else { return nil }
-            return (settings.configuration(conversation: conversationID), visionKey)
+            return (settings.configuration(conversation: conversationID), visionKey, settings.model)
         }()
         let id = UUID()
         requestID = id
@@ -1097,16 +1099,26 @@ final class ChatSession: ObservableObject {
                     }.value
                     try Task.checkCancellation()
                     var notes = prepared.notes, unseen = prepared.unseenImages
-                    if unseen > 0, let visionRoute,
-                       let described = await ChatVisionHandoff.describe(attachmentsAtStart, store: attachmentStore,
-                                                                        question: utterance, client: client,
-                                                                        configuration: visionRoute.configuration,
-                                                                        key: visionRoute.key) {
+                    var visionFailure: ChatVisionFailure?
+                    if unseen > 0, let visionRoute {
+                        self?.visionLooking = true
+                        defer { self?.visionLooking = false }
+                        do {
+                            if let described = try await ChatVisionHandoff.describe(
+                                attachmentsAtStart, store: attachmentStore, question: utterance, client: client,
+                                configuration: visionRoute.configuration, key: visionRoute.key) {
+                                notes = ChatVisionHandoff.notes(notes, description: described)
+                                unseen = 0
+                            }
+                        } catch {
+                            try Task.checkCancellation()
+                            visionFailure = ChatVisionFailure(model: visionRoute.model, error: error)
+                        }
                         try Task.checkCancellation()
-                        notes = ChatVisionHandoff.notes(notes, description: described)
-                        unseen = 0
                     }
-                    if unseen > 0 { self?.attachmentNotice = .imagesNotSeen(unseen) }
+                    if unseen > 0 {
+                        self?.attachmentNotice = visionFailure.map(ChatAttachmentNotice.visionFailed) ?? .imagesNotSeen(unseen)
+                    }
                     outgoing.append(ModelMessage(userText: ChatAttachmentPreparation.promptText(last.content, notes: notes),
                                                  attachments: prepared.attachments))
                 }

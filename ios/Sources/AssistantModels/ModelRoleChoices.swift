@@ -98,19 +98,20 @@ extension ModelProvidersDocument {
         }
     }
 
-    /// Android ProviderStore.configFor and ModelOptions.seesImages: the
-    /// person's switch for the model; else a model the vision role also uses
-    /// (用主模型, or the same one chosen) sees images; else the model list,
-    /// then the preset. Nil when nothing says.
+    /// Android ProviderStore.configFor: the model the vision role uses
+    /// (用主模型, or one chosen) always sees images, because the person picked
+    /// it to look at them. Android's vision path reaches it even when the
+    /// person said no for it as the main model; chat here has no separate
+    /// path, so the pictures go straight to it. Any other model: the person's
+    /// switch for it, else the model list, then the preset. Nil when nothing says.
     public func seesImages(_ ref: ModelRef) -> Bool? {
         guard let provider = provider(id: ref.providerID) else { return nil }
-        if let said = provider.visionOverrides[ref.model] { return said }
         if resolvedModel(for: .vision) == ref { return true }
+        if let said = provider.visionOverrides[ref.model] { return said }
         return ModelProviderPresets.seesImages(provider: provider, model: ref.model)
     }
 
-    /// Android ProviderStore.configFor: the main model counts as seeing images
-    /// when the person never said otherwise for it and the vision role uses it
+    /// The main model counts as seeing images because the vision role uses it
     /// too (用主模型, or the same model chosen), so pictures go straight to it.
     public var visionRoleUsesMain: Bool {
         guard let main = roles.main else { return false }
