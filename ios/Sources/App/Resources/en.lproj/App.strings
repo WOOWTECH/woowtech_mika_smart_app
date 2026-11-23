@@ -1026,6 +1026,7 @@
 "document.source" = "Source answer";
 "document.localNotice" = "Files are generated locally from this answer's text and tables. Attachments and images are not embedded. Preview before saving or sharing.";
 "document.title" = "Document title / filename";
+"document.defaultTitle" = "Answer";
 "document.format" = "Document format";
 "document.table" = "Table to export";
 "document.chooseTable" = "Choose one table";

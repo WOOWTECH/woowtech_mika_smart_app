@@ -158,6 +158,9 @@ final class DocumentSourceValidation: ObservableObject {
 struct DocumentExportView: View {
     let source: DocumentExportSource
     let localizer: AppLocalizer
+    /// Like Play, which passes the locale's language tag: Chinese labels the PDF's column bands
+    /// 欄 and gets Traditional Chinese glyphs, instead of the undetermined "und".
+    private var language: String { localizer.language.rawValue }
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var format: DocumentFormat = .pdf
@@ -257,16 +260,20 @@ struct DocumentExportView: View {
             guard !sourceValidation.initialized else { return }
             if !didSetInitialOptions {
                 format = source.format
-                let firstLine = source.content.split(maxSplits: 1, whereSeparator: \.isNewline).first.map(String.init) ?? "Report"
-                title = String(firstLine.unicodeScalars.prefix(512).filter { !CharacterSet.controlCharacters.contains($0) }
-                    .map(String.init).joined().trimmingCharacters(in: CharacterSet(charactersIn: "# ")).prefix(80))
-                if title.isEmpty { title = "Report" }
+                // Like Play: a reply that starts with a table, or has no first line, is titled 回答 /
+                // Answer rather than after its header row.
+                let firstLine = source.content.split(maxSplits: 1, whereSeparator: \.isNewline).first.map(String.init) ?? ""
+                title = firstLine.trimmingCharacters(in: .whitespaces).hasPrefix("|") ? "" :
+                    String(firstLine.unicodeScalars.prefix(512).filter { !CharacterSet.controlCharacters.contains($0) }
+                        .map(String.init).joined().trimmingCharacters(in: CharacterSet(charactersIn: "# ")).prefix(80))
+                if title.isEmpty { title = localizer.text(.documentDefaultTitle) }
                 // Retrying a cancelled parse must not reset the user's edits.
                 didSetInitialOptions = true
             }
             // Source validation is independent of the editable/inferred title.
+            let language = self.language
             if let parsed = await sourceValidation.initialize(parse: {
-                try await DocumentExportStore.shared.parse(source.content, title: "Report", language: "und")
+                try await DocumentExportStore.shared.parse(source.content, title: "Report", language: language)
             }) {
                 selectedTable = parsed.tables.count == 1 ? 0 : -1
             }
@@ -301,13 +308,13 @@ struct DocumentExportView: View {
         invalidate()
         busy = true
         let selectedTitle = title, selectedFormat = format, table = selectedTable >= 0 ? selectedTable : nil
-        let content = source.content
+        let content = source.content, language = self.language
         let owner = lifetime
         lifetime.task = Task { [weak owner, generated = $generated, status = $status, busy = $busy] in
             defer { if owner != nil { busy.wrappedValue = false } }
             do {
                 let file = try await DocumentExportStore.shared.generate(source: content, title: selectedTitle,
-                                                                         language: "und", format: selectedFormat, table: table)
+                                                                         language: language, format: selectedFormat, table: table)
                 guard !Task.isCancelled, let owner else {
                     await DocumentExportStore.shared.release(file.id)
                     return

@@ -1039,6 +1039,7 @@ enum AppText: Equatable {
     case documentSource
     case documentLocalNotice
     case documentTitle
+    case documentDefaultTitle
     case documentFormat
     case documentTable
     case documentChooseTable
@@ -2113,6 +2114,7 @@ enum AppText: Equatable {
         case .documentSource: return "document.source"
         case .documentLocalNotice: return "document.localNotice"
         case .documentTitle: return "document.title"
+        case .documentDefaultTitle: return "document.defaultTitle"
         case .documentFormat: return "document.format"
         case .documentTable: return "document.table"
         case .documentChooseTable: return "document.chooseTable"
@@ -3309,6 +3311,7 @@ enum AppText: Equatable {
         case .documentSource: return "來源回答"
         case .documentLocalNotice: return "文件在本機產生。僅包含這則回答的文字與表格；附件與圖片不會嵌入。請預覽內容後再儲存或分享。"
         case .documentTitle: return "文件標題／檔名"
+        case .documentDefaultTitle: return "回答"
         case .documentFormat: return "文件格式"
         case .documentTable: return "要匯出的表格"
         case .documentChooseTable: return "請選擇一個表格"

@@ -1026,6 +1026,7 @@
 "document.source" = "來源回答";
 "document.localNotice" = "文件在本機產生。僅包含這則回答的文字與表格；附件與圖片不會嵌入。請預覽內容後再儲存或分享。";
 "document.title" = "文件標題／檔名";
+"document.defaultTitle" = "回答";
 "document.format" = "文件格式";
 "document.table" = "要匯出的表格";
 "document.chooseTable" = "請選擇一個表格";

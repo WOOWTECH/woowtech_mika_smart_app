@@ -9991,6 +9991,15 @@
       }
     },
     {
+      "case": "documentDefaultTitle",
+      "key": "document.defaultTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回答",
+        "en": "Answer"
+      }
+    },
+    {
       "case": "documentFormat",
       "key": "document.format",
       "parameters": [],
