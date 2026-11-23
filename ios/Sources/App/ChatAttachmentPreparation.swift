@@ -93,7 +93,7 @@ enum ChatVisionHandoff {
     static let maximumOutputTokens = 4_096
 
     /// The pictures' description, or nil when none of the items is a picture.
-    /// A picture counts however it was attached (相簿, 相機, 檔案 or a share).
+    /// A picture counts however it was attached (相簿, 相機 or 檔案).
     /// Throws what the vision model's call threw, or that it said nothing.
     static func describe(_ items: [ChatAttachmentItem], store: ChatAttachmentStore, question: String,
                          client: any ChatModelClient, configuration: ModelConfiguration, key: String) async throws -> String? {
@@ -116,10 +116,13 @@ enum ChatVisionHandoff {
     }
 
     /// The main request's notes: the description in place of each picture's
-    /// "cannot see" note.
+    /// "cannot see" note. It says the main model only has these words, so a
+    /// later "look again" is answered from them, not as if it saw the picture
+    /// (the conversation keeps this text, not the picture).
     static func notes(_ notes: [String], description: String) -> [String] {
         notes.filter { !$0.hasSuffix(":" + ChatAttachmentPreparation.unseenImageReason) }
-            + ["看圖模型對附圖的說明：\n" + description]
+            + ["看圖模型對附圖的說明（你沒有直接看到圖片，只有這份說明。之後被問到圖片時，以這份說明回答；"
+               + "被要求再看一次時，要說明你只能根據這份說明回答，需要更多細節請使用者重新附上圖片）：\n" + description]
     }
 }
 
