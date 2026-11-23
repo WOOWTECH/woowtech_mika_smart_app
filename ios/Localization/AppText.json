@@ -6762,6 +6762,15 @@
       }
     },
     {
+      "case": "chatAttachVisionFailedNoPictures",
+      "key": "chat.attach.visionFailed.noPictures",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。",
+        "en": "It may not take pictures, or the provider may not have it. Choose a model that can see images on the model settings page."
+      }
+    },
+    {
       "case": "chatMessageCopy",
       "key": "chat.message.copy",
       "parameters": [],

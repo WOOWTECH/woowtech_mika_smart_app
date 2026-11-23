@@ -695,6 +695,7 @@
 "settings.seesImages.listed" = "As the provider’s model list says. You can change it.";
 "chat.attach.visionFailed" = "The vision model %1$@ couldn’t look at the pictures, so they weren’t sent to the main model. %2$@";
 "chat.attach.visionFailed.again" = "Try again, or choose another vision model on the model settings page.";
+"chat.attach.visionFailed.noPictures" = "It may not take pictures, or the provider may not have it. Choose a model that can see images on the model settings page.";
 "chat.message.copy" = "Copy";
 "chat.message.copied" = "Copied";
 "chat.message.quote" = "Quote";

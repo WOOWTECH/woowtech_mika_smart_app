@@ -40,8 +40,11 @@ struct ChatAttachmentText {
     }
     func imagesNotSeen(_ n: Int) -> String { localizer.text(.chatAttachImagesNotSeen(count: n)) }
     func visionFailed(_ failure: ChatVisionFailure) -> String {
-        localizer.text(.chatAttachVisionFailed(model: failure.model,
-                                               reason: localizer.text(failure.failure?.text ?? .chatAttachVisionFailedAgain)))
+        // A 404 from the vision call is often a model that takes no pictures
+        // (OpenRouter: no endpoint takes image input), not one the provider lacks.
+        let reason: AppText = failure.failure == .notFound ? .chatAttachVisionFailedNoPictures
+            : failure.failure?.text ?? .chatAttachVisionFailedAgain
+        return localizer.text(.chatAttachVisionFailed(model: failure.model, reason: localizer.text(reason)))
     }
 }
 

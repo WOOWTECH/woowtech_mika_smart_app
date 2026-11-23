@@ -710,6 +710,7 @@ enum AppText: Equatable {
     case chatAttachImagesNotSeen(count: Int)
     case chatAttachVisionFailed(model: String, reason: String)
     case chatAttachVisionFailedAgain
+    case chatAttachVisionFailedNoPictures
     case chatMessageCopy
     case chatMessageCopied
     case chatMessageQuote
@@ -1811,6 +1812,7 @@ enum AppText: Equatable {
         case .chatAttachImagesNotSeen: return "chat.attach.imagesNotSeen"
         case .chatAttachVisionFailed: return "chat.attach.visionFailed"
         case .chatAttachVisionFailedAgain: return "chat.attach.visionFailed.again"
+        case .chatAttachVisionFailedNoPictures: return "chat.attach.visionFailed.noPictures"
         case .chatMessageCopy: return "chat.message.copy"
         case .chatMessageCopied: return "chat.message.copied"
         case .chatMessageQuote: return "chat.message.quote"
@@ -3039,6 +3041,7 @@ enum AppText: Equatable {
         case .chatAttachImagesNotSeen: return "主模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁選一個看圖模型。"
         case .chatAttachVisionFailed: return "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@"
         case .chatAttachVisionFailedAgain: return "請再試一次，或到設定的模型頁換一個看圖模型。"
+        case .chatAttachVisionFailedNoPictures: return "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。"
         case .chatMessageCopy: return "複製"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"

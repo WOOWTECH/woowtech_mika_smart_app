@@ -695,6 +695,7 @@
 "settings.seesImages.listed" = "服務商的模型清單寫明的，可以改。";
 "chat.attach.visionFailed" = "看圖模型 %1$@ 沒能看圖，圖片沒有交給主模型。%2$@";
 "chat.attach.visionFailed.again" = "請再試一次，或到設定的模型頁換一個看圖模型。";
+"chat.attach.visionFailed.noPictures" = "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。";
 "chat.message.copy" = "複製";
 "chat.message.copied" = "已複製";
 "chat.message.quote" = "引用";
