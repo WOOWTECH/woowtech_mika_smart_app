@@ -884,6 +884,8 @@ extension ModelSettingsRepository {
             guard var document = try documentLocked(), let index = document.providers.firstIndex(where: { $0.id == providerID }),
                   document.providers[index].kind == .openAICompatible else { throw ModelProvidersError.unknownProvider }
             document.providers[index].models = Array(models.prefix(ModelProvidersDocument.maximumListedModels))
+            // Android Provider.untested: a provider its key could list is not "saved without a test".
+            if !models.isEmpty { document.providers[index].savedUntested = false }
             try publish(document.encoded(), insertedAccount: nil)
         }
     }

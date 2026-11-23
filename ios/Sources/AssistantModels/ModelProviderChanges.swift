@@ -183,7 +183,8 @@ extension ModelProvidersDocument {
 
     /// The models a provider's page and the main-model picker offer, Android
     /// sortedOptions: the main model first, then what the user typed or a test
-    /// call confirmed, then the rest of the list in its own order.
+    /// call confirmed, then the rest of the list in its own order, the ones
+    /// that can be the main model first.
     public func knownModels(of providerID: UUID) -> [String] {
         guard let provider = provider(id: providerID) else { return [] }
         var seen = Set<String>(), ordered: [String] = []
@@ -191,7 +192,10 @@ extension ModelProvidersDocument {
         if let main = roles.main, main.providerID == providerID { add(main.model) }
         provider.typedModels.union(provider.verifiedModels)
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }.forEach(add)
-        provider.models?.forEach { add($0.id) }
+        // Android ModelOptions.ofProvider: the ones that can be the main model
+        // (tool calls) first; a list that says a model cannot goes last.
+        let listed = provider.models ?? []
+        (listed.filter { $0.tools != false } + listed.filter { $0.tools == false }).forEach { add($0.id) }
         return ordered
     }
 

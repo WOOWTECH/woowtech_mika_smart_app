@@ -539,6 +539,7 @@
 "models.newKeyHint" = "Paste the new key";
 "models.models" = "Models";
 "models.modelsNote" = "Tap a model to use it as the main model or say whether it can see images.";
+"models.allTitle" = "%1$@ · All models";
 "models.untestedNote" = "This provider was saved without a test, so nothing is known about whether it works. Pick a model to test it, or tap “Test again”.";
 "models.retest" = "Test again";
 "models.retestPassed" = "Test passed: %1$@ replied.";

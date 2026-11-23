@@ -257,6 +257,13 @@ private final class Environment {
         try check(document.knownModels(of: main.id) == ["vendor/model-a", "typed-a", "typed-z", "vendor/model-b"],
                   "known models: the main one, then typed or verified, then the list")
         try check(document.knownModels(of: UUID()).isEmpty, "an unknown provider has no models")
+        let toolsID = UUID()
+        let tools = ModelProvidersDocument(providers: [
+            ModelProvider(id: toolsID, name: "Tools", baseURL: URL(string: "https://tools.example/v1")!, credentialAccount: UUID(),
+                          models: [ListedModel(id: "batch-x", tools: false), ListedModel(id: "chat-y"), ListedModel(id: "chat-z", tools: true)]),
+        ], roles: ModelRoles())
+        try check(tools.knownModels(of: toolsID) == ["chat-y", "chat-z", "batch-x"],
+                  "Android ofProvider: models that can be the main model first, the rest in the list's order")
         try check(!document.mainNeedsConsent, "the main provider was agreed to")
         document.consent = nil
         try check(document.mainNeedsConsent, "a main model never agreed to needs consent before anything is sent")
@@ -911,6 +918,17 @@ private final class Environment {
         try check(seeing.seesImages(chosen) == false, "once it is not the vision model its switch decides again")
         try seeing.setVision(nil, providerID: first, model: "vision-b")
         try check(seeing.seesImages(chosen) == true, "with no answer of the person's the model list decides")
+        try scenario { env in
+            let repository = env.repository()
+            let saved = try repository.addProvider(name: "Untested", baseURL: "https://untested.example/v1", sessionHeader: nil,
+                                                   keyRequired: true, key: "k", model: "vendor/u", tested: false, consentedAt: Date())
+            let untested = { try repository.document()?.provider(id: saved.providerID)?.savedUntested }
+            try check(try untested() == true, "saved without a test")
+            try repository.updateListedModels(providerID: saved.providerID, models: [])
+            try check(try untested() == true, "an empty list does not count as connected")
+            try repository.updateListedModels(providerID: saved.providerID, models: [ListedModel(id: "vendor/u")])
+            try check(try untested() == false, "Android untested: a list its key fetched means it is connected")
+        }
         try scenario { env in
             let repository = env.repository()
             let saved = try repository.save(baseURL: "https://gateway.example/v1", model: "main-a", newKey: "k").record

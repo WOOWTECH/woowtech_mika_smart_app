@@ -369,10 +369,20 @@ final class ModelAccountSignIn: ObservableObject {
     /// listed once when a picker or the models page opens. An account signed
     /// out on this device waits for its sign-in.
     func ensureListed(session: ChatSession) {
-        for provider in session.providerDocument.providers where provider.models == nil && listing[provider.id] == nil {
+        for provider in session.providerDocument.providers
+        where (provider.models == nil || Self.listedWithoutInputs(provider)) && listing[provider.id] == nil {
             if provider.kind.account != nil, status(provider.id)?.signedIn != true { continue }
             refreshModels(providerID: provider.id, session: session)
         }
+    }
+
+    /// OpenRouter's list says every model's inputs. One where no model says
+    /// whether it sees images was listed before builds read where OpenRouter
+    /// puts them (f38ba418), so it is listed once more.
+    static func listedWithoutInputs(_ provider: ModelProvider) -> Bool {
+        guard provider.kind == .openAICompatible, let models = provider.models, !models.isEmpty,
+              ModelProviderPresets.preset(at: provider.baseURL)?.name == "OpenRouter" else { return false }
+        return models.allSatisfy { $0.vision == nil }
     }
 
     private static func listModels(route: ModelAccountRoute, base: URL, repository: ModelSettingsRepository) async throws -> [ListedModel] {

@@ -550,6 +550,8 @@ enum AppText: Equatable {
     case modelsNewKeyHint
     case modelsModels
     case modelsModelsNote
+    case modelsViewAll(count: Int)
+    case modelsAllTitle(name: String)
     case modelsUntestedNote
     case modelsRetest
     case modelsRetestPassed(model: String)
@@ -1649,6 +1651,8 @@ enum AppText: Equatable {
         case .modelsNewKeyHint: return "models.newKeyHint"
         case .modelsModels: return "models.models"
         case .modelsModelsNote: return "models.modelsNote"
+        case .modelsViewAll: return "models.viewAll"
+        case .modelsAllTitle: return "models.allTitle"
         case .modelsUntestedNote: return "models.untestedNote"
         case .modelsRetest: return "models.retest"
         case .modelsRetestPassed: return "models.retestPassed"
@@ -2235,6 +2239,8 @@ enum AppText: Equatable {
         case .modelNotSavedDeclined(let name): return [name]
         case .modelsMore(let count): return [Int64(count)]
         case .modelsCount(let count): return [Int64(count)]
+        case .modelsViewAll(let count): return [Int64(count)]
+        case .modelsAllTitle(let name): return [name]
         case .modelsRetestPassed(let model): return [model]
         case .modelsDeleteTitle(let name): return [name]
         case .modelsDeleteUsed(let roles): return [roles]
@@ -2873,6 +2879,8 @@ enum AppText: Equatable {
         case .modelsNewKeyHint: return "貼上新的 Key"
         case .modelsModels: return "模型"
         case .modelsModelsNote: return "點一個模型，可以把它用作主模型，或設定它能不能看圖。"
+        case .modelsViewAll: return "查看全部 %lld 個模型"
+        case .modelsAllTitle: return "%1$@ · 全部模型"
         case .modelsUntestedNote: return "這家是跳過測試存下的，還不知道能不能用。選一個模型時會先試呼叫，也可以點「重新測試」。"
         case .modelsRetest: return "重新測試"
         case .modelsRetestPassed: return "測試通過：%1$@ 有回覆。"

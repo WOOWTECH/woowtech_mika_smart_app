@@ -5148,6 +5148,40 @@
       }
     },
     {
+      "case": "modelsViewAll",
+      "key": "models.viewAll",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "查看全部 %lld 個模型"
+        },
+        "en": {
+          "one": "View all %lld model",
+          "other": "View all %lld models"
+        }
+      }
+    },
+    {
+      "case": "modelsAllTitle",
+      "key": "models.allTitle",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@ · 全部模型",
+        "en": "%1$@ · All models"
+      }
+    },
+    {
       "case": "modelsUntestedNote",
       "key": "models.untestedNote",
       "parameters": [],

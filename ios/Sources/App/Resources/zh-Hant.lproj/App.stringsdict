@@ -156,6 +156,20 @@
 			<string>還有 %lld 個，輸入名字篩選</string>
 		</dict>
 	</dict>
+	<key>models.viewAll</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>查看全部 %lld 個模型</string>
+		</dict>
+	</dict>
 	<key>settings.notifications.lowered</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>

@@ -387,10 +387,13 @@ struct MikaModelSettingsDetailView: View {
         return parts.joined(separator: " · ")
     }
 
-    /// Android: a model in use that no test call ever confirmed. An account's
-    /// sign-in already checked it (Android untested leaves out ChatGPT and xAI).
+    /// Android Provider.untested: a model in use that no test call ever
+    /// confirmed, on a provider with no model list (a provider its key listed
+    /// is connected). An account's sign-in already checked it (Android
+    /// untested leaves out ChatGPT and xAI).
     private func providerWarning(_ provider: ModelProvider) -> String? {
-        guard provider.kind.account == nil, let main = session.providerDocument.roles.main, main.providerID == provider.id,
+        guard provider.kind.account == nil, (provider.models ?? []).isEmpty,
+              let main = session.providerDocument.roles.main, main.providerID == provider.id,
               !provider.verifiedModels.contains(main.model) else { return nil }
         return localizer.text(.modelsUnverified)
     }
@@ -946,6 +949,155 @@ private struct ModelRoleUseTarget {
     let model: String
 }
 
+/// What a closed "用作" sheet asked for (Android UseAsSheet onUse): the main
+/// model or a role, applied at once, or the consent to ask first when its
+/// provider was never agreed to (App Review 5.1.2(i)).
+@MainActor
+private enum ModelUseAsFollowUp {
+    static func apply(main model: String?, role: ModelRoleUseTarget?, provider: ModelProvider,
+                      session: ChatSession) -> ModelConsentRequest? {
+        let document = session.providerDocument
+        if let role {
+            let choice = ModelRoleChoice.model(ModelRef(providerID: provider.id, model: role.model))
+            guard document.choice(for: role.role) != choice else { return nil }
+            guard document.consentRequirement(for: choice) != nil else {
+                _ = session.chooseRoleModel(role.role, choice, consented: false)
+                return nil
+            }
+            return ModelConsentRequest(prompt: ModelConsentPrompt(provider: provider, purpose: .role),
+                                       agree: { _ = session.chooseRoleModel(role.role, choice, consented: true) },
+                                       decline: {})
+        }
+        guard let model else { return nil }
+        let ref = ModelRef(providerID: provider.id, model: model)
+        guard document.roles.main != ref else { return nil }
+        guard document.consentRequirement(forMain: ref) != nil else {
+            session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: false)
+            return nil
+        }
+        return ModelConsentRequest(
+            prompt: ModelConsentPrompt(provider: provider, purpose: .switchMain),
+            agree: { session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: true) },
+            decline: {})
+    }
+}
+
+extension ModelProvidersDocument {
+    /// Android ModelSetupUi.sortedOptions: the provider's models, the ones in
+    /// use first, the rest in their order.
+    func modelsInUseFirst(of providerID: UUID) -> [String] {
+        let known = knownModels(of: providerID)
+        let used = known.filter { !roleNames(of: ModelRef(providerID: providerID, model: $0), nil).isEmpty }
+        return used + known.filter { !used.contains($0) }
+    }
+
+    /// Android rolesOf: the roles this model is actually used for (with the
+    /// ones that follow 用主模型), in the order 主模型、看圖模型、輕量模型.
+    func roleNames(of ref: ModelRef, _ localizer: AppLocalizer?) -> [String] {
+        var names: [String] = []
+        if roles.main == ref { names.append(localizer?.text(.settingsModelMain) ?? "main") }
+        if resolvedModel(for: .vision) == ref { names.append(localizer?.text(.roleVision) ?? "vision") }
+        if resolvedModel(for: .light) == ref { names.append(localizer?.text(.roleLight) ?? "light") }
+        return names
+    }
+}
+
+/// Android AllModelsContent: 「<服務商> · 全部模型」, the filter fixed under the
+/// bar and only the list scrolling. The list is lazy, so hundreds of models
+/// stay quick to show and to read. A model opens the same 用作 sheet; the
+/// refresh button lists the provider again.
+@MainActor
+struct ModelAllModelsView: View {
+    /// Android MODEL_PREVIEW: the models the provider page shows before 查看全部.
+    static let preview = 3
+
+    @ObservedObject var session: ChatSession
+    @ObservedObject var languages: AppLanguageStore
+    let providerID: UUID
+    @ObservedObject private var signIn = ModelAccountSignIn.shared
+    @State private var filter = ""
+    @State private var using: ModelUseTarget?
+    @State private var mainAfterSheet: String?
+    @State private var roleAfterSheet: ModelRoleUseTarget?
+    @State private var consent: ModelConsentRequest?
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
+    private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+    private var document: ModelProvidersDocument { session.providerDocument }
+    private var provider: ModelProvider? { document.provider(id: providerID) }
+
+    private var shown: [String] {
+        let query = filter.trimmingCharacters(in: .whitespaces)
+        let all = document.modelsInUseFirst(of: providerID)
+        return query.isEmpty ? all : all.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TextField(localizer.text(.modelsFilterHint), text: $filter)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                .padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 10)
+                .accessibilityIdentifier("allModels.filter")
+            ScrollView {
+                let models = shown
+                if models.isEmpty {
+                    Text(verbatim: localizer.text(.modelsNoMatch)).font(.footnote).foregroundStyle(palette.hint)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.top, 8)
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(models.enumerated()), id: \.element) { index, model in
+                            if index > 0 { Divider().padding(.leading, 16) }
+                            Button { using = ModelUseTarget(model: model) } label: {
+                                ModelListRow(model: model, typed: provider?.typedModels.contains(model) == true,
+                                             roles: document.roleNames(of: ModelRef(providerID: providerID, model: model), localizer),
+                                             localizer: localizer)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(session.isSubmitting)
+                            .accessibilityIdentifier("provider.model." + model)
+                        }
+                    }
+                    .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal, 16).padding(.bottom, 16)
+                }
+            }
+        }
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
+        .navigationTitle(localizer.text(.modelsAllTitle(name: provider?.name ?? "")))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { signIn.refreshModels(providerID: providerID, session: session) } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(signIn.listing[providerID] == .running || session.isSubmitting)
+                .accessibilityLabel(localizer.text(.signinRefresh))
+                .accessibilityIdentifier("allModels.refresh")
+            }
+        }
+        .sheet(item: $using, onDismiss: useAsDismissed) { target in
+            ModelUseAsSheet(session: session, localizer: localizer, providerID: providerID, model: target.model,
+                            useAsMain: { mainAfterSheet = target.model; using = nil },
+                            useAsRole: { roleAfterSheet = ModelRoleUseTarget(role: $0, model: target.model); using = nil },
+                            close: { using = nil })
+        }
+        .sheet(item: $consent) { request in
+            ModelConsentSheet(prompt: request.prompt, localizer: localizer,
+                              agree: { consent = nil; request.agree() },
+                              decline: { consent = nil; request.decline() })
+        }
+    }
+
+    private func useAsDismissed() {
+        let main = mainAfterSheet, role = roleAfterSheet
+        mainAfterSheet = nil; roleAfterSheet = nil
+        guard let provider else { return }
+        consent = ModelUseAsFollowUp.apply(main: main, role: role, provider: provider, session: session)
+    }
+}
+
 /// The model a "用作" sheet is open for.
 private struct ModelUseTarget: Identifiable {
     let model: String
@@ -1043,20 +1195,39 @@ struct ModelProviderDetailView: View {
                 MikaSettingsCard { connectionRows(provider) }
             }
             MikaSettingsGroupLabel(title: localizer.text(.modelsModels)).padding(.top, 8)
-            let models = document.knownModels(of: provider.id)
+            let models = document.modelsInUseFirst(of: provider.id)
             if !models.isEmpty {
                 MikaSettingsCard {
                     VStack(spacing: 0) {
-                        ForEach(Array(models.enumerated()), id: \.element) { index, model in
+                        // Android ProviderDetailContent: the first MODEL_PREVIEW models
+                        // (in use first) and 查看全部, so the page stays short.
+                        ForEach(Array(models.prefix(ModelAllModelsView.preview).enumerated()), id: \.element) { index, model in
                             if index > 0 { Divider().padding(.leading, 16) }
                             Button { using = ModelUseTarget(model: model) } label: {
                                 ModelListRow(model: model, typed: provider.typedModels.contains(model),
-                                             inUse: document.roles.main == ModelRef(providerID: provider.id, model: model),
+                                             roles: document.roleNames(of: ModelRef(providerID: provider.id, model: model), localizer),
                                              localizer: localizer)
                             }
                             .buttonStyle(.plain)
                             .disabled(session.isSubmitting)
                             .accessibilityIdentifier("provider.model." + model)
+                        }
+                        if models.count > ModelAllModelsView.preview {
+                            Divider().padding(.leading, 16)
+                            NavigationLink {
+                                ModelAllModelsView(session: session, languages: languages, providerID: provider.id)
+                            } label: {
+                                HStack {
+                                    Text(verbatim: localizer.text(.modelsViewAll(count: models.count))).foregroundStyle(Color.accentColor)
+                                    Spacer(minLength: 8)
+                                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(palette.hint).accessibilityHidden(true)
+                                }
+                                .padding(.horizontal, 16).padding(.vertical, 13)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("provider.allModels")
                         }
                     }
                 }
@@ -1180,39 +1351,10 @@ struct ModelProviderDetailView: View {
     /// The "用作" sheet closed; 主模型 there asks for the consent now when
     /// it is another provider than the one agreed to.
     private func useAsDismissed() {
-        if let target = roleAfterSheet {
-            roleAfterSheet = nil
-            useAsRole(target.role, model: target.model)
-            return
-        }
-        guard let model = mainAfterSheet, let provider else { return }
-        mainAfterSheet = nil
-        let ref = ModelRef(providerID: provider.id, model: model)
-        guard document.roles.main != ref else { return }
-        guard document.consentRequirement(forMain: ref) != nil else {
-            session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: false)
-            return
-        }
-        consent = ModelConsentRequest(
-            prompt: ModelConsentPrompt(provider: provider, purpose: .switchMain),
-            agree: { session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: true) },
-            decline: {})
-    }
-
-    /// Android UseAsSheet's 看圖模型 and 輕量模型 rows: this model for the role,
-    /// after the consent when its provider was never agreed to.
-    private func useAsRole(_ role: ModelSideRole, model: String) {
+        let main = mainAfterSheet, role = roleAfterSheet
+        mainAfterSheet = nil; roleAfterSheet = nil
         guard let provider else { return }
-        let choice = ModelRoleChoice.model(ModelRef(providerID: provider.id, model: model))
-        guard document.choice(for: role) != choice else { return }
-        guard document.consentRequirement(for: choice) != nil else {
-            _ = session.chooseRoleModel(role, choice, consented: false)
-            return
-        }
-        consent = ModelConsentRequest(
-            prompt: ModelConsentPrompt(provider: provider, purpose: .role),
-            agree: { _ = session.chooseRoleModel(role, choice, consented: true) },
-            decline: {})
+        consent = ModelUseAsFollowUp.apply(main: main, role: role, provider: provider, session: session)
     }
 
     /// Android useAsMain: an account's default model becomes the main one,
@@ -1547,7 +1689,8 @@ private struct ModelValueRow: View {
 private struct ModelListRow: View {
     let model: String
     let typed: Bool
-    let inUse: Bool
+    /// Android ModelRow: the roles this model is used for.
+    let roles: [String]
     let localizer: AppLocalizer
     @Environment(\.colorScheme) private var scheme
 
@@ -1560,7 +1703,7 @@ private struct ModelListRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6) {
                     if typed { MikaSettingsPill(text: localizer.text(.capTyped), tone: .plain) }
-                    if inUse { MikaSettingsPill(text: localizer.text(.settingsModelMain), tone: .ok) }
+                    ForEach(roles, id: \.self) { MikaSettingsPill(text: $0, tone: .ok) }
                 }
             }
             Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))

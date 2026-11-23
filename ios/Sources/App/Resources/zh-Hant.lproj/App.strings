@@ -539,6 +539,7 @@
 "models.newKeyHint" = "貼上新的 Key";
 "models.models" = "模型";
 "models.modelsNote" = "點一個模型，可以把它用作主模型，或設定它能不能看圖。";
+"models.allTitle" = "%1$@ · 全部模型";
 "models.untestedNote" = "這家是跳過測試存下的，還不知道能不能用。選一個模型時會先試呼叫，也可以點「重新測試」。";
 "models.retest" = "重新測試";
 "models.retestPassed" = "測試通過：%1$@ 有回覆。";
