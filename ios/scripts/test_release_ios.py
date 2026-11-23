@@ -25,7 +25,8 @@ DIGEST = hashlib.sha1(CERT).hexdigest().upper()
 PROFILE_ID = "12345678-1234-1234-1234-123456789ABC"
 MEDIA_PURPOSES = {"NSCameraUsageDescription": "User approved website camera access.",
                   "NSMicrophoneUsageDescription": "User approved website and chat microphone access.",
-                  "NSSpeechRecognitionUsageDescription": "On-device chat speech recognition."}
+                  "NSSpeechRecognitionUsageDescription": "On-device chat speech recognition.",
+                  "NSPhotoLibraryAddUsageDescription": "Save Image from an attachment preview."}
 
 
 def synthetic_xctest_completion(scope):
