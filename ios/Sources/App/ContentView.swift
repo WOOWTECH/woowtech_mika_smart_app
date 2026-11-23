@@ -1256,6 +1256,13 @@ private struct ChatView: View {
 
     /// Errors, notices, voice status and the send-blocked card above the composer.
     @ViewBuilder private var chatStatus: some View {
+        chatStatusLines
+            // At the largest sizes one notice took about a quarter of the screen (iPhone run
+            // of 285); it stops at AX2 like the top bar and the welcome footer.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+    }
+
+    @ViewBuilder private var chatStatusLines: some View {
         if let error = session.chatError {
             Text(session.chatErrorText.map { localizer.text($0) } ?? localizer.stored(error))
                 .font(.callout)

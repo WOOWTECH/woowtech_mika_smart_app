@@ -1604,6 +1604,8 @@ private struct ModelRoleCard: View {
                     .scaledFont(size: 16, weight: .semibold, design: isModel ? .monospaced : .default)
                     .foregroundStyle(unset ? colors.hint : colors.ink)
                     .lineLimit(typeSize.isAccessibilitySize ? 3 : 1).truncationMode(.middle)
+                    // A model or provider name is one long word: past AX3 it broke mid-word.
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 if let subtitle {
                     Text(verbatim: subtitle).font(.caption).foregroundStyle(subtitleOk ? colors.ok : colors.secondary)
                         .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
@@ -1637,6 +1639,7 @@ private struct ModelProviderRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name).font(.body).foregroundStyle(colors.ink).lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 Text(verbatim: line).font(.caption).foregroundStyle(colors.hint)
                 if let warning {
                     Text(verbatim: warning).font(.caption).foregroundStyle(colors.warn)
@@ -1687,6 +1690,7 @@ private struct ModelValueRow: View {
             Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: tone))
                 .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                 .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16).frame(minHeight: 52)
