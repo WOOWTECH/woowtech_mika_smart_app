@@ -68,6 +68,8 @@ enum ChatReplyMarkdown {
         var paragraph: [AttributedString] = []
         var codeLines: [String] = []
         var table: (header: [String], rows: [[String]], divider: Int)?
+        // A display formula written between $$ (or \[ \]) lines of their own.
+        var mathLines: [String]?
         func keep(_ line: AttributedString) { output.append(line); paragraph.append(line) }
         func flushParagraph() {
             guard !paragraph.isEmpty else { return }
@@ -82,7 +84,7 @@ enum ChatReplyMarkdown {
             guard let current = table else { return }
             let width = current.header.count
             let rows = current.rows.map { row in Array((row + Array(repeating: "", count: max(0, width - row.count))).prefix(width)) }
-            blocks.append(.table(header: try current.header.map(inline), rows: try rows.map { try $0.map(inline) }))
+            blocks.append(.table(header: try current.header.map { try inline($0) }, rows: try rows.map { try $0.map { try inline($0) } }))
             table = nil
         }
         do {
@@ -95,6 +97,19 @@ enum ChatReplyMarkdown {
                         continue
                     }
                     output.append(code(line)); codeLines.append(line)
+                    continue
+                }
+                if mathLines != nil {
+                    if ChatReplyMath.isBlockDelimiter(line) {
+                        keep(try inline(ChatReplyMath.display(mathLines ?? []), math: false)); mathLines = nil
+                    } else {
+                        mathLines?.append(line)
+                    }
+                    continue
+                }
+                if ChatReplyMath.isBlockDelimiter(line), !inTable {
+                    flushParagraph(); try flushTable()
+                    mathLines = []
                     continue
                 }
                 if isFenceCandidate(line) {
@@ -144,6 +159,8 @@ enum ChatReplyMarkdown {
                     keep(try inline(line))
                 }
             }
+            // An unclosed formula block stays as written.
+            for line in mathLines ?? [] { keep(try inline(line)) }
             try flushTable()
             flushParagraph()
         } catch ParseError.unsafeLink {
@@ -163,7 +180,8 @@ enum ChatReplyMarkdown {
 
     private enum ParseError: Error { case unsafeLink }
 
-    private static func inline(_ source: String) throws -> AttributedString {
+    private static func inline(_ source: String, math: Bool = true) throws -> AttributedString {
+        let source = math ? ChatReplyMath.render(source) : source
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
         options.allowsExtendedAttributes = false
@@ -291,4 +309,227 @@ enum ChatReplyMarkdown {
         text.font = .system(.body, design: .monospaced)
         return text
     }
+}
+
+/// LaTeX math in a reply, shown as Unicode text: `$E=mc^2$` as E=mc², `\frac{1}{3}` as
+/// 1/3, Greek letters and the usual operators as their symbols. The reply keeps its
+/// source; only what the chat shows changes. Inline code is left as written, and a
+/// dollar sign is math only around something TeX-like with no space inside its edges
+/// (Pandoc's rule), so prices such as $4,990 stay text.
+enum ChatReplyMath {
+    /// One line: inline `$…$`, `\(…\)` and one-line `$$…$$`, `\[…\]` outside inline code.
+    static func render(_ line: String) -> String {
+        guard line.contains("$") || line.contains("\\(") || line.contains("\\[") else { return line }
+        var output = "", rest = Substring(line)
+        // Inline code spans stay as written.
+        while let tick = rest.firstIndex(of: "`") {
+            output += mathOutsideCode(rest[..<tick])
+            let run = rest[tick...].prefix { $0 == "`" }
+            let afterRun = rest.index(tick, offsetBy: run.count)
+            if let close = rest[afterRun...].range(of: String(run)) {
+                output += rest[tick..<close.upperBound]
+                rest = rest[close.upperBound...]
+            } else {
+                output += rest[tick...]
+                rest = ""
+            }
+        }
+        return output + mathOutsideCode(rest)
+    }
+
+    /// A line that opens or closes a display block written on lines of its own.
+    static func isBlockDelimiter(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed == "$$" || trimmed == "\\[" || trimmed == "\\]"
+    }
+
+    /// A display block's lines, converted.
+    static func display(_ lines: [String]) -> String { escaped(convert(lines.joined(separator: " "))) }
+
+    private static func mathOutsideCode(_ text: Substring) -> String {
+        var output = "", index = text.startIndex
+        while index < text.endIndex {
+            if let (end, tex) = delimited(text, at: index) {
+                output += escaped(convert(tex)); index = end
+            } else {
+                output.append(text[index]); index = text.index(after: index)
+            }
+        }
+        return output
+    }
+
+    /// The math starting at `index` and where it ends, or nil when this is not math.
+    private static func delimited(_ text: Substring, at index: Substring.Index) -> (Substring.Index, String)? {
+        let rest = text[index...]
+        for (open, close) in [("$$", "$$"), ("\\[", "\\]"), ("\\(", "\\)")] where rest.hasPrefix(open) {
+            let start = text.index(index, offsetBy: open.count)
+            guard let end = text[start...].range(of: close) else { return nil }
+            let tex = String(text[start..<end.lowerBound])
+            return tex.trimmingCharacters(in: .whitespaces).isEmpty ? nil : (end.upperBound, tex)
+        }
+        guard rest.hasPrefix("$") else { return nil }
+        let start = text.index(after: index)
+        guard start < text.endIndex, !text[start].isWhitespace, !text[start].isNumber || texLike(text[start...]) else { return nil }
+        var cursor = start
+        while let close = text[cursor...].firstIndex(of: "$") {
+            let before = text[text.index(before: close)]
+            let after = text.index(after: close)
+            let closes = !before.isWhitespace && before != "\\" && (after == text.endIndex || !text[after].isNumber)
+            if closes {
+                let tex = String(text[start..<close])
+                return texLike(Substring(tex)) ? (after, tex) : nil
+            }
+            cursor = after
+            guard cursor < text.endIndex else { break }
+        }
+        return nil
+    }
+
+    /// Something only math looks like: a command, a power, an index or an equation.
+    private static func texLike(_ text: Substring) -> Bool {
+        let upTo = text.prefix { $0 != "$" }
+        return upTo.contains("\\") || upTo.contains("^") || upTo.contains("_") || upTo.contains("=")
+    }
+
+    /// The converted math as Markdown text: its own *, _ and the like are not Markdown.
+    private static func escaped(_ text: String) -> String {
+        var output = ""
+        for character in text {
+            if "\\*_`[]~<>#".contains(character) { output.append("\\") }
+            output.append(character)
+        }
+        return output
+    }
+
+    // MARK: TeX to Unicode
+
+    static func convert(_ tex: String) -> String {
+        var scanner = Scanner(Array(tex))
+        let text = scanner.sequence(until: nil)
+        return text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    private struct Scanner {
+        let characters: [Character]
+        var position = 0
+        init(_ characters: [Character]) { self.characters = characters }
+
+        /// Text until `end` (a closing brace) or the end.
+        mutating func sequence(until end: Character?) -> String {
+            var output = ""
+            while position < characters.count {
+                let character = characters[position]
+                if let end, character == end { position += 1; return output }
+                switch character {
+                case "\\": output += command()
+                case "^": position += 1; output += script(superscripts, fallback: "^")
+                case "_": position += 1; output += script(subscripts, fallback: "_")
+                case "{": position += 1; output += sequence(until: "}")
+                case "}": position += 1
+                case "~": position += 1; output += " "
+                default: position += 1; output.append(character)
+                }
+            }
+            return output
+        }
+
+        /// One argument: a {group}, a command or one character.
+        mutating func argument() -> String {
+            while position < characters.count, characters[position] == " " { position += 1 }
+            guard position < characters.count else { return "" }
+            let character = characters[position]
+            if character == "{" { position += 1; return sequence(until: "}") }
+            if character == "\\" { return command() }
+            position += 1
+            return String(character)
+        }
+
+        mutating func script(_ table: [Character: Character], fallback: String) -> String {
+            let body = argument()
+            if body == "∘" || body == "°" { return "°" }
+            let mapped = body.map { table[$0] }
+            if !body.isEmpty, mapped.allSatisfy({ $0 != nil }) { return String(mapped.compactMap { $0 }) }
+            return fallback + (body.count == 1 ? body : "(" + body + ")")
+        }
+
+        mutating func command() -> String {
+            position += 1
+            guard position < characters.count else { return "" }
+            // A one-character command: spacing, or an escaped symbol.
+            if !characters[position].isLetter {
+                let symbol = characters[position]
+                position += 1
+                switch symbol {
+                case ",", ":", ";", " ": return " "
+                case "!": return ""
+                case "\\": return " "
+                default: return String(symbol)
+                }
+            }
+            var name = ""
+            while position < characters.count, characters[position].isLetter { name.append(characters[position]); position += 1 }
+            switch name {
+            case "frac", "dfrac", "tfrac":
+                let top = argument(), bottom = argument()
+                return simple(top) && simple(bottom) ? top + "/" + bottom : "(" + top + ")/(" + bottom + ")"
+            case "sqrt":
+                var index = ""
+                if position < characters.count, characters[position] == "[" {
+                    position += 1
+                    while position < characters.count, characters[position] != "]" { index.append(characters[position]); position += 1 }
+                    position += 1
+                }
+                let body = argument()
+                let root = index.isEmpty ? "√" : String(index.compactMap { superscripts[$0] }) + "√"
+                return root + (simple(body) ? body : "(" + body + ")")
+            case "text", "mathrm", "mathbf", "mathit", "mathsf", "mathtt", "operatorname", "boldsymbol", "mathbb", "mathcal":
+                return argument()
+            case "left", "right", "big", "Big", "bigg", "Bigg", "displaystyle", "textstyle", "limits", "nolimits":
+                return ""
+            case "quad": return "  "
+            case "qquad": return "    "
+            default:
+                return Self.symbols[name] ?? name
+            }
+        }
+
+        private func simple(_ text: String) -> Bool {
+            !text.isEmpty && text.count <= 6 && !text.contains(" ") && !text.contains("+") && !text.contains("-")
+        }
+
+        static let symbols: [String: String] = [
+            "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "varepsilon": "ε", "zeta": "ζ",
+            "eta": "η", "theta": "θ", "vartheta": "ϑ", "iota": "ι", "kappa": "κ", "lambda": "λ", "mu": "μ", "nu": "ν",
+            "xi": "ξ", "pi": "π", "rho": "ρ", "sigma": "σ", "tau": "τ", "upsilon": "υ", "phi": "φ", "varphi": "φ",
+            "chi": "χ", "psi": "ψ", "omega": "ω", "Gamma": "Γ", "Delta": "Δ", "Theta": "Θ", "Lambda": "Λ", "Xi": "Ξ",
+            "Pi": "Π", "Sigma": "Σ", "Phi": "Φ", "Psi": "Ψ", "Omega": "Ω",
+            "times": "×", "div": "÷", "cdot": "·", "pm": "±", "mp": "∓", "ast": "∗", "star": "⋆", "circ": "∘",
+            "le": "≤", "leq": "≤", "ge": "≥", "geq": "≥", "ne": "≠", "neq": "≠", "approx": "≈", "sim": "∼",
+            "simeq": "≃", "equiv": "≡", "propto": "∝", "ll": "≪", "gg": "≫", "infty": "∞", "partial": "∂",
+            "nabla": "∇", "sum": "∑", "prod": "∏", "int": "∫", "iint": "∬", "oint": "∮", "to": "→",
+            "rightarrow": "→", "leftarrow": "←", "Rightarrow": "⇒", "Leftarrow": "⇐", "leftrightarrow": "↔",
+            "Leftrightarrow": "⇔", "mapsto": "↦", "in": "∈", "notin": "∉", "ni": "∋", "subset": "⊂", "subseteq": "⊆",
+            "supset": "⊃", "supseteq": "⊇", "cup": "∪", "cap": "∩", "emptyset": "∅", "varnothing": "∅",
+            "forall": "∀", "exists": "∃", "neg": "¬", "land": "∧", "lor": "∨", "wedge": "∧", "vee": "∨",
+            "angle": "∠", "perp": "⊥", "parallel": "∥", "degree": "°", "ldots": "…", "cdots": "⋯", "dots": "…",
+            "vdots": "⋮", "prime": "′", "hbar": "ℏ", "ell": "ℓ", "Re": "ℜ", "Im": "ℑ", "aleph": "ℵ",
+            "langle": "⟨", "rangle": "⟩", "lfloor": "⌊", "rfloor": "⌋", "lceil": "⌈", "rceil": "⌉",
+            "percent": "%", "%": "%", "lvert": "|", "rvert": "|", "vert": "|", "mid": "|",
+        ]
+    }
+
+    private static let superscripts: [Character: Character] = [
+        "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
+        "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾", "n": "ⁿ", "i": "ⁱ", "a": "ᵃ", "b": "ᵇ", "c": "ᶜ",
+        "d": "ᵈ", "e": "ᵉ", "f": "ᶠ", "g": "ᵍ", "h": "ʰ", "j": "ʲ", "k": "ᵏ", "l": "ˡ", "m": "ᵐ", "o": "ᵒ",
+        "p": "ᵖ", "r": "ʳ", "s": "ˢ", "t": "ᵗ", "u": "ᵘ", "v": "ᵛ", "w": "ʷ", "x": "ˣ", "y": "ʸ", "z": "ᶻ",
+        "−": "⁻",
+    ]
+    private static let subscripts: [Character: Character] = [
+        "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉",
+        "+": "₊", "-": "₋", "=": "₌", "(": "₍", ")": "₎", "a": "ₐ", "e": "ₑ", "h": "ₕ", "i": "ᵢ", "j": "ⱼ",
+        "k": "ₖ", "l": "ₗ", "m": "ₘ", "n": "ₙ", "o": "ₒ", "p": "ₚ", "r": "ᵣ", "s": "ₛ", "t": "ₜ", "u": "ᵤ",
+        "v": "ᵥ", "x": "ₓ", "−": "₋",
+    ]
 }

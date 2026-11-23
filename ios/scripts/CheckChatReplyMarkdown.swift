@@ -27,6 +27,15 @@ enum CheckChatReplyMarkdown {
                "Inline code has a fill, so it shows in a CJK sentence")
         expect(inline.text.runs.contains { String(inline.text[$0.range].characters) == "italic" && $0.underlineStyle != nil },
                "Emphasis has a dotted underline, since Chinese has no italic")
+        // LaTeX shows as Unicode; prices, inline code and the source stay as written.
+        func shown(_ source: String) -> String { String(ChatReplyMarkdown.parse(source).text.characters) }
+        expect(shown("行內數學 $E=mc^2$") == "行內數學 E=mc²", "Inline math")
+        expect(shown("$$\\int_0^1 x^2\\,dx=\\frac{1}{3}$$") == "∫₀¹ x² dx=1/3", "One-line display math")
+        expect(shown("$$\n\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}\n$$") == "∑ᵢ₌₁ⁿ i = (n(n+1))/(2)", "A display block on its own lines")
+        expect(shown("\\(\\alpha+\\beta \\le 90^\\circ\\)") == "α+β ≤ 90°", "Greek, ≤ and degrees")
+        expect(shown("特價 $4,990，濾網約 $807") == "特價 $4,990，濾網約 $807", "Prices are not math")
+        expect(shown("用 `$x^2$` 表示") == "用 $x^2$ 表示", "Inline code keeps its dollars")
+        expect(shown("$\\sqrt{x_1}$ 與 $a_{ij}$") == "√x₁ 與 aᵢⱼ", "Roots and indices")
         expect(inline.text.runs.contains { String(inline.text[$0.range].characters) == "removed"
             && $0.inlinePresentationIntent?.contains(.strikethrough) == true }, "Strike intent")
         expect(inline.text.runs.contains { $0.link?.absoluteString == "https://example.org" }, "Only explicit native link")

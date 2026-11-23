@@ -17,7 +17,7 @@ LANGUAGE_APP_SOURCES = ["AppLanguage", "AppLanguageStore", "AppLanguagePreferenc
 
 APP_SOURCES = LANGUAGE_APP_SOURCES + [
     "BrowserUploadFixture", "BrowserLoginFixture",
-    "BrowserWorkspace", "ChatSession", "ChatAttachmentModels", "ChatAttachmentPreparation", "ChatAttachmentReader", "ChatAttachmentUITestFixture", "ConversationArchiveStore", "RecentConversationAccess", "NewConversationProtection", "BrowserSession", "LearningKeychainStore",
+    "BrowserWorkspace", "ChatSession", "ChatAttachmentModels", "ChatAttachmentPreparation", "ChatAttachmentReader", "ChatOfficeText", "ChatAttachmentUITestFixture", "ConversationArchiveStore", "RecentConversationAccess", "NewConversationProtection", "BrowserSession", "LearningKeychainStore",
     "UITestModelFixture", "UITestLongHistoryFixture", "MCPSettings", "LiveModelUITestSupport", "ModelSettings",
     "LearningStore", "LearningRunContext", "UITestMCPFixture", "MCPSession", "MCPServers",
     "ChatWebTaskTab", "ChatWebTaskSession", "ChatWebTaskFixture", "ChatLearning",
