@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = [str(ROOT / 'Sources/App/ChatAttachmentReader.swift'),
+SOURCES = [str(ROOT / 'Sources/App/ChatAttachmentReader.swift'), str(ROOT / 'Sources/App/ChatOfficeText.swift'),
            str(ROOT / 'scripts/CheckChatAttachmentReader.swift')]
 # Swift 6 mode checks the reader's strict concurrency; the app target itself builds as Swift 5.
 FLAGS = ['-swift-version', '6', '-parse-as-library', '-warnings-as-errors']
@@ -25,7 +25,7 @@ class ChatAttachmentReaderTests(unittest.TestCase):
             fixtures.mkdir()
             result = subprocess.run([str(binary), str(fixtures)], capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(json.loads(result.stdout), {'assertions': 53})
+            self.assertEqual(json.loads(result.stdout), {'assertions': 64})
 
     def test_typechecks_for_ios_17(self):
         """The macOS run cannot see iOS availability; the app's deployment target is iOS 17."""

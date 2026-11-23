@@ -30,6 +30,11 @@ enum ChatAttachmentReader {
         static let fileTooLarge = "檔案太大，沒能讀取"
         static let fileFailed = "這個檔案沒能讀取"
         static let empty = "這個檔案是空的"
+        static let archive = "這是壓縮檔或不支援的格式，沒能讀取內容；請解壓縮，或另存成 PDF、Word 或純文字再附上"
+        static let officeFailed = "這份 Office 檔沒能讀取（可能已損壞）"
+        static let officeEmpty = "這份 Office 檔沒有可讀取的文字"
+        static let officeLocked = "這份 Office 檔有密碼保護，沒能讀取內容"
+        static let oldOffice = "這是舊版 Office 格式（.doc、.xls、.ppt），請另存成 .docx、.xlsx、.pptx 或 PDF 再附上"
         static let missing = "這個附件已經不在了"
     }
 
@@ -95,6 +100,19 @@ enum ChatAttachmentReader {
                 if case .text = text { return text }
             }
             return picture
+        }
+        // Word, PowerPoint and Excel files are zips of XML: their words are read. A
+        // password-protected one is an OLE file instead, like the 97-2003 formats.
+        let office = ChatOfficeText.kind(of: url, types: types)
+        if head.starts(with: Data([0x50, 0x4B, 0x03, 0x04])) || head.starts(with: Data([0x50, 0x4B, 0x05, 0x06])) {
+            guard let office else { return .unreadable(ChatAttachmentText.archive) }
+            guard let words = ChatOfficeText.read(url, kind: office, limit: limit) else {
+                return .unreadable(ChatAttachmentText.officeFailed)
+            }
+            return words.text.isEmpty ? .unreadable(ChatAttachmentText.officeEmpty) : .text(words.text, truncated: words.truncated)
+        }
+        if head.starts(with: Data([0xD0, 0xCF, 0x11, 0xE0])) {
+            return .unreadable(office != nil ? ChatAttachmentText.officeLocked : ChatAttachmentText.oldOffice)
         }
         let rtfd = conforms(.rtfd) || conforms(.flatRTFD)
         if rtfd || conforms(.rtf) || head.starts(with: Data(#"{\rtf"#.utf8)),

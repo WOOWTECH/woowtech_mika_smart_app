@@ -1,3 +1,4 @@
+import Compression
 import CoreGraphics
 import CoreText
 import Foundation
@@ -175,7 +176,87 @@ enum CheckChatAttachmentReader {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         expect(read(folder) == notText, "a folder is not text")
 
+        do {
+            // Word, PowerPoint and Excel: the words of the zip's XML parts, stored or deflated.
+            let w = #"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main""#
+            let document = "<w:document \(w)><w:body><w:p><w:r><w:t>第一段</w:t></w:r></w:p><w:tbl><w:tr>"
+                + "<w:tc><w:p><w:r><w:t>A1</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>B1</w:t></w:r></w:p></w:tc></w:tr></w:tbl>"
+                + "<w:p><w:r><w:t>末段</w:t><w:tab/><w:t>X</w:t><w:br/><w:t>下一行</w:t></w:r></w:p></w:body></w:document>"
+            let docx = try fixture("報告.docx", zip(["[Content_Types].xml": "<Types/>", "word/document.xml": document]))
+            expect(read(docx) == .text("第一段\nA1 | B1 | \n末段\tX\n下一行", truncated: false), "docx: paragraphs, a table row, a tab and a break")
+            let stored = try fixture("stored.docx", zip(["word/document.xml": document], deflate: false))
+            expect(read(stored) == read(docx), "docx: a stored part reads the same")
+            if case .text(let cut, let truncated) = read(docx, limit: 10) {
+                expect(truncated && cut.utf8.count <= 10, "docx: the text limit holds")
+            } else { fail("docx: limited read") }
+            let slide = #"<p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>標題</a:t></a:r></a:p>"#
+                + "<a:p><a:r><a:t>重點一</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>"
+            let pptx = try fixture("簡報.pptx", zip(["ppt/slides/slide2.xml": slide.replacingOccurrences(of: "標題", with: "第二張"),
+                                                     "ppt/slides/slide1.xml": slide]))
+            expect(read(pptx) == .text("--- Slide 1 ---\n標題\n重點一\n--- Slide 2 ---\n第二張\n重點一", truncated: false),
+                   "pptx: slides in order, a line per paragraph")
+            let xlsx = try fixture("價目.xlsx", zip([
+                "xl/workbook.xml": #"<workbook><sheets><sheet name="價目" sheetId="1"/></sheets></workbook>"#,
+                "xl/sharedStrings.xml": "<sst><si><t>品名</t></si><si><r><t>價</t></r><r><t>格</t></r></si></sst>",
+                "xl/worksheets/sheet1.xml": #"<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>"#
+                    + #"<row r="2"><c r="A2" t="inlineStr"><is><t>茶</t></is></c><c r="C2"><v>30</v></c></row></sheetData></worksheet>"#]))
+            expect(read(xlsx) == .text("--- Sheet: 價目 ---\n品名\t價格\n茶\t\t30", truncated: false),
+                   "xlsx: shared and inline strings, numbers, each in its own column")
+            let other = try fixture("photos.zip", zip(["a.txt": "hello"]))
+            expect(read(other) == .unreadable("這是壓縮檔或不支援的格式，沒能讀取內容；請解壓縮，或另存成 PDF、Word 或純文字再附上"), "another zip")
+            let broken = try fixture("壞掉.docx", zip(["[Content_Types].xml": "<Types/>"]))
+            expect(read(broken) == .unreadable("這份 Office 檔沒能讀取（可能已損壞）"), "docx without its document")
+            let ole = Data([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) + Data(repeating: 0, count: 504)
+            let locked = try fixture("密碼.docx", ole), old = try fixture("舊版.doc", ole), empty = try fixture("空.txt", Data())
+            expect(read(locked) == .unreadable("這份 Office 檔有密碼保護，沒能讀取內容"), "encrypted docx")
+            expect(read(old) == .unreadable("這是舊版 Office 格式（.doc、.xls、.ppt），請另存成 .docx、.xlsx、.pptx 或 PDF 再附上"),
+                   "a 97-2003 file")
+            expect(ChatAttachmentReader.problem(fileURL: empty, kind: .file, contentType: nil) == "這個檔案是空的",
+                   "an empty file is refused when added")
+            expect(ChatAttachmentReader.problem(fileURL: docx, kind: .file, contentType: nil) == nil, "a readable docx is added")
+        }
+
         print("{\"assertions\":\(assertions)}")
+    }
+
+    /// A zip of these parts, deflated (raw DEFLATE, as zip stores it) or stored.
+    static func zip(_ parts: [String: String], deflate: Bool = true) -> Data {
+        var local = Data(), central = Data()
+        func put(_ data: inout Data, _ value: Int, _ width: Int) {
+            for index in 0..<width { data.append(UInt8((value >> (8 * index)) & 0xFF)) }
+        }
+        for (name, text) in parts.sorted(by: { $0.key < $1.key }) {
+            let raw = Data(text.utf8)
+            var body = raw
+            if deflate {
+                var output = [UInt8](repeating: 0, count: raw.count + 1024)
+                let count = raw.withUnsafeBytes { input in
+                    compression_encode_buffer(&output, output.count, input.bindMemory(to: UInt8.self).baseAddress!, raw.count, nil, COMPRESSION_ZLIB)
+                }
+                body = Data(output.prefix(count))
+            }
+            let nameBytes = Data(name.utf8), offset = local.count, method = deflate ? 8 : 0
+            // Local header: signature, version, flags, method, time, date, crc, sizes, name and extra lengths.
+            for (value, width) in [(0x0403_4b50, 4), (20, 2), (0, 2), (method, 2), (0, 2), (0, 2), (0, 4),
+                                   (body.count, 4), (raw.count, 4), (nameBytes.count, 2), (0, 2)] {
+                put(&local, value, width)
+            }
+            local.append(nameBytes)
+            local.append(body)
+            // Central entry: as above, plus comment, disk, attributes and the local header's offset.
+            for (value, width) in [(0x0201_4b50, 4), (20, 2), (20, 2), (0, 2), (method, 2), (0, 2), (0, 2), (0, 4),
+                                   (body.count, 4), (raw.count, 4), (nameBytes.count, 2), (0, 2), (0, 2), (0, 2), (0, 2),
+                                   (0, 4), (offset, 4)] {
+                put(&central, value, width)
+            }
+            central.append(nameBytes)
+        }
+        var end = Data()
+        for (value, width) in [(0x0605_4b50, 4), (0, 2), (0, 2), (parts.count, 2), (parts.count, 2),
+                               (central.count, 4), (local.count, 4), (0, 2)] {
+            put(&end, value, width)
+        }
+        return local + central + end
     }
 
     static func fail(_ label: String, line: Int = #line) -> Never {
