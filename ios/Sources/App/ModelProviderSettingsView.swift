@@ -197,8 +197,12 @@ struct MikaModelSettingsDetailView: View {
             MikaSettingsCard {
                 VStack(spacing: 0) {
                     mainRoleRow
-                    // Android leaves speech to text out of the first launch.
+                    // Android leaves the other roles and speech to text out of the first launch.
                     if !onboarding {
+                        ForEach(ModelSideRole.allCases, id: \.self) { role in
+                            Divider().padding(.leading, 70)
+                            sideRoleRow(role)
+                        }
                         Divider().padding(.leading, 70)
                         NavigationLink {
                             VoiceSettingsView(languages: languages)
@@ -252,6 +256,39 @@ struct MikaModelSettingsDetailView: View {
                 .buttonStyle(.plain)
                 .disabled(session.isSubmitting)
                 .accessibilityIdentifier("models.role.main")
+        }
+    }
+
+    /// Android RoleCard for vision and light: what the role uses; it opens
+    /// the role's picker.
+    private func sideRoleRow(_ role: ModelSideRole) -> some View {
+        let line = roleLine(role)
+        return NavigationLink {
+            ModelMainPickerView(session: session, languages: languages, role: role, addProvider: { formOpen = true })
+        } label: {
+            ModelRoleCard(icon: role == .vision ? .eye : .leaf,
+                          label: localizer.text(role == .vision ? .roleVision : .roleLight) + " · "
+                              + localizer.text(role == .vision ? .roleVisionWhat : .roleLightWhat),
+                          title: line.title, subtitle: line.subtitle, isModel: line.isModel, unset: false)
+        }
+        .buttonStyle(.plain)
+        .disabled(session.isSubmitting)
+        .accessibilityIdentifier("models.role." + role.rawValue)
+    }
+
+    /// Android ModelsCopy.roleLine for vision and light.
+    private func roleLine(_ role: ModelSideRole) -> (title: String, subtitle: String?, isModel: Bool) {
+        let document = session.providerDocument
+        switch document.choice(for: role) {
+        case .sameAsMain:
+            return (localizer.text(.modelsSameAsMain), document.roles.main?.model ?? localizer.text(.modelsMainNotPicked), false)
+        case .off:
+            return (localizer.text(.modelsOff), localizer.text(.modelsOffNote), false)
+        case .model(let ref):
+            guard let provider = document.provider(id: ref.providerID) else {
+                return (localizer.text(.settingsModelNotSet), nil, false)
+            }
+            return (ref.model, provider.name, true)
         }
     }
 
@@ -333,12 +370,21 @@ struct MikaModelSettingsDetailView: View {
     }
 
     /// Android providerLine: 已連線 (an account: signed in or out on this
-    /// device), and which role uses it (phase 1: the main model).
+    /// device), how many models it listed, and which roles use it; a list
+    /// that could not be made says so instead.
     private func providerLine(_ provider: ModelProvider) -> String {
+        if signIn.listing[provider.id] == .failed { return localizer.text(.modelsListFailed) }
         let state = provider.kind.account == nil ? localizer.text(.modelsConnected)
             : localizer.text(signIn.status(provider.id)?.signedIn == true ? .signinSignedIn : .signinSignedOut)
-        guard session.providerDocument.roles.main?.providerID == provider.id else { return state }
-        return state + " · " + localizer.text(.modelsUsedBy(roles: localizer.text(.settingsModelMain)))
+        var parts = [state]
+        if let models = provider.models, !models.isEmpty { parts.append(localizer.text(.modelsCount(count: models.count))) }
+        let used = session.providerDocument.rolesUsing(providerID: provider.id)
+        let names = [(used.main, AppText.settingsModelMain), (used.vision, .roleVision), (used.light, .roleLight)]
+            .filter(\.0).map { localizer.text($0.1) }
+        if !names.isEmpty {
+            parts.append(localizer.text(.modelsUsedBy(roles: names.joined(separator: localizer.language == .english ? ", " : "、"))))
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// Android: a model in use that no test call ever confirmed. An account's
@@ -588,8 +634,11 @@ struct MikaModelSettingsDetailView: View {
             model: snapshot.trimmedModel.isEmpty ? nil : snapshot.trimmedModel, tested: kind == .tested, consented: consented)
         tester.reset()
         declinedName = nil
-        // Android: a saved provider clears and folds the form.
-        if saved { form = ModelProviderFormInput(); formOpen = false; showsKey = false; field = nil }
+        // Android: a saved provider clears and folds the form, and its models are listed.
+        if saved {
+            form = ModelProviderFormInput(); formOpen = false; showsKey = false; field = nil
+            signIn.ensureListed(session: session)
+        }
     }
 
     private func closeForm() {
@@ -636,37 +685,85 @@ struct MikaModelSettingsDetailView: View {
     }
 }
 
-// MARK: - Main model picker (Android RolePickerContent, main role only)
+// MARK: - Role picker (Android RolePickerContent)
 
+/// Picks the main model, or what the vision or light role uses: Android's
+/// fixed choices on top, then every connected provider's models (its
+/// remembered list), a filter once there are more than eight, and a typed
+/// model name under each provider, which one test call checks first.
 @MainActor
 struct ModelMainPickerView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var languages: AppLanguageStore
+    /// nil picks the main model.
+    var role: ModelSideRole? = nil
     let addProvider: () -> Void
     @StateObject private var tester = ModelConnectionTester()
+    @ObservedObject private var signIn = ModelAccountSignIn.shared
     @State private var manual: [UUID: String] = [:]
     @State private var trial: ModelRef?
     @State private var consent: ModelConsentRequest?
+    @State private var filter = ""
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Android FILTER_FROM and PICK_AT_MOST.
+    private static let filterFrom = 8
+    private static let pickAtMost = 80
+
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
     private var document: ModelProvidersDocument { session.providerDocument }
+    private var query: String { filter.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private var title: AppText {
+        switch role {
+        case nil: return .settingsModelMain
+        case .vision: return .roleVision
+        case .light: return .roleLight
+        }
+    }
+
+    private var hint: AppText {
+        switch role {
+        case nil: return .roleMainHint
+        case .vision: return .roleVisionHint
+        case .light: return .roleLightHint
+        }
+    }
+
+    private func shown(_ provider: ModelProvider) -> [String] {
+        let models = document.knownModels(of: provider.id)
+        return query.isEmpty ? models : models.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
 
     var body: some View {
+        let total = document.providers.reduce(0) { $0 + document.knownModels(of: $1.id).count }
+        let groups = document.providers.filter { query.isEmpty || !shown($0).isEmpty }
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text(verbatim: localizer.text(.roleMainHint))
+                Text(verbatim: localizer.text(hint))
                     .font(.subheadline).foregroundStyle(palette.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4).padding(.bottom, 4)
+                if let role { fixedChoices(role) }
                 if document.providers.isEmpty {
                     footnote(localizer.text(.modelsRoleEmpty), color: palette.hint)
                 }
-                ForEach(document.providers) { provider in
+                if total > Self.filterFrom {
+                    MikaSettingsGroupLabel(title: localizer.text(.modelsPickFrom)).padding(.top, 8)
+                    TextField(localizer.text(.modelsFilterHint), text: $filter)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("picker.filter")
+                        .padding(.bottom, 4)
+                }
+                ForEach(groups) { provider in
                     providerGroup(provider)
+                }
+                if !query.isEmpty && groups.isEmpty {
+                    footnote(localizer.text(.modelsNoMatch), color: palette.hint)
+                        .accessibilityIdentifier("picker.noMatch")
                 }
                 MikaSettingsCard {
                     Button { dismiss(); addProvider() } label: {
@@ -682,10 +779,12 @@ struct ModelMainPickerView: View {
         }
         .mikaReadableColumn()
         .mikaPageCanvas(palette.page)
-        .navigationTitle(localizer.text(.settingsModelMain))
+        .navigationTitle(localizer.text(title))
         .navigationBarTitleDisplayMode(.inline)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
+        // Android ensureListed: a provider not listed yet is listed now.
+        .onAppear { signIn.ensureListed(session: session) }
         .onChange(of: tester.state) { _, state in if state == .passed { trialPassed() } }
         .onChange(of: manual) { _, _ in tester.reset() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { tester.reset() } }
@@ -697,15 +796,41 @@ struct ModelMainPickerView: View {
         }
     }
 
+    /// Android fixedChoices: 用主模型 and 不用 for vision, 用主模型 for light.
+    private func fixedChoices(_ role: ModelSideRole) -> some View {
+        MikaSettingsCard {
+            VStack(spacing: 0) {
+                ForEach(Array(ModelProvidersDocument.fixedChoices(for: role).enumerated()), id: \.offset) { index, choice in
+                    if index > 0 { Divider().padding(.leading, 50) }
+                    MikaSettingsRadioRow(title: localizer.text(choice == .off ? .modelsOff : .modelsSameAsMain),
+                                         subtitle: localizer.text(choice == .off ? .modelsOffNote
+                                             : role == .vision ? .modelsVisionSameNote : .modelsLightSameNote),
+                                         selected: document.choice(for: role) == choice) {
+                        if session.chooseRoleModel(role, choice, consented: false) { dismiss() }
+                    }
+                    .disabled(session.isSubmitting)
+                    .accessibilityIdentifier(choice == .off ? "picker.off" : "picker.sameAsMain")
+                }
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    private func isSelected(_ ref: ModelRef) -> Bool {
+        guard let role else { return document.roles.main == ref }
+        return document.choice(for: role) == .model(ref)
+    }
+
     private func providerGroup(_ provider: ModelProvider) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let models = shown(provider)
+        return VStack(alignment: .leading, spacing: 0) {
             MikaSettingsGroupLabel(title: provider.name).padding(.top, 8)
             MikaSettingsCard {
                 VStack(spacing: 0) {
-                    ForEach(document.knownModels(of: provider.id), id: \.self) { model in
+                    ForEach(models.prefix(Self.pickAtMost), id: \.self) { model in
                         MikaSettingsRadioRow(title: model,
                                              subtitle: provider.typedModels.contains(model) ? localizer.text(.capTyped) : nil,
-                                             selected: document.roles.main == ModelRef(providerID: provider.id, model: model)) {
+                                             selected: isSelected(ModelRef(providerID: provider.id, model: model))) {
                             // Android probeBeforePick: a provider saved without a test is tried first.
                             if provider.savedUntested { tryManual(provider, model: model) }
                             else { choose(ModelRef(providerID: provider.id, model: model), typed: false, verified: false) }
@@ -723,6 +848,15 @@ struct ModelMainPickerView: View {
             } else if trial?.providerID == provider.id, tester.state == .testing {
                 footnote(localizer.text(.modelTesting), color: palette.hint)
                     .accessibilityIdentifier("picker.testing." + provider.name)
+            } else if signIn.listing[provider.id] == .running {
+                footnote(localizer.text(.signinListing), color: palette.hint)
+                    .accessibilityIdentifier("picker.listing." + provider.name)
+            } else if signIn.listing[provider.id] == .failed {
+                footnote(localizer.text(.modelsListFailed), color: palette.bad)
+                    .accessibilityIdentifier("picker.listFailed." + provider.name)
+            } else if models.count > Self.pickAtMost {
+                footnote(localizer.text(.modelsMore(count: models.count - Self.pickAtMost)), color: palette.hint)
+                    .accessibilityIdentifier("picker.more." + provider.name)
             }
         }
     }
@@ -768,8 +902,9 @@ struct ModelMainPickerView: View {
     }
 
     /// Another provider than the one agreed to asks first; declining keeps
-    /// the main model.
+    /// the main model, or the role as it was.
     private func choose(_ ref: ModelRef, typed: Bool, verified: Bool) {
+        if let role { chooseForRole(role, ref, typed: typed, verified: verified); return }
         guard document.roles.main != ref || typed else { dismiss(); return }
         guard let provider = document.provider(id: ref.providerID) else { return }
         guard document.consentRequirement(forMain: ref) != nil else {
@@ -782,6 +917,22 @@ struct ModelMainPickerView: View {
                 if session.chooseMainModel(providerID: ref.providerID, model: ref.model, typed: typed, verified: verified, consented: true) {
                     dismiss()
                 }
+            },
+            decline: { tester.reset() })
+    }
+
+    private func chooseForRole(_ role: ModelSideRole, _ ref: ModelRef, typed: Bool, verified: Bool) {
+        let choice = ModelRoleChoice.model(ref)
+        guard document.choice(for: role) != choice || typed else { dismiss(); return }
+        guard let provider = document.provider(id: ref.providerID) else { return }
+        guard document.consentRequirement(for: choice) != nil else {
+            if session.chooseRoleModel(role, choice, typed: typed, verified: verified, consented: false) { dismiss() }
+            return
+        }
+        consent = ModelConsentRequest(
+            prompt: ModelConsentPrompt(provider: provider, purpose: .role),
+            agree: {
+                if session.chooseRoleModel(role, choice, typed: typed, verified: verified, consented: true) { dismiss() }
             },
             decline: { tester.reset() })
     }
@@ -828,6 +979,8 @@ struct ModelProviderDetailView: View {
         }
         .mikaReadableColumn()
         .mikaPageCanvas(palette.page)
+        // Android ensureListed, as on the pickers.
+        .onAppear { signIn.ensureListed(session: session) }
         .navigationTitle(provider?.name ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: tester.state) { _, state in if state == .passed { retestPassed() } }
@@ -1147,6 +1300,7 @@ struct ModelConsentSheet: View {
         case .save: return .consentDeclineSave
         case .switchMain: return .consentDeclineSwitch
         case .send: return .consentDeclineSend
+        case .role: return .consentDeclineRole
         }
     }
 

@@ -626,16 +626,41 @@ final class ModelSettingsRepository {
     }
 
     private static func main(in document: ModelProvidersDocument?) -> SavedModelSettings? {
-        guard let document, let main = document.roles.main, let provider = document.provider(id: main.providerID) else {
-            return nil
-        }
-        // An account's own model list says which models see images; the user's answer outranks it.
-        // Android ModelOptions.seesImages: the person's switch, the model list, the preset.
-        return SavedModelSettings(baseURL: provider.baseURL, model: main.model,
+        guard let document, let main = document.roles.main else { return nil }
+        return settings(for: main, in: document)
+    }
+
+    /// One model's address, Keychain item and "能看圖" answer.
+    private static func settings(for ref: ModelRef, in document: ModelProvidersDocument) -> SavedModelSettings? {
+        guard let provider = document.provider(id: ref.providerID) else { return nil }
+        return SavedModelSettings(baseURL: provider.baseURL, model: ref.model,
                                   credentialAccount: provider.credentialAccount?.uuidString ?? "",
-                                  seesImages: ModelProviderPresets.seesImages(provider: provider, model: main.model),
-                                  providerID: provider.id,
+                                  seesImages: document.seesImages(ref), providerID: provider.id,
                                   sessionHeader: provider.sessionHeader, providerKind: provider.kind)
+    }
+
+    /// The vision or light role's own model (Android modelFor(role)); nil
+    /// when the role uses the main model, is off, or its provider was never
+    /// agreed to, so the caller keeps the main model or sends no picture.
+    func roleSettings(_ role: ModelSideRole) throws -> SavedModelSettings? {
+        guard providers != nil else { return nil }
+        return try Self.withSpeechDispatchLock {
+            guard let document = try documentLocked(), let ref = document.resolvedModel(for: role),
+                  ref != document.roles.main else { return nil }
+            return Self.settings(for: ref, in: document)
+        }
+    }
+
+    /// Android ProviderStore.setRole(vision or light). A model of a provider
+    /// not agreed to yet needs the user's consent (`consentedAt`).
+    func chooseRole(_ role: ModelSideRole, _ choice: ModelRoleChoice, typed: Bool, verified: Bool,
+                    consentedAt: Date?) throws {
+        try Self.withSpeechDispatchLock {
+            guard var document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            do { try document.chooseRole(role, choice, typed: typed, verified: verified, consentedAt: consentedAt) }
+            catch let error as ModelProvidersError { throw Self.settingsError(error) }
+            try publish(document.encoded(), insertedAccount: nil)
+        }
     }
 
     /// Advances the revision, then replaces the document. A key written for
@@ -847,6 +872,17 @@ extension ModelSettingsRepository {
         try Self.withSpeechDispatchLock {
             guard var document = try documentLocked(), let index = document.providers.firstIndex(where: { $0.id == providerID }),
                   document.providers[index].kind.account != nil else { throw ModelProvidersError.unknownProvider }
+            document.providers[index].models = Array(models.prefix(ModelProvidersDocument.maximumListedModels))
+            try publish(document.encoded(), insertedAccount: nil)
+        }
+    }
+
+    /// Android ProviderStore.rememberModels for an API-key provider: the
+    /// list its own GET /models gave, which the pickers offer.
+    func updateListedModels(providerID: UUID, models: [ListedModel]) throws {
+        try Self.withSpeechDispatchLock {
+            guard var document = try documentLocked(), let index = document.providers.firstIndex(where: { $0.id == providerID }),
+                  document.providers[index].kind == .openAICompatible else { throw ModelProvidersError.unknownProvider }
             document.providers[index].models = Array(models.prefix(ModelProvidersDocument.maximumListedModels))
             try publish(document.encoded(), insertedAccount: nil)
         }

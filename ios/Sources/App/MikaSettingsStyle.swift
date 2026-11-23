@@ -82,6 +82,8 @@ struct MikaSettingsCard<Content: View>: View {
 
 enum MikaSettingsIcon {
     case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy, mic, plus, trash, message
+    /// Android MikaIcons.Eye (看圖模型) and Leaf (輕量模型).
+    case eye, leaf
 }
 
 struct MikaSettingsIconTile: View {
@@ -353,6 +355,16 @@ struct MikaSettingsIconShape: Shape {
                         startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
             path.move(to: CGPoint(x: 12, y: 17.5)); path.addLine(to: CGPoint(x: 12, y: 21))
             path.move(to: CGPoint(x: 8.5, y: 21)); path.addLine(to: CGPoint(x: 15.5, y: 21))
+        case .eye:
+            path.move(to: CGPoint(x: 2.5, y: 12))
+            path.addCurve(to: CGPoint(x: 21.5, y: 12), control1: CGPoint(x: 6, y: 5.5), control2: CGPoint(x: 18, y: 5.5))
+            path.addCurve(to: CGPoint(x: 2.5, y: 12), control1: CGPoint(x: 18, y: 18.5), control2: CGPoint(x: 6, y: 18.5))
+            path.addEllipse(in: CGRect(x: 9, y: 9, width: 6, height: 6))
+        case .leaf:
+            path.move(to: CGPoint(x: 5, y: 19))
+            path.addCurve(to: CGPoint(x: 19.5, y: 4.5), control1: CGPoint(x: 3.5, y: 10.5), control2: CGPoint(x: 10.5, y: 4.5))
+            path.addCurve(to: CGPoint(x: 5, y: 19), control1: CGPoint(x: 19.5, y: 13.5), control2: CGPoint(x: 13.5, y: 20.5))
+            path.move(to: CGPoint(x: 5, y: 19)); path.addLine(to: CGPoint(x: 13.5, y: 10.5))
         case .plus:
             path.move(to: CGPoint(x: 12, y: 5)); path.addLine(to: CGPoint(x: 12, y: 19))
             path.move(to: CGPoint(x: 5, y: 12)); path.addLine(to: CGPoint(x: 19, y: 12))

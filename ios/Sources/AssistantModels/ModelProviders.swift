@@ -284,10 +284,15 @@ public struct ModelProvidersDocument: Codable, Equatable, Sendable {
     public var roles: ModelRoles
     public var consent: ModelConsentRecord?
     public var legacySettings: ModelLegacySettings?
+    /// Providers other than the main one that a vision or light model was
+    /// agreed to send content to (App Review 5.1.2(i)), one record each.
+    public var roleConsents: [ModelConsentRecord]
 
     public init(providers: [ModelProvider] = [], roles: ModelRoles = ModelRoles(),
-                consent: ModelConsentRecord? = nil, legacySettings: ModelLegacySettings? = nil) {
+                consent: ModelConsentRecord? = nil, legacySettings: ModelLegacySettings? = nil,
+                roleConsents: [ModelConsentRecord] = []) {
         self.providers = providers; self.roles = roles; self.consent = consent; self.legacySettings = legacySettings
+        self.roleConsents = roleConsents
     }
 
     public func provider(id: UUID) -> ModelProvider? { providers.first { $0.id == id } }
@@ -312,7 +317,10 @@ public struct ModelProvidersDocument: Codable, Equatable, Sendable {
                   if case .model(let ref) = choice { return exists(ref) }
                   return true
               }),
-              consent.map({ !$0.origin.isEmpty && $0.origin.utf8.count <= 4096 }) ?? true
+              consent.map({ !$0.origin.isEmpty && $0.origin.utf8.count <= 4096 }) ?? true,
+              roleConsents.count <= Self.maximumProviders,
+              Set(roleConsents.map(\.providerID)).count == roleConsents.count,
+              roleConsents.allSatisfy({ !$0.origin.isEmpty && $0.origin.utf8.count <= 4096 })
         else { throw ModelProvidersError.invalidDocument }
     }
 
@@ -332,7 +340,7 @@ public struct ModelProvidersDocument: Codable, Equatable, Sendable {
         catch { throw ModelProvidersError.invalidDocument }
     }
 
-    private enum CodingKeys: String, CodingKey { case version, providers, roles, consent, legacySettings }
+    private enum CodingKeys: String, CodingKey { case version, providers, roles, consent, legacySettings, roleConsents }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -340,7 +348,8 @@ public struct ModelProvidersDocument: Codable, Equatable, Sendable {
         self.init(providers: try c.decode([ModelProvider].self, forKey: .providers),
                   roles: try c.decodeIfPresent(ModelRoles.self, forKey: .roles) ?? ModelRoles(),
                   consent: try c.decodeIfPresent(ModelConsentRecord.self, forKey: .consent),
-                  legacySettings: try c.decodeIfPresent(ModelLegacySettings.self, forKey: .legacySettings))
+                  legacySettings: try c.decodeIfPresent(ModelLegacySettings.self, forKey: .legacySettings),
+                  roleConsents: try c.decodeIfPresent([ModelConsentRecord].self, forKey: .roleConsents) ?? [])
         try validate()
     }
 
@@ -351,6 +360,8 @@ public struct ModelProvidersDocument: Codable, Equatable, Sendable {
         try c.encode(roles, forKey: .roles)
         try c.encodeIfPresent(consent, forKey: .consent)
         try c.encodeIfPresent(legacySettings, forKey: .legacySettings)
+        // Left out until a role is agreed to, so a document without one reads the same.
+        if !roleConsents.isEmpty { try c.encode(roleConsents, forKey: .roleConsents) }
     }
 }
 
@@ -480,6 +491,7 @@ extension ModelProvidersDocument {
         if let main = roles.main, !ids.contains(main.providerID) { roles.main = nil }
         if case .model(let ref) = roles.vision, !ids.contains(ref.providerID) { roles.vision = .off }
         if case .model(let ref) = roles.light, !ids.contains(ref.providerID) { roles.light = .sameAsMain }
+        roleConsents.removeAll { !ids.contains($0.providerID) }
     }
 
     /// Keychain accounts of this service that no provider uses: an interrupted
@@ -505,6 +517,13 @@ extension ModelProvidersDocument {
 
     public mutating func recordConsent(forProvider id: UUID, at date: Date) throws {
         guard let provider = provider(id: id) else { throw ModelProvidersError.unknownProvider }
+        // The provider agreed to before keeps that agreement for a vision or
+        // light model still on it, so switching the main model does not stop it.
+        if let previous = consent, previous.providerID != id, sideRolesUse(previous.providerID),
+           !roleConsents.contains(where: { $0.providerID == previous.providerID }) {
+            roleConsents.append(previous)
+        }
+        roleConsents.removeAll { $0.providerID == id }
         consent = ModelConsentRecord(providerID: id, origin: provider.origin, consentedAt: date)
     }
 }

@@ -26,6 +26,8 @@ struct ModelConsentPrompt: Identifiable, Equatable {
         case switchMain
         /// The first send to a main model set up before the consent existed.
         case send
+        /// Choosing a vision or light model of a provider not agreed to yet.
+        case role
     }
     let id = UUID()
     let providerName: String
@@ -857,6 +859,25 @@ final class ChatSession: ObservableObject {
         }
     }
 
+    /// Android ModelsViewModel.pick for the vision or light role: a model,
+    /// 用主模型 or 不用. A model of a provider not agreed to yet needs `consented`.
+    @discardableResult
+    func chooseRoleModel(_ role: ModelSideRole, _ choice: ModelRoleChoice, typed: Bool = false, verified: Bool = false,
+                         consented: Bool) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            try repository.chooseRole(role, choice, typed: typed, verified: verified, consentedAt: consented ? Date() : nil)
+            // The vision role decides whether the main model sees images (Android configFor).
+            if role == .vision { adoptMain(try repository.load()) }
+            reloadProviders()
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            reloadProviders()
+            return false
+        }
+    }
+
     /// A model of this provider answered "重新測試".
     func markModelVerified(providerID: UUID, model: String) {
         do { try repository.markVerified(providerID: providerID, model: model); settingsError = nil }
@@ -1017,6 +1038,22 @@ final class ChatSession: ObservableObject {
         let webEnvironment = webTaskEnvironment?()
         // The provider's session header (OpenCode Go) carries this conversation's value.
         let configuration = savedSettings.configuration(conversation: conversationID)
+        // Android lightModelFactory: organizing memory and judging skills go to
+        // the light model when one of its own is chosen and agreed to; else the main one.
+        let light: (configuration: ModelConfiguration, key: String)
+        if let lightSettings = try? repository.roleSettings(.light), let lightKey = try? repository.key(for: lightSettings) {
+            light = (lightSettings.configuration(conversation: conversationID), lightKey)
+        } else {
+            light = (configuration, key)
+        }
+        // Android visionModelFactory, for chat pictures: when the main model cannot
+        // see them, the vision role's own model (agreed to) looks at them first.
+        let visionRoute: (configuration: ModelConfiguration, key: String)? = {
+            guard configuration.vision != .supported, attachmentsAtStart.contains(where: { $0.kind == .photo }),
+                  let settings = try? repository.roleSettings(.vision), settings.seesImages == true,
+                  let visionKey = try? repository.key(for: settings) else { return nil }
+            return (settings.configuration(conversation: conversationID), visionKey)
+        }()
         let id = UUID()
         requestID = id
         // Like the Play build the question shows in the conversation at once and
@@ -1059,8 +1096,18 @@ final class ChatSession: ObservableObject {
                                                           vision: configuration.vision, textBudgetBytes: attachmentBudget)
                     }.value
                     try Task.checkCancellation()
-                    if prepared.unseenImages > 0 { self?.attachmentNotice = .imagesNotSeen(prepared.unseenImages) }
-                    outgoing.append(ModelMessage(userText: ChatAttachmentPreparation.promptText(last.content, notes: prepared.notes),
+                    var notes = prepared.notes, unseen = prepared.unseenImages
+                    if unseen > 0, let visionRoute,
+                       let described = await ChatVisionHandoff.describe(attachmentsAtStart, store: attachmentStore,
+                                                                        question: utterance, client: client,
+                                                                        configuration: visionRoute.configuration,
+                                                                        key: visionRoute.key) {
+                        try Task.checkCancellation()
+                        notes = ChatVisionHandoff.notes(notes, description: described)
+                        unseen = 0
+                    }
+                    if unseen > 0 { self?.attachmentNotice = .imagesNotSeen(unseen) }
+                    outgoing.append(ModelMessage(userText: ChatAttachmentPreparation.promptText(last.content, notes: notes),
                                                  attachments: prepared.attachments))
                 }
                 // Like Android, every request connects the enabled servers first,
@@ -1119,20 +1166,20 @@ final class ChatSession: ObservableObject {
                 if let webResult {
                     // Skills are still learned from it, like Play's RunLearning.
                     self.learnFromWebTask(webResult, goal: utterance, generation: learningGeneration,
-                                          client: client, configuration: configuration, key: key)
+                                          client: client, configuration: light.configuration, key: light.key)
                     return
                 }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
                 if self.localCommandRefusedRequestID != id && self.skillSavedRequestID != id {
                     self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
-                        expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
+                        expectedGeneration: learningGeneration, client: client, configuration: light.configuration, apiKey: light.key,
                         preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [],
                         toolForgot: self.memoryForgotRequestID == id)
                 }
                 self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
                     priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
-                    client: client, configuration: configuration, key: key)
+                    client: client, configuration: light.configuration, key: light.key)
             } catch {
                 guard let self, self.requestID == id else { return }
                 let mcpRan = self.mcpReached

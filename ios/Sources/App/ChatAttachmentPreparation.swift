@@ -19,6 +19,9 @@ enum ChatAttachmentPreparation {
         max(8 * 1024, 64 * 1024 - promptBytes - contextBytes)
     }
 
+    /// The note for a picture the model is not marked as able to see.
+    static let unseenImageReason = "這個模型不能看圖，沒有附上圖片內容"
+
     /// Reads the app's own copies off the main actor. The order is the order shown.
     static func prepare(_ items: [ChatAttachmentItem], store: ChatAttachmentStore,
                         vision: ModelVisionCapability, textBudgetBytes: Int) -> ChatAttachmentPrepared {
@@ -41,7 +44,7 @@ enum ChatAttachmentPreparation {
             case .image(let jpeg, _, _):
                 guard vision == .supported else {
                     unseen += 1
-                    notes.append(item.name + ":" + "這個模型不能看圖，沒有附上圖片內容")
+                    notes.append(item.name + ":" + unseenImageReason)
                     continue
                 }
                 if let image = try? ModelAttachment.image(data: jpeg, mimeType: "image/jpeg", label: item.name) {
@@ -67,5 +70,42 @@ enum ChatAttachmentPreparation {
     static func promptText(_ archived: String, notes: [String]) -> String {
         guard !notes.isEmpty else { return archived }
         return archived + "\n" + notes.map { "（" + $0 + "）" }.joined(separator: "\n")
+    }
+}
+
+/// Android's vision model reading a screenshot, for a chat picture: when the
+/// main model cannot see images, the vision role's own model (agreed to)
+/// looks at the attached pictures first and describes them, and the main
+/// model reads that description. Without it the "cannot see" note stays.
+enum ChatVisionHandoff {
+    static let instruction = """
+        You are the vision model of an assistant whose main model cannot see images. Describe every attached \
+        picture for that main model: all readable text exactly as written, numbers, objects, people (never who \
+        they are), the layout, and whatever matters for the user's question. Do not answer the question \
+        yourself. Write in the language of the user's question.
+        """
+
+    /// The pictures' description, or nil when there was nothing to read or the
+    /// vision model did not answer.
+    static func describe(_ items: [ChatAttachmentItem], store: ChatAttachmentStore, question: String,
+                         client: any ChatModelClient, configuration: ModelConfiguration, key: String) async -> String? {
+        let photos = items.filter { $0.kind == .photo }
+        guard !photos.isEmpty else { return nil }
+        let prepared = await Task.detached(priority: .userInitiated) {
+            ChatAttachmentPreparation.prepare(photos, store: store, vision: .supported, textBudgetBytes: 0)
+        }.value
+        guard !prepared.attachments.isEmpty else { return nil }
+        let text = instruction + "\n\nUser's question: " + String(question.prefix(2_000))
+        guard let reply = try? await client.complete(messages: [ModelMessage(userText: text, attachments: prepared.attachments)],
+                                                     configuration: configuration, apiKey: key) else { return nil }
+        let described = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        return described.isEmpty ? nil : String(described.prefix(8_000))
+    }
+
+    /// The main request's notes: the description in place of each picture's
+    /// "cannot see" note.
+    static func notes(_ notes: [String], description: String) -> [String] {
+        notes.filter { !$0.hasSuffix(":" + ChatAttachmentPreparation.unseenImageReason) }
+            + ["看圖模型對附圖的說明：\n" + description]
     }
 }

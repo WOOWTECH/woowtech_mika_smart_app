@@ -262,11 +262,14 @@ public enum AccountModelList {
         case auth, server(Int), network, unreadable
     }
 
-    public static func request(base: URL, accessToken: String) -> URLRequest {
+    /// `headers`: a provider's session header (OpenCode Go). An empty token
+    /// sends no Authorization: a custom service saved without a key.
+    public static func request(base: URL, accessToken: String, headers: [String: String] = [:]) -> URLRequest {
         var request = URLRequest(url: base.appendingPathComponent("models"), cachePolicy: .reloadIgnoringLocalCacheData,
                                  timeoutInterval: 30)
         request.httpMethod = "GET"
-        request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
+        if !accessToken.isEmpty { request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization") }
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("WoowAssistant/0.1", forHTTPHeaderField: "User-Agent")
         return request
@@ -274,10 +277,10 @@ public enum AccountModelList {
 
     /// The listed models, in the server's order; the plan's own table and a
     /// plain OpenAI-compatible list both read (ChatGPTSignIn.listedModels).
-    public static func fetch(base: URL, accessToken: String, http: any AccountHTTP = URLSessionAccountHTTP.shared)
-        async throws -> [ListedModel] {
+    public static func fetch(base: URL, accessToken: String, headers: [String: String] = [:],
+                             http: any AccountHTTP = URLSessionAccountHTTP.shared) async throws -> [ListedModel] {
         let answer: (status: Int, body: Data)
-        do { answer = try await http.send(request(base: base, accessToken: accessToken)) }
+        do { answer = try await http.send(request(base: base, accessToken: accessToken, headers: headers)) }
         catch {
             try Task.checkCancellation()
             throw Failure.network

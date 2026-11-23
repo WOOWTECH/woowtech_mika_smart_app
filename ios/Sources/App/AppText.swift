@@ -519,6 +519,25 @@ enum AppText: Equatable {
     case capTyped
     case modelsInUse
     case modelsPickNote
+    case roleVision
+    case roleVisionWhat
+    case roleVisionHint
+    case roleLight
+    case roleLightWhat
+    case roleLightHint
+    case modelsSameAsMain
+    case modelsMainNotPicked
+    case modelsOff
+    case modelsOffNote
+    case modelsVisionSameNote
+    case modelsLightSameNote
+    case modelsPickFrom
+    case modelsFilterHint
+    case modelsNoMatch
+    case modelsMore(count: Int)
+    case modelsCount(count: Int)
+    case modelsListFailed
+    case consentDeclineRole
     case modelsConnection
     case modelsStatus
     case modelKind
@@ -1594,6 +1613,25 @@ enum AppText: Equatable {
         case .capTyped: return "cap.typed"
         case .modelsInUse: return "models.inUse"
         case .modelsPickNote: return "models.pickNote"
+        case .roleVision: return "role.vision"
+        case .roleVisionWhat: return "role.vision.what"
+        case .roleVisionHint: return "role.vision.hint"
+        case .roleLight: return "role.light"
+        case .roleLightWhat: return "role.light.what"
+        case .roleLightHint: return "role.light.hint"
+        case .modelsSameAsMain: return "models.sameAsMain"
+        case .modelsMainNotPicked: return "models.mainNotPicked"
+        case .modelsOff: return "models.off"
+        case .modelsOffNote: return "models.offNote"
+        case .modelsVisionSameNote: return "models.visionSameNote"
+        case .modelsLightSameNote: return "models.lightSameNote"
+        case .modelsPickFrom: return "models.pickFrom"
+        case .modelsFilterHint: return "models.filterHint"
+        case .modelsNoMatch: return "models.noMatch"
+        case .modelsMore: return "models.more"
+        case .modelsCount: return "models.count"
+        case .modelsListFailed: return "models.listFailed"
+        case .consentDeclineRole: return "consent.decline.role"
         case .modelsConnection: return "models.connection"
         case .modelsStatus: return "models.status"
         case .modelKind: return "model.kind"
@@ -2185,6 +2223,8 @@ enum AppText: Equatable {
         case .modelSavedUntested(let name): return [name]
         case .modelSavedTested(let name): return [name]
         case .modelNotSavedDeclined(let name): return [name]
+        case .modelsMore(let count): return [Int64(count)]
+        case .modelsCount(let count): return [Int64(count)]
         case .modelsRetestPassed(let model): return [model]
         case .modelsDeleteTitle(let name): return [name]
         case .modelsDeleteUsed(let roles): return [roles]
@@ -2790,7 +2830,26 @@ enum AppText: Equatable {
         case .modelsRoleEmpty: return "還沒有可選的模型。先新增一個服務商。"
         case .capTyped: return "手填"
         case .modelsInUse: return "正在用這個"
-        case .modelsPickNote: return "這一版還不會向服務商要模型列表。在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。"
+        case .modelsPickNote: return "清單來自服務商。不在清單上的模型，可以在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。"
+        case .roleVision: return "看圖模型"
+        case .roleVisionWhat: return "看聊天附上的圖片"
+        case .roleVisionHint: return "聊天附上的圖片交給它看。主模型不能看圖時，選一個能看圖的模型，由它先看圖、再把內容告訴主模型；不選也能用，只是圖片不會交給模型。"
+        case .roleLight: return "輕量模型"
+        case .roleLightWhat: return "判斷、記東西這類小事"
+        case .roleLightHint: return "判斷任務有沒有辦完、整理記憶這類小事用它。選便宜、快的更合適。"
+        case .modelsSameAsMain: return "用主模型"
+        case .modelsMainNotPicked: return "主模型還沒選"
+        case .modelsOff: return "不用"
+        case .modelsOffNote: return "圖片不交給模型"
+        case .modelsVisionSameNote: return "主模型能看圖時選這個"
+        case .modelsLightSameNote: return "和主模型同一個，不用另外選"
+        case .modelsPickFrom: return "從已連線的服務商裡選"
+        case .modelsFilterHint: return "輸入模型名的一部分"
+        case .modelsNoMatch: return "沒有名字對得上的模型。"
+        case .modelsMore: return "還有 %lld 個，輸入名字篩選"
+        case .modelsCount: return "%lld 個模型"
+        case .modelsListFailed: return "列模型失敗"
+        case .consentDeclineRole: return "不同意的話，什麼都不會傳出去，這個用途維持不變。"
         case .modelsConnection: return "連線"
         case .modelsStatus: return "狀態"
         case .modelKind: return "介面"

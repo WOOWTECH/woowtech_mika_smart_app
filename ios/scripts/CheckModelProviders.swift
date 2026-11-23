@@ -111,6 +111,7 @@ private final class Environment {
             try repositoryProviders()
             try consentOnSend()
             try formInput()
+            try roleChoices()
             print("PASS model providers: \(count) checks; isolated defaults, temporary files and an in-memory Keychain")
         } catch {
             print("FAIL model providers after \(count) checks: \(error)")
@@ -826,6 +827,97 @@ private final class Environment {
                       && (try repository.consentRequirement(forSaving: openRouter)) == .differentProvider, "consent follows the last provider")
             try repository.remove()
             try check(try repository.consentRequirement(forSaving: groq) == .firstTime, "removing all settings forgets the consent")
+        }
+    }
+
+    /// Android RoleChoices for vision and light: the fixed choices, a model
+    /// of the main provider, another provider only after its own consent,
+    /// what each role resolves to, removal, a main switch keeping a role's
+    /// consent, the vision rule for the main model and the repository.
+    static func roleChoices() throws {
+        let first = UUID(), second = UUID()
+        let base = ModelProvidersDocument(providers: [
+            ModelProvider(id: first, name: "Gateway", baseURL: URL(string: "https://gateway.example/v1")!, credentialAccount: UUID(),
+                          models: [ListedModel(id: "main-a"), ListedModel(id: "vision-b", vision: true)]),
+            ModelProvider(id: second, name: "Other", baseURL: URL(string: "https://other.example/v1")!, credentialAccount: UUID(),
+                          models: [ListedModel(id: "cheap-c")]),
+        ], roles: ModelRoles(main: ModelRef(providerID: first, model: "main-a")),
+           consent: ModelConsentRecord(providerID: first, origin: "https://gateway.example", consentedAt: Date(timeIntervalSince1970: 1_800_000_000)))
+        try check(base.roles.vision == .off && base.roles.light == .sameAsMain, "defaults: vision off, light same as main")
+        try check(base.resolvedModel(for: .light) == base.roles.main && base.resolvedModel(for: .vision) == nil,
+                  "defaults resolve to the main model and to none")
+        try check(ModelProvidersDocument.fixedChoices(for: .vision) == [.sameAsMain, .off]
+                  && ModelProvidersDocument.fixedChoices(for: .light) == [.sameAsMain], "Android's fixed choices")
+        var doc = base
+        try rejects("light can never be off", { $0 as? ModelProvidersError == .invalidDocument }) {
+            try doc.chooseRole(.light, .off, consentedAt: nil)
+        }
+        let visionB = ModelRef(providerID: first, model: "vision-b")
+        try check(doc.consentRequirement(for: .model(visionB)) == nil, "the main provider is already agreed to")
+        try doc.chooseRole(.vision, .model(visionB), consentedAt: nil)
+        try check(doc.resolvedModel(for: .vision) == visionB && doc.roleConsents.isEmpty, "vision on the main provider needs no new consent")
+        let cheap = ModelRef(providerID: second, model: "cheap-c")
+        try check(doc.consentRequirement(for: .model(cheap)) == .differentProvider, "another provider needs its own consent")
+        try rejects("without that consent nothing changes", { $0 as? ModelProvidersError == .consentRequired }) {
+            try doc.chooseRole(.light, .model(cheap), consentedAt: nil)
+        }
+        try check(doc.roles.light == .sameAsMain, "light is kept after a refused choice")
+        let agreed = Date(timeIntervalSince1970: 1_800_000_500)
+        try doc.chooseRole(.light, .model(cheap), consentedAt: agreed)
+        try check(doc.resolvedModel(for: .light) == cheap && doc.hasConsent(forProvider: second)
+                  && doc.roleConsents == [ModelConsentRecord(providerID: second, origin: "https://other.example", consentedAt: agreed)],
+                  "light on another provider after its consent")
+        try check(doc.consent?.providerID == first, "the main model's consent is unchanged")
+        let used = doc.rolesUsing(providerID: second)
+        try check(!used.main && !used.vision && used.light, "the provider line names light for the other provider")
+        try check(try ModelProvidersDocument.decoded(from: doc.encoded()) == doc, "role consents round-trip")
+        try check(!String(decoding: try base.encoded(), as: UTF8.self).contains("roleConsents"),
+                  "without a role consent the document is written as before")
+        var typedDoc = base
+        try typedDoc.chooseRole(.vision, .model(ModelRef(providerID: first, model: "typed-v")), typed: true, verified: true,
+                                consentedAt: nil)
+        try check(typedDoc.provider(id: first)?.typedModels.contains("typed-v") == true
+                  && typedDoc.provider(id: first)?.verifiedModels.contains("typed-v") == true,
+                  "a typed vision model is remembered as typed and verified")
+        var unagreed = base
+        unagreed.roles.light = .model(cheap)
+        unagreed.roles.vision = .model(cheap)
+        try check(unagreed.resolvedModel(for: .light) == base.roles.main && unagreed.resolvedModel(for: .vision) == nil,
+                  "a provider never agreed to: light falls back to the main model, vision to none")
+        var switching = doc
+        try switching.recordConsent(forProvider: second, at: agreed.addingTimeInterval(10))
+        switching.roles.main = cheap
+        try check(switching.hasConsent(forProvider: first) && switching.resolvedModel(for: .vision) == visionB,
+                  "the old main provider keeps its consent for the vision model still on it")
+        try check(!switching.roleConsents.contains { $0.providerID == second }, "the new main provider's role consent folds into the main one")
+        var removing = doc
+        _ = try removing.removeProvider(id: second)
+        try check(removing.roles.light == .sameAsMain && removing.roleConsents.isEmpty, "removal resets light and forgets its consent")
+        var seeing = base
+        let main = ModelRef(providerID: first, model: "main-a")
+        try check(seeing.seesImages(main) == nil, "a custom model sees nothing by default")
+        try seeing.chooseRole(.vision, .sameAsMain, consentedAt: nil)
+        try check(seeing.seesImages(main) == true && seeing.visionRoleUsesMain, "用主模型: the main model sees images")
+        try seeing.setVision(false, providerID: first, model: "main-a")
+        try check(seeing.seesImages(main) == false, "the person's switch outranks the vision role")
+        try scenario { env in
+            let repository = env.repository()
+            let saved = try repository.save(baseURL: "https://gateway.example/v1", model: "main-a", newKey: "k").record
+            let providerID = try saved.providerID ?? { throw Failure(description: "saved without a provider") }()
+            try repository.recordConsent(forProvider: providerID)
+            try check(try repository.roleSettings(.light) == nil, "light same as main: no settings of its own")
+            try repository.chooseRole(.vision, .sameAsMain, typed: false, verified: false, consentedAt: nil)
+            try check(try repository.load()?.seesImages == true, "the saved main model sees images with 用主模型")
+            try repository.chooseRole(.light, .model(ModelRef(providerID: providerID, model: "small-s")), typed: true, verified: true,
+                                      consentedAt: nil)
+            let light = try repository.roleSettings(.light)
+            try check(light?.model == "small-s" && light?.providerID == providerID && light?.credentialAccount == saved.credentialAccount,
+                      "the light model's own settings use its provider's key")
+            try rejects("light off is refused by the repository too") {
+                try repository.chooseRole(.light, .off, typed: false, verified: false, consentedAt: nil)
+            }
+            try check(try repository.document()?.provider(id: providerID)?.typedModels.contains("small-s") == true,
+                      "the repository remembers the typed light model")
         }
     }
 

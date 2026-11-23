@@ -308,10 +308,14 @@ final class ModelAccountSignIn: ObservableObject {
         }
     }
 
-    /// Lists the account's models again with its token (refreshed first when it is due).
+    /// Lists the account's models again with its token (refreshed first when
+    /// it is due), or an API-key provider's with its key (Android refresh).
     func refreshModels(providerID: UUID, session: ChatSession) {
-        guard let provider = session.providerDocument.provider(id: providerID), let route = provider.accountRoute,
-              listing[providerID] != .running else { return }
+        guard let provider = session.providerDocument.provider(id: providerID), listing[providerID] != .running else { return }
+        guard let route = provider.accountRoute else {
+            refreshKeyModels(provider, session: session)
+            return
+        }
         let repository = session.voiceModelRepository
         listing[providerID] = .running
         Task { [weak self] in
@@ -332,6 +336,42 @@ final class ModelAccountSignIn: ObservableObject {
             } catch {
                 self?.listing[providerID] = .failed
             }
+        }
+    }
+
+    /// Android ModelCatalog.openAiCompat: GET {base}/models with the
+    /// provider's key and session header. A service that lists nothing keeps
+    /// an empty list, so the pickers offer its typed names only.
+    private func refreshKeyModels(_ provider: ModelProvider, session: ChatSession) {
+        guard provider.kind == .openAICompatible, !session.isUITestMode else { return }
+        let key: String
+        if provider.credentialAccount == nil { key = "" }
+        else if let stored = try? session.providerKey(id: provider.id), !stored.isEmpty { key = stored }
+        else { listing[provider.id] = .failed; return }
+        var headers: [String: String] = [:]
+        if let name = provider.sessionHeader, let header = ModelSessionHeader.fresh(name: name) { headers[header.name] = header.value }
+        let repository = session.voiceModelRepository
+        let providerID = provider.id, base = provider.baseURL
+        listing[providerID] = .running
+        Task { [weak self] in
+            do {
+                let models = try await AccountModelList.fetch(base: base, accessToken: key, headers: headers)
+                try repository.updateListedModels(providerID: providerID, models: models)
+                session.reloadProviders()
+                self?.listing[providerID] = nil
+            } catch {
+                self?.listing[providerID] = .failed
+            }
+        }
+    }
+
+    /// Android ensureListed: a provider whose models were never listed is
+    /// listed once when a picker or the models page opens. An account signed
+    /// out on this device waits for its sign-in.
+    func ensureListed(session: ChatSession) {
+        for provider in session.providerDocument.providers where provider.models == nil && listing[provider.id] == nil {
+            if provider.kind.account != nil, status(provider.id)?.signedIn != true { continue }
+            refreshModels(providerID: provider.id, session: session)
         }
     }
 

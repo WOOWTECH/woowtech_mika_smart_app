@@ -4842,8 +4842,201 @@
       "key": "models.pickNote",
       "parameters": [],
       "translations": {
-        "zh-Hant": "這一版還不會向服務商要模型列表。在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。",
-        "en": "This version doesn’t ask providers for their model lists yet. Under a provider, enter a model name from its docs; “Use” makes one test call first and switches only if it works."
+        "zh-Hant": "清單來自服務商。不在清單上的模型，可以在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。",
+        "en": "The list comes from the provider. For a model that isn’t listed, enter the name from its docs under the provider; “Use” makes one test call first and switches only if it works."
+      }
+    },
+    {
+      "case": "roleVision",
+      "key": "role.vision",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "看圖模型",
+        "en": "Vision model"
+      }
+    },
+    {
+      "case": "roleVisionWhat",
+      "key": "role.vision.what",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "看聊天附上的圖片",
+        "en": "Looks at pictures in chat"
+      }
+    },
+    {
+      "case": "roleVisionHint",
+      "key": "role.vision.hint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "聊天附上的圖片交給它看。主模型不能看圖時，選一個能看圖的模型，由它先看圖、再把內容告訴主模型；不選也能用，只是圖片不會交給模型。",
+        "en": "Pictures you attach in chat go to it. If the main model cannot see images, choose one that can: it looks first and tells the main model what it sees. Without one the app still works, but pictures are not sent to a model."
+      }
+    },
+    {
+      "case": "roleLight",
+      "key": "role.light",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輕量模型",
+        "en": "Light model"
+      }
+    },
+    {
+      "case": "roleLightWhat",
+      "key": "role.light.what",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "判斷、記東西這類小事",
+        "en": "Small jobs like judging and remembering"
+      }
+    },
+    {
+      "case": "roleLightHint",
+      "key": "role.light.hint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "判斷任務有沒有辦完、整理記憶這類小事用它。選便宜、快的更合適。",
+        "en": "It does small jobs such as judging whether a task is done and organizing memory. A cheap, fast model suits it best."
+      }
+    },
+    {
+      "case": "modelsSameAsMain",
+      "key": "models.sameAsMain",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用主模型",
+        "en": "Use the main model"
+      }
+    },
+    {
+      "case": "modelsMainNotPicked",
+      "key": "models.mainNotPicked",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "主模型還沒選",
+        "en": "No main model yet"
+      }
+    },
+    {
+      "case": "modelsOff",
+      "key": "models.off",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不用",
+        "en": "None"
+      }
+    },
+    {
+      "case": "modelsOffNote",
+      "key": "models.offNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "圖片不交給模型",
+        "en": "Pictures are not sent to a model"
+      }
+    },
+    {
+      "case": "modelsVisionSameNote",
+      "key": "models.visionSameNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "主模型能看圖時選這個",
+        "en": "Choose this when the main model can see images"
+      }
+    },
+    {
+      "case": "modelsLightSameNote",
+      "key": "models.lightSameNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "和主模型同一個，不用另外選",
+        "en": "Same as the main model; nothing more to choose"
+      }
+    },
+    {
+      "case": "modelsPickFrom",
+      "key": "models.pickFrom",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "從已連線的服務商裡選",
+        "en": "Choose from connected providers"
+      }
+    },
+    {
+      "case": "modelsFilterHint",
+      "key": "models.filterHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入模型名的一部分",
+        "en": "Type part of a model name"
+      }
+    },
+    {
+      "case": "modelsNoMatch",
+      "key": "models.noMatch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有名字對得上的模型。",
+        "en": "No model name matches."
+      }
+    },
+    {
+      "case": "modelsMore",
+      "key": "models.more",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": {
+          "other": "還有 %lld 個，輸入名字篩選"
+        },
+        "en": {
+          "one": "%lld more — type a name to filter",
+          "other": "%lld more — type a name to filter"
+        }
+      },
+      "plural": "count"
+    },
+    {
+      "case": "modelsCount",
+      "key": "models.count",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": {
+          "other": "%lld 個模型"
+        },
+        "en": {
+          "one": "%lld model",
+          "other": "%lld models"
+        }
+      },
+      "plural": "count"
+    },
+    {
+      "case": "modelsListFailed",
+      "key": "models.listFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "列模型失敗",
+        "en": "Couldn’t list models"
+      }
+    },
+    {
+      "case": "consentDeclineRole",
+      "key": "consent.decline.role",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不同意的話，什麼都不會傳出去，這個用途維持不變。",
+        "en": "If you don’t agree, nothing is sent and this role stays as it is."
       }
     },
     {
