@@ -620,10 +620,13 @@ public struct ChatGPTListedModel: Equatable, Sendable {
     public let vision: Bool?
     public let contextTokens: Int?
     public let reasoningEfforts: [String]?
+    /// Whether it can call tools, so it can be the main model.
+    public let tools: Bool?
 
-    public init(id: String, displayName: String, vision: Bool?, contextTokens: Int?, reasoningEfforts: [String]?) {
+    public init(id: String, displayName: String, vision: Bool?, contextTokens: Int?, reasoningEfforts: [String]?,
+                tools: Bool? = nil) {
         self.id = id; self.displayName = displayName; self.vision = vision
-        self.contextTokens = contextTokens; self.reasoningEfforts = reasoningEfforts
+        self.contextTokens = contextTokens; self.reasoningEfforts = reasoningEfforts; self.tools = tools
     }
 }
 
@@ -669,8 +672,14 @@ extension ChatGPTSignIn {
                 }
                 return names
             }
+            // Android ModelCatalog.openAiModel toolCalls: OpenRouter's `supported_parameters`
+            // names "tools"; other services say it under `capabilities`.
+            let capabilities = entry["capabilities"] as? [String: Any]
+            let tools = (entry["supported_parameters"] as? [Any]).map { list in list.contains { ($0 as? String) == "tools" } }
+                ?? ((capabilities?["tools"] as? [String: Any])?["supported"] as? Bool)
+                ?? (capabilities?["function_calling"] as? Bool) ?? (capabilities?["tool_calls"] as? Bool)
             models.append(ChatGPTListedModel(id: id, displayName: (entry["name"] as? String) ?? (entry["display_name"] as? String) ?? "",
-                                             vision: vision, contextTokens: context, reasoningEfforts: efforts))
+                                             vision: vision, contextTokens: context, reasoningEfforts: efforts, tools: tools))
         }
         return models
     }

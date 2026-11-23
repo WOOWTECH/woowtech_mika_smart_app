@@ -376,13 +376,14 @@ final class ModelAccountSignIn: ObservableObject {
         }
     }
 
-    /// OpenRouter's list says every model's inputs. One where no model says
-    /// whether it sees images was listed before builds read where OpenRouter
-    /// puts them (f38ba418), so it is listed once more.
+    /// OpenRouter's list says every model's inputs and tool calls. One where no
+    /// model says whether it sees images, or whether it calls tools, was listed
+    /// before builds read where OpenRouter puts them (f38ba418, and 280 for
+    /// tools), so it is listed once more.
     static func listedWithoutInputs(_ provider: ModelProvider) -> Bool {
         guard provider.kind == .openAICompatible, let models = provider.models, !models.isEmpty,
               ModelProviderPresets.preset(at: provider.baseURL)?.name == "OpenRouter" else { return false }
-        return models.allSatisfy { $0.vision == nil }
+        return models.allSatisfy { $0.vision == nil } || models.allSatisfy { $0.tools == nil }
     }
 
     private static func listModels(route: ModelAccountRoute, base: URL, repository: ModelSettingsRepository) async throws -> [ListedModel] {
