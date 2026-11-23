@@ -72,3 +72,11 @@
 - [送審流程](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app/)及[審查存取資訊](https://developer.apple.com/help/app-review/before-submitting-for-review/complete-review)。
 - [上傳並處理素材](https://developer.apple.com/documentation/appstoreconnectapi/uploading-and-managing-image-assets)、[掛載與排序](https://developer.apple.com/documentation/appstoreconnectapi/placing-assets-on-your-app-store-surfaces)及[截圖規格](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications)。
 - [App隱私定義](https://developer.apple.com/app-store/app-privacy-details/)及[Cloudflare1010的客戶端控制說明](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1010/)。
+
+## 2026-11-23 更新（Claude 接手）
+
+- **審查服務 402 的原因**：審查金鑰本身額度正常（US$1.37／10，12/1 重置）。402 是閘道背後的 OpenRouter 帳戶以「billing reason」拒絕，所有 openrouter 路線都一樣；toypark1234／chatgpt 的 ChatGPT Pro 路線週額度到 11/28–29。當下能用的是 woowtech/claude-sonnet-5-5、apporo-elmo/claude-sonnet-5-5、openrouter/free。
+- **owner 同意實測和審查都改用 Claude**：渥屋助理（review detail fe38c284…）與 Apporo Assistant（ca88fb2d…）兩份審查備註的模型都由 openai/gpt-6-sol 改成 woowtech/claude-sonnet-5-5；改前用各自備註裡的金鑰實測串流與一般回覆都 HTTP 200，PATCH 200，讀回逐字一致，其他欄位不變。金鑰沒有寫進任何檔案或紀錄。
+- **275**（44c1e7ab）07:52 上傳，內部群組可下載；**276**（533cd6d8＝eb1acf9e 的三個上架修正：照片只加入權限說明、英文裝置名稱 woowtech agent、PrivacyInfo 宣告 AI 回覆檢舉）09:11 VALID，**已取代 274 選進 0.1.0 版本**。
+- **4.3／4.2.6 回覆已送出**（09:14，兩段，讀回逐字一致），全文與 owner 提供的事實見 [APP_REVIEW_43_REPLY_20261123.md](APP_REVIEW_43_REPLY_20261123.md)。依 Apple 原訊息「認為符合就不要重送、回覆 9 題」，沒有重新送審。
+- iPad 13 吋舊截圖仍是舊 UI，尚未更換。
