@@ -165,6 +165,17 @@ final class ModelAccountTokenTests: XCTestCase {
         XCTAssertEqual(models.first?.contextTokens, 400000)
     }
 
+    func testTheModelListSaysWhichModelsCallTools() async throws {
+        // Android ModelCatalog toolCalls: OpenRouter's `supported_parameters`, else `capabilities`.
+        let body = #"{"data":[{"id":"openai/gpt-6.1-sol","supported_parameters":["max_tokens","tools","tool_choice"]},{"id":"vendor/image-maker","supported_parameters":["max_tokens","seed"]},{"id":"vendor/caps","capabilities":{"tools":{"supported":true}}},{"id":"vendor/fc","capabilities":{"function_calling":false}},{"id":"vendor/unsaid"}]}"#
+        XCTAssertEqual((ChatGPTSignIn.listedModels(Data(body.utf8)) ?? []).map(\.tools), [true, false, true, false, nil])
+        // The stored list keeps it, so the pickers can put the ones that can be the main model first.
+        let server = AccountProtocolFixture.register([.json(200, body)])
+        let listed = try await AccountModelList.fetch(base: server.base.appendingPathComponent("v1"), accessToken: "k",
+                                                      http: AccountProtocolFixture.http())
+        XCTAssertEqual(listed.map(\.tools), [true, false, true, false, nil])
+    }
+
     func testProviderKindsAndAccountProvidersAreStoredBackwardCompatibly() throws {
         // A document from before the sign-ins reads unchanged.
         let old = #"{"version":2,"providers":[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"OpenRouter","kind":"openAICompatible","baseURL":"https:\/\/openrouter.ai\/api\/v1","credentialAccount":"6F9619FF-8B86-D011-B42D-00C04FC964FF","typedModels":["vendor\/a"]}],"roles":{"main":{"providerID":"6F9619FF-8B86-D011-B42D-00C04FC964FF","model":"vendor\/a"},"vision":{"use":"off"},"light":{"use":"sameAsMain"}}}"#

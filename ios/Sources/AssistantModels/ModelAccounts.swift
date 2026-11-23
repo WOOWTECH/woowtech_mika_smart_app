@@ -293,7 +293,8 @@ public enum AccountModelList {
         guard let models = ChatGPTSignIn.listedModels(answer.body) else { throw Failure.unreadable }
         return Array(models.prefix(ModelProvidersDocument.maximumListedModels).compactMap { model in
             ModelProviderAddress.isModelName(model.id)
-                ? ListedModel(id: model.id, contextTokens: model.contextTokens.flatMap { $0 > 0 ? $0 : nil }, vision: model.vision)
+                ? ListedModel(id: model.id, contextTokens: model.contextTokens.flatMap { $0 > 0 ? $0 : nil }, vision: model.vision,
+                              tools: model.tools)
                 : nil
         })
     }
