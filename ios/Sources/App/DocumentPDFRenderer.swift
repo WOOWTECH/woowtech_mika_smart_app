@@ -55,7 +55,8 @@ private struct PDFLine {
     let height: CGFloat
 }
 
-/// UTF-16 offsets are advanced only by Core Text cluster/line breaks. No substring is dropped.
+/// UTF-16 offsets are advanced only by Core Text cluster/line breaks. No substring is dropped
+/// but the marks of a closed **bold** pair, whose words are drawn bold (DocumentInlineEmphasis).
 private struct PDFText {
     private let typesetter: CTTypesetter
     private let string: NSString
@@ -64,20 +65,24 @@ private struct PDFText {
 
     init(_ text: String, size: CGFloat, language: String, bold: Bool = false) {
         fontSize = size
-        string = text as NSString
         // Use a document font instead of the private system UI font. PDFKit
         // separates the UI font's low underscore glyphs from the surrounding
         // text, corrupting copied identifiers even when the page looks correct.
         // Core Text still selects language-appropriate fallback glyphs for CJK.
         let baseFont = CTFontCreateWithName("Helvetica" as CFString, size, nil)
-        let font = bold ? (CTFontCreateCopyWithSymbolicTraits(baseFont, size, nil, .traitBold, .traitBold) ?? baseFont)
-            : baseFont
-        let attributes: [NSAttributedString.Key: Any] = [
-            NSAttributedString.Key(kCTFontAttributeName as String): font,
-            NSAttributedString.Key(kCTLanguageAttributeName as String): language,
-            NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.09, alpha: 1)
-        ]
-        typesetter = CTTypesetterCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
+        let boldFont = CTFontCreateCopyWithSymbolicTraits(baseFont, size, nil, .traitBold, .traitBold) ?? baseFont
+        func attributes(strong: Bool) -> [NSAttributedString.Key: Any] {
+            [NSAttributedString.Key(kCTFontAttributeName as String): strong ? boldFont : baseFont,
+             NSAttributedString.Key(kCTLanguageAttributeName as String): language,
+             NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.09, alpha: 1)]
+        }
+        let attributed = NSMutableAttributedString()
+        for run in DocumentInlineEmphasis.runs(text) {
+            attributed.append(NSAttributedString(string: run.text, attributes: attributes(strong: bold || run.strong)))
+        }
+        // Offsets count in the drawn string, the one without the marks.
+        string = attributed.string as NSString
+        typesetter = CTTypesetterCreateWithAttributedString(attributed)
     }
 
     mutating func next(width: CGFloat) throws -> PDFLine? {

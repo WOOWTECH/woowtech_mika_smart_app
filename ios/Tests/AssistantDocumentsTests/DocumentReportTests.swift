@@ -25,6 +25,23 @@ final class DocumentReportTests: XCTestCase {
         ])
     }
 
+    func testBoldPairsAreDrawnBoldInHTMLAndKeptInCSV() throws {
+        typealias Run = DocumentInlineEmphasis.Run
+        XCTAssertEqual(DocumentInlineEmphasis.runs("• **計費期間**：2026"),
+                       [Run(text: "• ", strong: false), Run(text: "計費期間", strong: true), Run(text: "：2026", strong: false)])
+        XCTAssertEqual(DocumentInlineEmphasis.runs("a **b** c **d"),
+                       [Run(text: "a ", strong: false), Run(text: "b", strong: true), Run(text: " c **d", strong: false)])
+        for code in ["```python\ndef f(**kw, **more):\n```", "    x = a**b**c"] {
+            XCTAssertEqual(DocumentInlineEmphasis.runs(code), [Run(text: code, strong: false)])
+        }
+        let report = try parse("**重點**\n\n- **計費期間**：9/15\n\n| 項目 | 金額 |\n| --- | --- |\n| **合計** | <1936> |")
+        let html = try report.html()
+        XCTAssertTrue(html.contains("<p><strong>重點</strong></p>"))
+        XCTAssertTrue(html.contains("<li><strong>計費期間</strong>：9/15</li>"))
+        XCTAssertTrue(html.contains("<td><strong>合計</strong></td><td>&lt;1936&gt;</td>"))
+        XCTAssertTrue(try report.csv().contains("\"**合計**\""))
+    }
+
     func testUnsupportedMarkupAndLinksStayLiteral() throws {
         let source = "> quotation\n![image](https://example.invalid/a.png)\n[link](javascript:alert(1))\n~~strike~~ **bold** <script>alert(1)</script>\n---\n####### too deep"
         XCTAssertEqual(try parse(source).sections, [.paragraph(text: source)])

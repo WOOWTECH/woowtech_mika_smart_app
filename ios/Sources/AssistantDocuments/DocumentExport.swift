@@ -21,25 +21,25 @@ extension DocumentReport {
             try Task.checkCancellation()
             switch section {
             case .heading(let level, let text):
-                try output.append("<h\(level)>\(text.documentHTMLEscaped)</h\(level)>\n")
+                try output.append("<h\(level)>\(text.documentHTMLInline)</h\(level)>\n")
             case .paragraph(let text):
-                try output.append("<p>\(text.documentHTMLEscaped)</p>\n")
+                try output.append("<p>\(text.documentHTMLInline)</p>\n")
             case .list(let items, let ordered):
                 let tag = ordered ? "ol" : "ul"
                 try output.append("<\(tag)>")
                 for item in items {
                     try Task.checkCancellation()
-                    try output.append("<li>\(item.documentHTMLEscaped)</li>")
+                    try output.append("<li>\(item.documentHTMLInline)</li>")
                 }
                 try output.append("</\(tag)>\n")
             case .table(let table):
                 try output.append("<div class=\"table-scroll\"><table><thead><tr>")
-                for column in table.columns { try output.append("<th scope=\"col\">\(column.documentHTMLEscaped)</th>") }
+                for column in table.columns { try output.append("<th scope=\"col\">\(column.documentHTMLInline)</th>") }
                 try output.append("</tr></thead><tbody>")
                 for row in table.rows {
                     try Task.checkCancellation()
                     try output.append("<tr>")
-                    for cell in row { try output.append("<td>\(cell.documentHTMLEscaped)</td>") }
+                    for cell in row { try output.append("<td>\(cell.documentHTMLInline)</td>") }
                     try output.append("</tr>")
                 }
                 try output.append("</tbody></table></div>\n")
@@ -119,6 +119,13 @@ struct DocumentOutput {
 }
 
 private extension String {
+    /// Escaped, with a reply's closed **bold** pairs as <strong> (DocumentInlineEmphasis).
+    var documentHTMLInline: String {
+        DocumentInlineEmphasis.runs(self)
+            .map { $0.strong ? "<strong>" + $0.text.documentHTMLEscaped + "</strong>" : $0.text.documentHTMLEscaped }
+            .joined()
+    }
+
     var documentHTMLEscaped: String {
         replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
@@ -134,5 +141,44 @@ private extension String {
             return scalar == "=" || scalar == "+" || scalar == "-" || scalar == "@"
         }
         return false
+    }
+}
+
+/// A reply's **bold**, the one inline mark the chat draws that the PDF and
+/// HTML documents draw too: a closed pair becomes a bold run without its
+/// marks. An unclosed pair, fenced or indented code, and every other mark
+/// stay as written (the parser keeps them literal; CSV keeps every character).
+public enum DocumentInlineEmphasis {
+    public struct Run: Equatable, Sendable {
+        public let text: String
+        public let strong: Bool
+    }
+
+    public static func runs(_ text: String) -> [Run] {
+        let parts = text.components(separatedBy: "**")
+        guard parts.count > 2, !isCode(text) else { return [Run(text: text, strong: false)] }
+        let last = parts.count - 1
+        var runs: [Run] = []
+        func add(_ piece: String, strong: Bool) {
+            guard !piece.isEmpty else { return }
+            if let previous = runs.last, previous.strong == strong {
+                runs[runs.count - 1] = Run(text: previous.text + piece, strong: strong)
+            } else {
+                runs.append(Run(text: piece, strong: strong))
+            }
+        }
+        for (index, part) in parts.enumerated() {
+            if index % 2 == 0 { add(part, strong: false) }
+            else if index == last { add("**" + part, strong: false) }  // opened, never closed
+            else { add(part, strong: true) }
+        }
+        return runs.isEmpty ? [Run(text: "", strong: false)] : runs
+    }
+
+    /// Fenced (``` or ~~~) or indented code, which the parser keeps as a literal paragraph.
+    static func isCode(_ text: String) -> Bool {
+        if text.hasPrefix("    ") || text.hasPrefix("\t") { return true }
+        let trimmed = text.drop(while: { $0 == " " })
+        return trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
     }
 }

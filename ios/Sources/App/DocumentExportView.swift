@@ -181,11 +181,27 @@ struct DocumentExportView: View {
             && (format != .csv || selectedTable >= 0)
     }
 
+    /// The reply's first line as a title without Markdown's marks: **bold**,
+    /// __bold__, `code`, a # heading, a > quote or a list's - or *.
+    static func titleText(_ line: String) -> String {
+        var text = line
+        for mark in ["**", "__", "`"] { text = text.replacingOccurrences(of: mark, with: "") }
+        return text.trimmingCharacters(in: CharacterSet(charactersIn: "#>*-").union(.whitespaces))
+    }
+
+    /// The reply as the chat shows its words: bold and the like rendered, not
+    /// their marks. Lines and list dashes stay as written.
+    static func sourcePreview(_ content: String) -> AttributedString {
+        let text = String(content.prefix(1_500))
+        return (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(text)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section(localizer.text(.documentSource)) {
-                    Text(verbatim: String(source.content.prefix(1_500)))
+                    Text(Self.sourcePreview(source.content))
                         .lineLimit(6).textSelection(.enabled)
                         .accessibilityIdentifier("document.source")
                     Text(localizer.text(.documentLocalNotice)).font(.caption).foregroundStyle(.secondary)
@@ -264,8 +280,8 @@ struct DocumentExportView: View {
                 // Answer rather than after its header row.
                 let firstLine = source.content.split(maxSplits: 1, whereSeparator: \.isNewline).first.map(String.init) ?? ""
                 title = firstLine.trimmingCharacters(in: .whitespaces).hasPrefix("|") ? "" :
-                    String(firstLine.unicodeScalars.prefix(512).filter { !CharacterSet.controlCharacters.contains($0) }
-                        .map(String.init).joined().trimmingCharacters(in: CharacterSet(charactersIn: "# ")).prefix(80))
+                    String(Self.titleText(String(firstLine.unicodeScalars.prefix(512).filter { !CharacterSet.controlCharacters.contains($0) }
+                        .map(String.init).joined())).prefix(80))
                 if title.isEmpty { title = localizer.text(.documentDefaultTitle) }
                 // Retrying a cancelled parse must not reset the user's edits.
                 didSetInitialOptions = true

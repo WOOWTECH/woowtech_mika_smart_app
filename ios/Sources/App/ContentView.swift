@@ -1370,6 +1370,8 @@ private struct ChatView: View {
                    let entry = session.entries.last, entry.role == "assistant",
                    session.messageActionTargets.replies.contains(entry.id) {
                     documentTarget = DocumentExportSource(content: entry.content, format: format)
+                    // The request is done, so like a sent message it leaves the composer empty.
+                    session.draft = ""
                     return
                 }
                 session.attemptSend(mcp: mcp)
