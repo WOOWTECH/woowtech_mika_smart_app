@@ -29,6 +29,15 @@ enum ModelClientChecks {
     static let stopEvent = "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
     static let doneEvent = "data: [DONE]\n\n"
 
+    /// A finish chunk sent again after the end with the usage, as OpenRouter does;
+    /// nil leaves the field out.
+    static func repeatedFinish(content: String?, reason: String?) -> String {
+        let delta = content.map { "{\"content\":\"\($0)\"}" } ?? "{}"
+        let finish = reason.map { "\"\($0)\"" } ?? "null"
+        return "data: {\"choices\":[{\"index\":0,\"delta\":\(delta),\"finish_reason\":\(finish)}],"
+            + "\"usage\":{\"prompt_tokens\":40,\"completion_tokens\":24,\"total_tokens\":64}}\n\n"
+    }
+
     static func requestContract() throws -> Int {
         var checks = Checks()
         let paths = [("", "/v1/chat/completions"), ("/", "/v1/chat/completions"),
@@ -160,6 +169,9 @@ enum ModelClientChecks {
             (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8), .truncatedResponse),
             (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + textEvent + doneEvent).utf8), .invalidResponse),
             (Data((textEvent + stopEvent + textEvent + doneEvent).utf8), .invalidResponse),
+            // A repeated finish chunk may not bring text, or another reason, after the end.
+            (Data((textEvent + stopEvent + repeatedFinish(content: "多", reason: "stop") + doneEvent).utf8), .invalidResponse),
+            (Data((textEvent + stopEvent + repeatedFinish(content: "", reason: "length") + doneEvent).utf8), .invalidResponse),
             (Data(textEvent.replacingOccurrences(of: "\"index\":0", with: "\"index\":1").utf8), .invalidResponse),
             (Data(repeating: 65, count: ChatSSEParser.maximumEventBytes + 1), .responseTooLarge)
         ]
@@ -169,6 +181,30 @@ enum ModelClientChecks {
                 for byte in bytes { _ = try parser.append(byte) }
                 try parser.finish()
             }
+        }
+        for repeated in [repeatedFinish(content: "", reason: "stop"), repeatedFinish(content: nil, reason: nil)] {
+            // OpenRouter (2026-11-23) sends the stop chunk again with the usage, before [DONE].
+            var parser = ChatSSEParser()
+            var text = ""
+            for byte in Data((textEvent + stopEvent + repeated + doneEvent).utf8) {
+                if let delta = try parser.append(byte) { text += delta }
+            }
+            try parser.finish()
+            try checks.expect(parser.done && text == "你好 🏡", "A repeated finish chunk after stop is accepted")
+            try checks.expect(parser.usage?.totalTokens == 64, "The repeated finish chunk's usage is kept")
+        }
+        do {
+            // The same after the output limit: the text so far comes out, then the stream throws.
+            var parser = ChatSSEParser()
+            var text = ""
+            try checks.error(.truncatedResponse) {
+                let length = stopEvent.replacingOccurrences(of: "stop", with: "length")
+                for byte in Data((textEvent + length + repeatedFinish(content: "", reason: "length") + doneEvent).utf8) {
+                    if let delta = try parser.append(byte) { text += delta }
+                }
+                try parser.finish()
+            }
+            try checks.expect(text == "你好 🏡", "Text before the cut is kept with a repeated finish chunk")
         }
         do {
             // The output limit cut the reply: its text so far comes out, then the stream throws.

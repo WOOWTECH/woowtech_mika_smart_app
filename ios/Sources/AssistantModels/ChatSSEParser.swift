@@ -89,7 +89,15 @@ struct ChatSSEParser {
             return nil
         }
         guard chunk.choices.count == 1, let choice = chunk.choices.first,
-              choice.index == 0, !stopped, !truncated else { throw HTTPChatModelError.invalidResponse }
+              choice.index == 0 else { throw HTTPChatModelError.invalidResponse }
+        if stopped || truncated {
+            // OpenRouter sends the finish chunk again, now with the usage: no
+            // text and the same reason (or none). New text, or another reason,
+            // after the end is still rejected.
+            let sameEnd = choice.finish_reason == nil || choice.finish_reason == (stopped ? "stop" : "length")
+            guard sameEnd, (choice.delta.content ?? "").isEmpty else { throw HTTPChatModelError.invalidResponse }
+            return nil
+        }
         if let reason = choice.finish_reason {
             switch reason {
             case "stop": stopped = true
