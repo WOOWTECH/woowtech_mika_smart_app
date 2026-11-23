@@ -1217,6 +1217,10 @@ final class ChatSession: ObservableObject {
                         expectedGeneration: learningGeneration, client: client, configuration: light.configuration, apiKey: light.key,
                         preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [],
                         toolForgot: self.memoryForgotRequestID == id)
+                } else if self.skillSavedRequestID != id, self.memoryReceiptRequestID != id, self.memoryForgotRequestID != id {
+                    // The model's memory command was refused and kept nothing: an explicit 請記住 still counts.
+                    self.learning.rememberExplicitRequest(utterance: utterance, conversationID: self.conversationID,
+                                                          expectedGeneration: learningGeneration)
                 }
                 self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
                     priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
@@ -1765,7 +1769,13 @@ final class ChatSession: ObservableObject {
             case .proposedMemoryChange(let toolName, let arguments):
                 do {
                     try validateMemoryRun(memoryRun, generation: generation)
-                    let review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments)
+                    let review: MemoryToolReview
+                    do { review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments) }
+                    catch {
+                        // A refused save of an explicit 請記住 keeps the user's own words instead.
+                        guard let explicit = memoryRun.explicitSave(after: error, toolName: toolName) else { throw error }
+                        review = explicit
+                    }
                     // Memory tools also apply directly, with an undo note in the chat.
                     try flow.validateReview()
                     let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
@@ -1975,8 +1985,13 @@ final class ChatSession: ObservableObject {
             return .committedReceipt(json: String(decoding: data, as: UTF8.self))
         case .memorySave, .memoryEdit:
             try validateMemoryRun(turn.memory, generation: turn.generation)
-            let review = try turn.memory.prepare(toolName: proposal.action.rawValue,
-                                                 argumentsJSON: proposal.argumentsJSON)
+            let review: MemoryToolReview
+            do { review = try turn.memory.prepare(toolName: proposal.action.rawValue, argumentsJSON: proposal.argumentsJSON) }
+            catch {
+                // A refused save of an explicit 請記住 keeps the user's own words instead.
+                guard let explicit = turn.memory.explicitSave(after: error, toolName: proposal.action.rawValue) else { throw error }
+                review = explicit
+            }
             let receipt = try learning.commitMemoryTool(review, expectedGeneration: turn.generation,
                                                         conversationID: conversationID)
             memoryReceipt = receipt

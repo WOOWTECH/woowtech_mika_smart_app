@@ -173,6 +173,22 @@ public struct MemoryToolRun: Sendable {
     /// Current-run user words only. The pinned save-only previous-confirmation
     /// exception is intentionally NOT offered by this first API. Website/tool/
     /// assistant text and old turns must not be passed as current utterances.
+    /// A well-formed memory_save refused for quoting words or details the user did not say,
+    /// while the user asked outright, 請記住…: the user's words after the request are saved
+    /// instead (MemoryExtractor.explicitRequest), so the model reads that they were kept. A
+    /// small main model sent such saves and the request was lost (iPhone run of 285). nil
+    /// for any other refusal (malformed arguments stay refused), or without such a request.
+    public func explicitSave(after error: Error, toolName: String) -> MemoryToolReview? {
+        guard toolName == "memory_save", let error = error as? MemoryToolError,
+              [.quoteNotFromUser, .contentNotFromUser].contains(error),
+              let utterance = utterances.last,
+              let request = MemoryExtractor.explicitRequest(utterance, conversationID: nil, state: snapshot),
+              let data = try? JSONSerialization.data(withJSONObject:
+                  ["kind": request.kind.rawValue, "content": request.content, "quote": request.quote])
+        else { return nil }
+        return try? prepare(toolName: toolName, argumentsJSON: String(decoding: data, as: UTF8.self))
+    }
+
     public func prepare(toolName: String, argumentsJSON: String) throws -> MemoryToolReview {
         guard snapshot.preferences.useMemory else { throw MemoryToolError.disabled }
         let request = try MemoryToolRequest.parse(name: toolName, argumentsJSON: argumentsJSON)

@@ -482,6 +482,20 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         }
     }
 
+    /// The reply's own memory command was refused, so its words are not organized
+    /// (ChatSession.localCommandRefusedRequestID). An explicit 請記住 still keeps the
+    /// user's own words, with the checks of explicitRequestPlan: a small main model
+    /// sent a memory_save the host refused and said 我已記住…但此變更未能成功保存
+    /// (iPhone run of 285).
+    func rememberExplicitRequest(utterance: String, conversationID: String, expectedGeneration: UUID) {
+        guard generation == expectedGeneration, available,
+              memory.preferences.useMemory, memory.preferences.autoRemember,
+              let plan = MemoryExtractor.explicitRequestPlan(
+                  input: MemoryExtractionInput(utterances: [utterance], conversationID: conversationID), state: memory)
+        else { return }
+        _ = applyExplicitRemember(plan)
+    }
+
     /// Keeps an explicit 請記住 when the organizing itself failed; false when it cannot.
     private func applyExplicitRemember(_ plan: MemoryExtractionPlan) -> Bool {
         do {

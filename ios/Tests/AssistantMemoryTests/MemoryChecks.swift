@@ -190,6 +190,27 @@ enum MemoryChecks {
                          "A password is never kept")
         try check.expect(MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["今天天氣很好"]), state: state) == nil,
                          "No request, nothing kept")
+        // A small main model's memory_save of an explicit 請記住 was refused and nothing was
+        // kept (iPhone run of 285): the user's own words are saved in its place.
+        let explicitRun = MemoryToolRun(state: state, utterances: ["請記住：我喜歡喝無糖綠茶。"])
+        let keptSave = explicitRun.explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_save")
+        try check.expect(keptSave?.after?.content == "我喜歡喝無糖綠茶" && keptSave?.kind == .preference && keptSave?.quote == "我喜歡喝無糖綠茶",
+                         "A refused save of 請記住 keeps the user's words")
+        try check.expect(explicitRun.explicitSave(after: MemoryToolError.contentNotFromUser, toolName: "memory_save") != nil,
+                         "A save with details the user did not say is replaced too")
+        try check.expect(explicitRun.explicitSave(after: MemoryToolError.invalidArguments, toolName: "memory_save") == nil
+                         && explicitRun.explicitSave(after: MemoryToolError.disabled, toolName: "memory_save") == nil
+                         && explicitRun.explicitSave(after: MemoryToolError.editNotRequested, toolName: "memory_save") == nil
+                         && explicitRun.explicitSave(after: MemoryError.sensitiveContent, toolName: "memory_save") == nil,
+                         "Malformed arguments and other refusals stay refused")
+        try check.expect(explicitRun.explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_edit") == nil,
+                         "Only a save is replaced")
+        try check.expect(MemoryToolRun(state: state, utterances: ["我喜歡喝無糖綠茶。"])
+                            .explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_save") == nil,
+                         "Without 請記住 the refusal stays")
+        try check.expect(MemoryToolRun(state: state, utterances: ["請記住我的密碼是 abcd1234"])
+                            .explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_save") == nil,
+                         "A password is never kept in place of a refused save")
         let negative = try MemoryExtractor.parse(response([["op": "forget", "target": state.memories[0].id.uuidString, "quote": "刪除茶的記憶"]]), input: .init(utterances: ["不要刪除茶的記憶"]), state: state)
         try check.expect(negative.operationCount == 0, "Negated delete is not authorization")
         let forgotten = try MemoryExtractor.parse(response([["op": "forget", "target": "#1", "quote": "請忘記茶的記憶"]]), input: .init(utterances: ["請忘記茶的記憶"]), state: state)

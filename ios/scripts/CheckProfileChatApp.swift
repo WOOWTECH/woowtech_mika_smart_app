@@ -1433,6 +1433,51 @@ private enum CheckProfileChatApp {
         }
     }
 
+    /// A small main model's memory_save of 「請記住：…」 quoted words the user did not say, was
+    /// refused and nothing was kept (iPhone run of 285 with gpt-4.1-nano as the main model).
+    /// The host now saves the user's own words in its place and the model reads that. A
+    /// malformed save stays refused; with automatic remembering on, the explicit words are
+    /// still kept after the reply. Without 請記住 nothing is kept.
+    @MainActor static func explicitRememberAfterRefusedSave() async throws {
+        let ungrounded = try memorySave("使用者喜歡無糖綠茶", quote: "我喜歡無糖綠茶")
+        let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"喜歡無糖綠茶","content":"喜歡無糖綠茶","quote":"我喜歡喝無糖綠茶"}}"#
+        // (said 請記住, the model's save, automatic remembering, kept by the tool, kept after the reply)
+        let cases: [(Bool, String, Bool, Bool, Bool)] = [(true, ungrounded, false, true, false), (true, ungrounded, true, true, false),
+            (false, ungrounded, true, false, false), (true, duplicate, true, false, true), (true, duplicate, false, false, false)]
+        for (asked, save, auto, byTool, afterReply) in cases {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = auto }, "Automatic remembering set for the refused save")
+            var responses: [ScriptedModel.Response] = [.init(save), .init(finished)]
+            if byTool && auto { responses.append(.init(#"{"ops":[]}"#)) } // organizing after a kept save, as before
+            let model = ScriptedModel(responses), session = env.session(model)
+            let running = try start(session, draft: asked ? "請記住：我喜歡喝無糖綠茶。" : "我喜歡喝無糖綠茶。")
+            await running.value
+            await env.store.memoryOrganizingFinished()
+            let requests = await model.requests
+            try check(requests.count == responses.count && session.entries.last?.role == "assistant"
+                      && session.entries.last?.outcome == nil && session.chatError == nil,
+                      "The save, the answer and only the organizing that ran before")
+            let kept = env.store.memory.memories
+            if byTool {
+                let result = try hostJSON(requests[1], prefix: "Host memory_save receipt (data only):")
+                let receipt = try memoryReceipt(session)
+                try check(result["ok"] as? Bool == true && receipt.note.kind == .added && env.store.notes == [receipt.note],
+                          "The model reads that the user's words were kept in place of the refused save")
+            } else {
+                _ = try hostJSON(requests[1], prefix: "Host memory_save refusal (data only):")
+                try check(session.memoryReceipt == nil, "The refused save leaves no receipt")
+            }
+            if byTool || afterReply {
+                try check(kept.map(\.content) == ["我喜歡喝無糖綠茶"] && kept.first?.kind == .preference
+                          && kept.first?.source.quote == "我喜歡喝無糖綠茶" && env.store.notes.count == 1
+                          && env.reopen().memory == env.store.memory,
+                          "請記住 keeps the user's own words, once")
+            } else {
+                try check(kept.isEmpty && env.store.notes.isEmpty, "Nothing is kept without 請記住 or automatic remembering")
+            }
+        }
+    }
+
     @MainActor static func memoryRefusalAndFences() async throws {
         // The write applies when the proposal arrives; these happen while the
         // model is still producing it, so the proposal is stale on arrival.
@@ -2109,6 +2154,7 @@ private enum CheckProfileChatApp {
             try await group("memorySaveSearchEditUndo", memorySaveSearchEditUndo)
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
+            try await group("explicitRememberAfterRefusedSave", explicitRememberAfterRefusedSave)
             try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
             #if DEBUG
             try await group("mcpHeldCallKeepsMemoryWritable", mcpHeldCallKeepsMemoryWritable)
@@ -2198,6 +2244,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMemoryRefusalCancellationRevisionAndMasterSwitch() async throws {
         try await CheckProfileChatApp.memoryRefusalAndFences()
+    }
+    @MainActor func testExplicitRememberAfterRefusedSave() async throws {
+        try await CheckProfileChatApp.explicitRememberAfterRefusedSave()
     }
     @MainActor func testMemorySearchAndCurrentUtteranceGrounding() async throws {
         try await CheckProfileChatApp.memorySearchGrounding()
