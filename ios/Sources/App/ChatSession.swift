@@ -1236,17 +1236,23 @@ final class ChatSession: ObservableObject {
                         ?? (error is CancellationError ? "cancelled" : "unknown")
                     self.updateMCPDiagnostics(failure: category)
                 }
+                // iOS stops MCP work once the app leaves the screen, which also closes the
+                // servers' connections (MCPChatChanged): say so, whichever way the step ended.
+                let leftScreenMCP = self.requestLeftScreen == id && (mcpRan || self.isMCPRun || error is MCPChatChanged)
                 // Do not surface provider error bodies/URLs: they may contain secrets.
-                let message = (error as? MCPChatStop)?.message
-                    ?? (error is MCPChatChanged ? MCPChatChanged.message : nil)
-                    ?? Self.profileFailureMessage(error)
-                    ?? Self.modelFailureMessage(error as? MCPConversationError)
-                    ?? ((error as? MCPConversationError) == .invalidCommand
-                        ? "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。" : nil)
-                    ?? (!mcpRan ? "傳送失敗。請檢查模型設定或網路後重試。"
-                        : "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
+                let leftScreenText: String? = leftScreenMCP
+                    ? AppLocalizer(language: self.interfaceLanguage()).text(.chatMcpLeftScreen) : nil
+                let stopText: String? = (error as? MCPChatStop)?.message
+                let changedText: String? = error is MCPChatChanged ? MCPChatChanged.message : nil
+                let profileText: String? = Self.profileFailureMessage(error)
+                let modelText: String? = Self.modelFailureMessage(error as? MCPConversationError)
+                let invalidText: String? = (error as? MCPConversationError) == .invalidCommand
+                    ? "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。" : nil
+                let fallback: String = !mcpRan ? "傳送失敗。請檢查模型設定或網路後重試。"
+                    : "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。"
+                let message: String = leftScreenText ?? stopText ?? changedText ?? profileText ?? modelText ?? invalidText ?? fallback
                 // A plain request names its model failure like Android (ModelErrorCopy).
-                let modelFailure = !mcpRan ? ChatModelFailure(error) : nil
+                let modelFailure = !mcpRan && !leftScreenMCP ? ChatModelFailure(error) : nil
                 // Like the Play build the turn stays in the conversation as 沒有完成 with its reason.
                 if self.memoryReceiptRequestID == id {
                     self.failTurn(id: id, reason: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。")

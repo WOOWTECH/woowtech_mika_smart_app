@@ -440,10 +440,15 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         extractionID = id; isLearning = true; notice = nil
         extraction = Task { [weak self] in
             do {
-                let plan = try await MemoryExtractor(client: extractionClient).extract(input: input, state: snapshot,
+                var plan = try await MemoryExtractor(client: extractionClient).extract(input: input, state: snapshot,
                     configuration: configuration, apiKey: apiKey)
                 try Task.checkCancellation()
                 guard let self, self.extractionID == id else { return }
+                // An explicit 請記住 that neither the reply's tool nor the extraction kept.
+                if plan.operationCount == 0, preservingToolNotes.isEmpty,
+                   let explicit = MemoryExtractor.explicitRequestPlan(input: input, state: snapshot) {
+                    plan = explicit
+                }
                 if plan.operationCount > 0 {
                     var next = self.memory
                     let notes = try next.apply(plan: plan)
@@ -466,12 +471,28 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                         self.notice = "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。"
                     } else if (error as? LearningFileError) == .busy {
                         self.notice = "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。"
+                    } else if preservingToolNotes.isEmpty, let explicit = MemoryExtractor.explicitRequestPlan(input: input, state: snapshot),
+                              self.applyExplicitRemember(explicit) {
+                        // The organizing failed, but the words the user asked to keep are kept.
                     } else {
                         self.notice = "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。"
                     }
                 }
             }
         }
+    }
+
+    /// Keeps an explicit 請記住 when the organizing itself failed; false when it cannot.
+    private func applyExplicitRemember(_ plan: MemoryExtractionPlan) -> Bool {
+        do {
+            var next = memory
+            let added = try next.apply(plan: plan)
+            try persist(memory: next, skills: skills)
+            memory = next
+            notes = added
+            error = nil
+            return true
+        } catch { return false }
     }
 
     /// Returns when the memory organizing of the latest reply is over, if one runs.

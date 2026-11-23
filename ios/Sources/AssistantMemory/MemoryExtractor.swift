@@ -97,6 +97,24 @@ public struct MemoryExtractor: Sendable {
         return MemoryExtractionPlan(baseRevision: state.revision, conversationID: input.conversationID, operations: operations)
     }
 
+    /// The user's own "請記住…" when the model proposed nothing for it (small models
+    /// sometimes do not, iPhone run of 284): the words after the request, quoted from
+    /// the utterance, as a preference or a fact. nil when there is no such request, the
+    /// words are sensitive or already kept, or they do not pass the usual checks.
+    public static func explicitRequestPlan(input: MemoryExtractionInput, state: MemoryState) -> MemoryExtractionPlan? {
+        guard eligible(input: input, state: state), let utterance = input.utterances.last,
+              let quote = MemorySafety.explicitRemember(utterance), !MemorySafety.sensitive(quote) else { return nil }
+        let content = MemorySafety.clean(quote)
+        guard !state.memories.contains(where: { $0.content == content || MemorySafety.restates($0.content, content) }) else { return nil }
+        let preference = MemorySafety.matches(#"喜歡|喜欢|偏好|不喜歡|不喜欢|討厭|讨厌|愛喝|爱喝|愛吃|爱吃|\bprefer|\blike\b"#, content)
+        do {
+            try MemorySafety.validate(content: content, keywords: [],
+                                      source: .init(type: "user_said", quote: quote, conversationID: input.conversationID, at: Date()))
+        } catch { return nil }
+        return MemoryExtractionPlan(baseRevision: state.revision, conversationID: input.conversationID,
+                                    operations: [.add(preference ? .preference : .fact, content, [], quote)])
+    }
+
     private static func eligible(input: MemoryExtractionInput, state: MemoryState) -> Bool {
         state.preferences.useMemory && state.preferences.autoRemember && input.succeeded && !input.readExternalContent
     }

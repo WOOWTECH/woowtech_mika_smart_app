@@ -179,6 +179,17 @@ enum MemoryChecks {
         let asked = try MemoryExtractor.parse(response([["op": "add", "kind": "fact", "content": "小孩對花生過敏", "quote": "小孩對花生過敏"]]),
                                               input: .init(utterances: ["請記住：我們家小孩對花生過敏"]), state: state)
         try check.expect(asked.operationCount == 1, "An explicit 記住 keeps a request-shaped sentence")
+        // An explicit 請記住 the model did not keep is kept from the user's own words (iPhone run of 284).
+        let explicit = MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["請記住：我喜歡喝無糖綠茶。"]), state: state)
+        try check.expect(explicit?.operationCount == 1, "請記住 keeps its words when the model proposed nothing")
+        try check.expect(MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["Remember that I prefer window seats."]), state: state)?
+            .operationCount == 1, "remember that … in English")
+        try check.expect(MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["記得帶傘嗎？"]), state: state) == nil,
+                         "A question with 記得 is not a request")
+        try check.expect(MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["請記住我的密碼是 abcd1234"]), state: state) == nil,
+                         "A password is never kept")
+        try check.expect(MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["今天天氣很好"]), state: state) == nil,
+                         "No request, nothing kept")
         let negative = try MemoryExtractor.parse(response([["op": "forget", "target": state.memories[0].id.uuidString, "quote": "刪除茶的記憶"]]), input: .init(utterances: ["不要刪除茶的記憶"]), state: state)
         try check.expect(negative.operationCount == 0, "Negated delete is not authorization")
         let forgotten = try MemoryExtractor.parse(response([["op": "forget", "target": "#1", "quote": "請忘記茶的記憶"]]), input: .init(utterances: ["請忘記茶的記憶"]), state: state)

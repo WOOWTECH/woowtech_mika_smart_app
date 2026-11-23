@@ -110,6 +110,19 @@ enum MemorySafety {
         return matches(task, trimmed) || matches(puzzle, text)
     }
 
+    /// The words after an explicit "請記住…", "記得…" or "remember (that) …": what the
+    /// user asked to keep. nil when there is no such request, or it is a question.
+    static func explicitRemember(_ text: String) -> String? {
+        let pattern = #"(?:^|[，,。.！!\s])(?:請|请|幫我|帮我|麻煩|麻烦)?\s*(?:記住|记住|記得|记得)\s*[：:，,、]?\s*(.+)$|(?i)\bremember(?:\s+that)?\s*[:,]?\s*(.+)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
+        let range = match.range(at: 1).location != NSNotFound ? match.range(at: 1) : match.range(at: 2)
+        guard let words = Range(range, in: text) else { return nil }
+        let content = String(text[words]).trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "。.！!～~")))
+        guard !content.isEmpty, !notDurable(content) else { return nil }
+        return content
+    }
+
     /// Content that only reports what the user asked for this time.
     static func describesRequest(_ content: String) -> Bool {
         matches(#"用戶請求|用户请求|使用者請求|用戶要求|用户要求|使用者要求|\bthe\s+user\s+(?:asked|requested|wants\s+(?:me|the\s+assistant)\s+to)\b"#, content)
