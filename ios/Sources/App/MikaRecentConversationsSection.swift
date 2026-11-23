@@ -31,7 +31,7 @@ private extension ArchivedConversation {
         let hasPinned = records.contains { $0.pinnedAt != nil }
         return VStack(alignment: .leading, spacing: 8) {
             Text(localizer.text(.drawerRecentTitle))
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(size: 12, weight: .semibold)
                 .foregroundStyle(secondaryInk)
                 .padding(.horizontal, 12)
                 .accessibilityIdentifier("drawer.recent.title")
@@ -122,7 +122,7 @@ private extension ArchivedConversation {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(verbatim: title)
-                            .font(.system(size: 14, weight: .medium))
+                            .scaledFont(size: 14, weight: .medium)
                             .foregroundStyle(ink)
                             .lineLimit(2)
                         Spacer(minLength: 0)

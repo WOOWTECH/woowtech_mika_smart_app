@@ -57,7 +57,7 @@ struct MikaSettingsGroupLabel: View {
 
     var body: some View {
         Text(verbatim: title)
-            .font(.system(size: 13, weight: .medium))
+            .scaledFont(size: 13, weight: .medium)
             .foregroundStyle(MikaSettingsPalette(scheme: scheme).hint)
             .padding(.top, 8)
             .padding(.bottom, 8)
@@ -122,6 +122,7 @@ struct MikaSettingsRow: View {
     let valueTone: MikaSettingsTone
     let accessory: Accessory
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(icon: MikaSettingsIcon, title: String, subtitle: String? = nil,
          value: String? = nil, valueTone: MikaSettingsTone = .plain, accessory: Accessory = .chevron) {
@@ -139,14 +140,19 @@ struct MikaSettingsRow: View {
                     Text(verbatim: subtitle).font(.caption).foregroundStyle(colors.hint)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // At the accessibility sizes the value goes under the title, so neither is cut.
+                if typeSize.isAccessibilitySize, let value {
+                    Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: valueTone))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 4)
-            if let value {
+            if !typeSize.isAccessibilitySize, let value {
                 Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: valueTone))
                     .lineLimit(1)
             }
             if let symbol = accessory.symbol {
-                Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
+                Image(systemName: symbol).scaledFont(size: 13, weight: .semibold)
                     .foregroundStyle(colors.hint).accessibilityHidden(true)
             }
         }
@@ -222,7 +228,7 @@ struct MikaSettingsPill: View {
     var body: some View {
         let colors = MikaSettingsPalette(scheme: scheme)
         Text(verbatim: text)
-            .font(.system(size: 12, weight: .semibold))
+            .scaledFont(size: 12, weight: .semibold)
             .foregroundStyle(tone == .plain ? colors.secondary : colors.color(for: tone))
             .lineLimit(1)
             .padding(.horizontal, 9)

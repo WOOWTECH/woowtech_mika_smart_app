@@ -173,7 +173,7 @@ struct ChatAttachmentTray: View {
                         .accessibilityIdentifier("chat.attach.open.\(index)")
                         Button { onRemove(item.id) } label: {
                             Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
+                                .scaledFont(size: 9, weight: .bold)
                                 .foregroundStyle(.white)
                                 .frame(width: 20, height: 20)
                                 .background(Color.black, in: Circle())
@@ -206,9 +206,9 @@ struct ChatAttachmentTray: View {
             HStack(spacing: 8) {
                 ChatFileBadge(name: item.name, small: true, accent: colors.accent, noExtension: text.files)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(colors.ink).lineLimit(1)
+                    Text(verbatim: item.name).scaledFont(size: 13, weight: .medium).foregroundStyle(colors.ink).lineLimit(1)
                     Text(verbatim: ChatAttachmentFormat.byteString(item.byteCount))
-                        .font(.system(size: 11)).foregroundStyle(colors.secondaryInk)
+                        .scaledFont(size: 11).foregroundStyle(colors.secondaryInk)
                 }
                 .frame(maxWidth: 130, alignment: .leading)
             }
@@ -285,8 +285,8 @@ struct ChatAttachPanel: View {
     private func tile(_ symbol: String, _ label: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 22)).foregroundStyle(colors.ink).frame(height: 24)
-                Text(verbatim: label).font(.system(size: 12.5)).foregroundStyle(colors.ink)
+                Image(systemName: symbol).scaledFont(size: 22).foregroundStyle(colors.ink).frame(height: 24)
+                Text(verbatim: label).scaledFont(size: 12.5).foregroundStyle(colors.ink)
             }
             .frame(maxWidth: .infinity).frame(height: 76)
             .background(colors.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -360,8 +360,8 @@ struct ChatSentAttachments: View {
         HStack(spacing: 10) {
             ChatFileBadge(name: item.name, small: false, accent: colors.accent, noExtension: text.files)
             VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: item.name).font(.system(size: 14, weight: .medium)).foregroundStyle(colors.ink).lineLimit(2)
-                Text(verbatim: ChatAttachmentFormat.byteString(item.byteCount)).font(.system(size: 12)).foregroundStyle(colors.secondaryInk)
+                Text(verbatim: item.name).scaledFont(size: 14, weight: .medium).foregroundStyle(colors.ink).lineLimit(2)
+                Text(verbatim: ChatAttachmentFormat.byteString(item.byteCount)).scaledFont(size: 12).foregroundStyle(colors.secondaryInk)
             }
             Spacer(minLength: 0)
         }

@@ -406,7 +406,7 @@ struct BrowserView: View {
                 addressFocused = false; showMore = true
             }
         }
-        .font(.system(size: 18))
+        .scaledFont(size: 18)
         .padding(.horizontal, 20)
         .frame(height: 52)
         .background(palette.background)

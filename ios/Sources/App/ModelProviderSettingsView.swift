@@ -482,7 +482,7 @@ struct MikaModelSettingsDetailView: View {
     private func presetChip(title: String, selected: Bool, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(verbatim: title)
-                .font(.system(size: 14, weight: .medium))
+                .scaledFont(size: 14, weight: .medium)
                 .foregroundStyle(selected ? Color.white : palette.ink)
                 .padding(.horizontal, 14).frame(minHeight: 34)
                 .background(selected ? Color.accentColor : palette.fill, in: Capsule())
@@ -1220,7 +1220,7 @@ struct ModelProviderDetailView: View {
                                 HStack {
                                     Text(verbatim: localizer.text(.modelsViewAll(count: models.count))).foregroundStyle(Color.accentColor)
                                     Spacer(minLength: 8)
-                                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                                    Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                                         .foregroundStyle(palette.hint).accessibilityHidden(true)
                                 }
                                 .padding(.horizontal, 16).padding(.vertical, 13)
@@ -1426,7 +1426,7 @@ private struct ModelUseAsSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(verbatim: model)
-                .font(.system(size: 16, weight: .semibold, design: .monospaced)).foregroundStyle(palette.ink)
+                .scaledFont(size: 16, weight: .semibold, design: .monospaced).foregroundStyle(palette.ink)
                 .lineLimit(2)
                 .padding(.horizontal, 16).padding(.top, 20)
             Text(verbatim: localizer.text(.modelsUseAs(name: provider?.name ?? "")))
@@ -1587,6 +1587,7 @@ private struct ModelRoleCard: View {
     let isModel: Bool
     let unset: Bool
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let colors = MikaSettingsPalette(scheme: scheme)
@@ -1598,17 +1599,18 @@ private struct ModelRoleCard: View {
                 .background(colors.tile, in: RoundedRectangle(cornerRadius: 12))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: label).font(.system(size: 12.5)).foregroundStyle(colors.hint)
+                Text(verbatim: label).scaledFont(size: 12.5).foregroundStyle(colors.hint)
                 Text(verbatim: title)
-                    .font(.system(size: 16, weight: .semibold, design: isModel ? .monospaced : .default))
+                    .scaledFont(size: 16, weight: .semibold, design: isModel ? .monospaced : .default)
                     .foregroundStyle(unset ? colors.hint : colors.ink)
-                    .lineLimit(1).truncationMode(.middle)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1).truncationMode(.middle)
                 if let subtitle {
-                    Text(verbatim: subtitle).font(.caption).foregroundStyle(subtitleOk ? colors.ok : colors.secondary).lineLimit(1)
+                    Text(verbatim: subtitle).font(.caption).foregroundStyle(subtitleOk ? colors.ok : colors.secondary)
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                 }
             }
             Spacer(minLength: 4)
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+            Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                 .foregroundStyle(colors.hint).accessibilityHidden(true)
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
@@ -1623,24 +1625,25 @@ private struct ModelProviderRow: View {
     let line: String
     let warning: String?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let colors = MikaSettingsPalette(scheme: scheme)
         HStack(spacing: 14) {
             Text(verbatim: String(name.prefix(1)).uppercased())
-                .font(.system(size: 13, weight: .bold)).foregroundStyle(colors.ink)
+                .scaledFont(size: 13, weight: .bold).foregroundStyle(colors.ink)
                 .frame(width: 30, height: 30)
                 .background(colors.tile, in: RoundedRectangle(cornerRadius: 9))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: name).font(.body).foregroundStyle(colors.ink).lineLimit(1)
+                Text(verbatim: name).font(.body).foregroundStyle(colors.ink).lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                 Text(verbatim: line).font(.caption).foregroundStyle(colors.hint)
                 if let warning {
                     Text(verbatim: warning).font(.caption).foregroundStyle(colors.warn)
                 }
             }
             Spacer(minLength: 4)
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+            Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                 .foregroundStyle(colors.hint).accessibilityHidden(true)
         }
         .padding(.horizontal, 16).padding(.vertical, 11)
@@ -1671,15 +1674,21 @@ private struct ModelValueRow: View {
     let value: String
     let tone: MikaSettingsTone
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let colors = MikaSettingsPalette(scheme: scheme)
-        HStack(spacing: 12) {
+        // At the accessibility sizes the value goes under the title, so neither is cut.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
             Text(verbatim: title).font(.body).foregroundStyle(colors.ink)
-            Spacer(minLength: 4)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 4) }
             Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: tone))
-                .lineLimit(2).multilineTextAlignment(.trailing)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16).frame(minHeight: 52)
         .accessibilityElement(children: .combine)
     }
@@ -1699,14 +1708,14 @@ private struct ModelListRow: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(verbatim: model)
-                    .font(.system(size: 15, weight: .medium, design: .monospaced)).foregroundStyle(colors.ink)
+                    .scaledFont(size: 15, weight: .medium, design: .monospaced).foregroundStyle(colors.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6) {
                     if typed { MikaSettingsPill(text: localizer.text(.capTyped), tone: .plain) }
                     ForEach(roles, id: \.self) { MikaSettingsPill(text: $0, tone: .ok) }
                 }
             }
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+            Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                 .foregroundStyle(colors.hint).accessibilityHidden(true)
         }
         .padding(.horizontal, 16).padding(.vertical, 11)

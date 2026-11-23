@@ -245,15 +245,17 @@ struct ContentView: View {
                     ToolbarItem(placement: .principal) {
                         VStack(spacing: 1) {
                             Text(localizer.text(.shellBrandTitle))
-                                .font(.system(size: 17, weight: .semibold))
+                                .scaledFont(size: 17, weight: .semibold)
                                 .lineLimit(1)
                             Text(verbatim: localizer.text(session.chatStatusMessage))
-                                .font(.system(size: 12))
+                                .scaledFont(size: 12)
                                 .foregroundStyle(palette.secondaryInk)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                                 .accessibilityIdentifier("chat.status")
                         }
+                        // The bar keeps its height at the largest sizes, so the conversation keeps the screen.
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: requestNewConversation) {
@@ -438,9 +440,9 @@ private struct MikaNavigationDrawer: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(localizer.text(.shellBrandTitle)).font(.system(size: 17, weight: .semibold))
+                    Text(localizer.text(.shellBrandTitle)).scaledFont(size: 17, weight: .semibold)
                         .foregroundStyle(palette.ink)
-                    Text(status).font(.system(size: 12)).foregroundStyle(palette.secondaryInk)
+                    Text(status).scaledFont(size: 12).foregroundStyle(palette.secondaryInk)
                 }
                 Spacer(minLength: 0)
                 Button(action: onClose) {
@@ -488,9 +490,9 @@ private struct MikaNavigationDrawer: View {
                      action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: symbol).font(.system(size: 22))
+                Image(systemName: symbol).scaledFont(size: 22)
                     .frame(width: 22).foregroundStyle(palette.secondaryInk)
-                Text(title).font(.system(size: 15.5)).foregroundStyle(palette.ink)
+                Text(title).scaledFont(size: 15.5).foregroundStyle(palette.ink)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 12).frame(minHeight: 46)
@@ -1185,6 +1187,7 @@ private struct ChatView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(palette.accent)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .accessibilityIdentifier("chat.returnToLatest")
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, 12)
@@ -1384,7 +1387,7 @@ private struct ChatView: View {
                 }
             } label: {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 20, weight: .semibold))
+                    .scaledFont(size: 20, weight: .semibold)
                     .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
                     .frame(width: 40, height: 40)
                     .background(session.canAttemptSend ? palette.accent : palette.disabledControl, in: Circle())
@@ -1585,10 +1588,10 @@ private struct ChatSendBlockedCard: View {
             HStack(spacing: 8) {
                 Circle().fill(Color.orange).frame(width: 8, height: 8).accessibilityHidden(true)
                 Text(verbatim: localizer.text(.chatSendBlockedTitle))
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.ink)
+                    .scaledFont(size: 15, weight: .semibold).foregroundStyle(palette.ink)
             }
             Text(verbatim: localizer.text(.chatSendBlockedNoModel))
-                .font(.system(size: 14)).foregroundStyle(palette.secondaryInk)
+                .scaledFont(size: 14).foregroundStyle(palette.secondaryInk)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
             HStack(spacing: 8) {
@@ -1656,7 +1659,7 @@ private struct ChatEmptyState: View {
                         draft = localizer.text(example.text)
                     } label: {
                         HStack(spacing: 14) {
-                            Image(systemName: example.icon).font(.system(size: 22))
+                            Image(systemName: example.icon).scaledFont(size: 22)
                                 .foregroundStyle(palette.secondaryInk)
                                 .accessibilityHidden(true)
                             Text(localizer.text(example.text))

@@ -191,7 +191,7 @@ private struct TaskNotificationSettingsRow: View {
             .padding(.vertical, 11)
             Spacer(minLength: 4)
             if opens {
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                     .foregroundStyle(colors.hint).accessibilityHidden(true)
             }
         }

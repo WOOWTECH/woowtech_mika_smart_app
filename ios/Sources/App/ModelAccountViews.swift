@@ -59,7 +59,7 @@ struct ModelAccountSignInGroup: View {
         } label: {
             HStack(spacing: 14) {
                 Text(verbatim: String(kind.providerName.prefix(1)))
-                    .font(.system(size: 13, weight: .bold)).foregroundStyle(colors.ink)
+                    .scaledFont(size: 13, weight: .bold).foregroundStyle(colors.ink)
                     .frame(width: 30, height: 30)
                     .background(colors.tile, in: RoundedRectangle(cornerRadius: 9))
                     .accessibilityHidden(true)
@@ -75,7 +75,7 @@ struct ModelAccountSignInGroup: View {
                     Text(verbatim: localizer.text(.signinSignedIn)).font(.subheadline).foregroundStyle(colors.ok)
                         .accessibilityIdentifier("signin." + kind.rawValue + ".signedIn")
                 } else {
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                         .foregroundStyle(colors.hint).accessibilityHidden(true)
                 }
             }
@@ -200,7 +200,7 @@ struct ModelAccountSignInSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 10)
             Text(verbatim: code.userCode)
-                .font(.system(size: 30, weight: .semibold, design: .monospaced)).kerning(4)
+                .scaledFont(size: 30, weight: .semibold, design: .monospaced).kerning(4)
                 .foregroundStyle(palette.ink)
                 .padding(.top, 16)
                 .accessibilityIdentifier("signin.code")
@@ -367,7 +367,7 @@ struct ModelAccountConnectionSection: View {
             }
             Spacer(minLength: 4)
             if chevron {
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                Image(systemName: "chevron.right").scaledFont(size: 13, weight: .semibold)
                     .foregroundStyle(palette.hint).accessibilityHidden(true)
             }
         }

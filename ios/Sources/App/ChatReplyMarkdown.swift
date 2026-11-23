@@ -144,8 +144,9 @@ enum ChatReplyMarkdown {
                     keep(rule)
                 } else if let heading = heading(line) {
                     var title = try inline(heading.text)
-                    title.font = .system(size: heading.level == 1 ? 20 : heading.level == 2 ? 18 : 16,
-                                         weight: .semibold)
+                    // Text styles, so a heading grows with the person's text size (20, 17 and 16 pt by default).
+                    title.font = heading.level == 1 ? .title3.weight(.semibold)
+                        : heading.level == 2 ? .headline : .callout.weight(.semibold)
                     keep(title)
                 } else if let quotation = quote(line) {
                     var marker = AttributedString("│ ")

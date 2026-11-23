@@ -188,7 +188,7 @@ import UIKit
 
     private func monospaced(_ text: String) -> some View {
         Text(verbatim: text.trimmingCharacters(in: .whitespacesAndNewlines))
-            .font(.system(size: 11.5, design: .monospaced))
+            .scaledFont(size: 11.5, design: .monospaced)
             .foregroundStyle(palette.secondary)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)

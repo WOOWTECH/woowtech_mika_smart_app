@@ -122,7 +122,8 @@ private struct OnboardingWelcomeView: View {
             .frame(maxWidth: .infinity)
         }
         .background(palette.page)
-        .safeAreaInset(edge: .bottom, spacing: 0) { footer }
+        // The fixed footer stays at most AX2, so the largest sizes leave room for the page.
+        .safeAreaInset(edge: .bottom, spacing: 0) { footer.dynamicTypeSize(...DynamicTypeSize.accessibility2) }
         .toolbar(.hidden, for: .navigationBar)
     }
 
@@ -228,6 +229,7 @@ struct OnboardingNextBar: View {
         }
         .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 12)
         .background(MikaSettingsPalette(scheme: colorScheme).page)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 }
 

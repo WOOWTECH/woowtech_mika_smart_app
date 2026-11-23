@@ -232,6 +232,7 @@ private struct MikaSettingsStatusCard<Fix: View>: View {
     let localizer: AppLocalizer
     let palette: MikaSettingsPalette
     @ViewBuilder let fix: () -> Fix
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var tone: MikaSettingsTone {
         switch problem {
@@ -255,7 +256,7 @@ private struct MikaSettingsStatusCard<Fix: View>: View {
         MikaSettingsCard {
             HStack(spacing: 12) {
                 Image(systemName: problem == nil ? "checkmark" : "exclamationmark")
-                    .font(.system(size: 16, weight: .bold))
+                    .scaledFont(size: 16, weight: .bold)
                     .foregroundStyle(palette.color(for: tone))
                     .frame(width: 36, height: 36)
                     .background(palette.softColor(for: tone), in: Circle())
@@ -269,9 +270,11 @@ private struct MikaSettingsStatusCard<Fix: View>: View {
                         .font(.caption).foregroundStyle(palette.hint)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("settings.status.detail")
+                    // At the accessibility sizes the fix goes under the words, which keep the width.
+                    if typeSize.isAccessibilitySize { fix().padding(.top, 6) }
                 }
                 Spacer(minLength: 0)
-                fix()
+                if !typeSize.isAccessibilitySize { fix() }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
@@ -286,7 +289,7 @@ private struct MikaSettingsStatusFix: View {
 
     var body: some View {
         Text(verbatim: title)
-            .font(.system(size: 13.5, weight: .semibold)).foregroundStyle(palette.ink)
+            .scaledFont(size: 13.5, weight: .semibold).foregroundStyle(palette.ink)
             .lineLimit(1).fixedSize()
             .padding(.horizontal, 14)
             .frame(minHeight: 32)

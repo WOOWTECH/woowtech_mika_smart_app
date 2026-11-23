@@ -194,7 +194,7 @@ struct ChatLayoutProbe: View {
         let text = "swiftUIBottom=\(Int(reportedBottom)) padding=\(Int(padding)) column=\(Self.rect(column)) "
             + "dockKeyboard=\(keyboard.map(Self.rect) ?? "nil") \(window)"
         Text(verbatim: text)
-            .font(.system(size: 10, design: .monospaced))
+            .scaledFont(size: 10, design: .monospaced)
             .padding(4)
             .background(Color.yellow.opacity(0.85))
             .background(ChatWindowInsetsReader { window = $0 }.frame(width: 1, height: 1))
