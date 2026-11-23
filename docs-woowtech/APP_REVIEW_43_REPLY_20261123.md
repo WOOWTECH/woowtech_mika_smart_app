@@ -9,72 +9,54 @@ Owner decisions (2026-11-23): keep the current countries, APPORO UNION INC. is a
 testing so far is internal only, and send this reply now without changing the app. The technical
 evidence behind answers 4, 7 and 8 is in [APP_REVIEW_43_RESPONSE_DRAFT_20261122.md](APP_REVIEW_43_RESPONSE_DRAFT_20261122.md).
 
-## Reply text (English, for App Store Connect)
+**Sent 2026-11-23 09:14 (Taipei)** in the App Review thread `5aaf9478-27a2-3680-bbc6-7742d60b37bc` as two
+messages, `90e907cb-a52c-4082-8015-0b5c44d419d0` and `42dabfa6-57c9-4100-b114-2882a19d025f`; the thread read back
+both bodies exactly. Before sending, build 276 (source `533cd6d8`, the store fixes of `eb1acf9e` on top of 275)
+was selected for version 0.1.0 in place of 274. The version was not resubmitted.
 
-Hello App Review team,
+## Reply text (English, App Store Connect thread 5aaf9478…)
 
-Thank you for the questions. Our answers follow.
+Apple's message asks to reply instead of resubmitting if the app already complies, and to answer its nine
+questions in full. The earlier woowtech smart and Apporo smart replies were split into parts because of the
+message length limit (every part under 4,000 characters), so this one is sent in two parts.
 
-**1. What does the app do, and what problem does it solve?**
-woowtech agent (渥屋助理) is WOOW TECH's AI assistant for households. Families use it for everyday
-home tasks: planning schedules and trips, comparing products before a purchase, reading and
-summarizing notices, bills and documents, drafting messages, and saving the result as a PDF, HTML
-or CSV file. It works with an AI service the user chooses, keeps conversations, memories and skills
-encrypted on the device, and can research websites in its built-in browser and answer with
-sources. Any step that would spend money always waits for the user.
+### Part 1
 
-**2. Who is the intended audience?**
-Home consumers — individuals and families — who use Traditional Chinese, mainly in Taiwan. The app
-is not aimed at businesses or professional users.
+```text
+(Part 1 of 2: answers 1-4)
 
-**3. What gap does it address compared with existing apps?**
-We do not claim that chat, browsing, memory or document export are unique on their own. What we
-offer households is the combination in one Traditional Chinese app that works with the AI service
-they already pay for (no subscription to us, no account), keeps their history and memories on their
-own device, and turns an answer into a document they can keep or share.
+Hello,
 
-**4. What did you change based on beta testing?**
-Testing so far has been internal: our team, on iPhone and iPad through TestFlight. We have not run
-an external beta yet. Since build 4 we added local document export (PDF, HTML, CSV); fixed keyboard,
-scrolling and return-to-latest behavior in long chats; show model service errors (for example rate
-limits) clearly instead of as timeouts; let users preview an attachment before sending it; and
-improved the handling and diagnostics of MCP tool results.
+Thank you for the review. We believe woowtech agent (渥屋助理) 0.1.0, App ID 6834435121 meets guidelines 4.3(a), 4.3(b) and 4.2.6, so we are replying instead of resubmitting. Our answers follow in two messages because of the length limit.
 
-**5. Is this app related to other apps in your account?**
-Yes. WOOW TECH CO., LTD. also publishes:
-- **Apporo Assistant** (com.apporo.assistant): a separate assistant for Apporo's professional
-  customers — construction-project site staff and engineering support teams — under the Apporo
-  brand. It is provided by APPORO UNION INC., our business partner, and developed by WOOW TECH.
-- **渥屋科技 / woowtech aiot** (com.woowtech.aiot) and **Apporo aiot** (com.apporo.aiot): companion
-  apps for our smart-space hosts (homes) and Apporo building controllers (buildings). They are not AI
-  assistants.
-- **woowtech platform** (io.woowtech.odoo): a client for a company's own Odoo server.
+1. woowtech agent is an AI assistant for household use. Families use it to plan schedules and trips, compare products, summarize notices, bills and documents, draft messages, and save the result as a PDF, HTML or CSV file. It connects to an AI service the user chooses, keeps conversations, memories and skills encrypted on the device, and researches websites in its built-in browser, answering with sources. Any step that spends money waits for the user. The problem it solves: AI help at home usually means copying text between a chat app, a browser and a document editor; here the research, the answer, saved family preferences and the finished document stay together on the user's device.
 
-**6. Why is this a separate app rather than part of another one?**
-woowtech agent and Apporo Assistant serve different people with different needs: households
-handling family tasks, versus professionals on construction sites who need engineering help. They
-are offered by different providers under different brands, in different default languages, with
-separate support and privacy contacts. Putting a family assistant and a professional site tool in one app would confuse both
-audiences. We separated our smart-space apps the same way: 渥屋科技 for homes and Apporo aiot for
-buildings.
+2. Home consumers — individuals and families — who use Traditional Chinese, mainly in Taiwan. It is not aimed at businesses or professionals.
 
-**7. Does it share significant code or assets with your other apps?**
-Yes. Both assistants are built by WOOW TECH from the same core code (chat, memory, browser and MCP
-modules). They differ in brand, provider, intended users, default language (Traditional Chinese for
-woowtech agent, English for Apporo Assistant), privacy policy, report inbox and support contact.
+3. Most AI chat apps are tied to one provider's subscription and keep history on its servers. woowtech agent is built for Traditional Chinese households: it works with the AI service they already use, keeps history and memories on their device, researches the web with sources, and turns answers into documents in the same app. No single feature is unique; the value is this combination for this audience.
 
-**8. Does it use third-party code or content?**
-The app is based on the open-source project Mika (Apache License 2.0); the license and notice are
-shown in the app under About. Five reference skill documents from that project are bundled with
-attribution. We did not use a commercial template or an app-generation service; WOOW TECH's team
-developed and maintains the app. The app embeds no third-party SDKs; it uses Apple frameworks only.
+4. Testing has been internal: our team used the app on iPhone and iPad through TestFlight and development builds; no external beta yet. Feedback we applied: in long chats the message box covered the latest reply (we fixed the layout and added a return-to-latest control); testers wanted to keep answers as files (we added PDF, HTML and CSV export); memories could not be changed from the chat (the assistant can now edit or forget them on request); rate-limit errors from the AI service looked like timeouts (they are now shown as such); and attachments could not be checked before sending (they can now be previewed first).
+```
 
-**9. Did you create this app for a client, and who provides its content?**
-No. woowtech agent is WOOW TECH's own product, submitted by WOOW TECH CO., LTD., the account
-holder. Answers come from the AI service the user chooses; WOOW TECH operates only the inbox that
-receives reports about AI responses.
+### Part 2
+
+```text
+(Part 2 of 2: answers 5-9)
+
+5. It is a standalone product. Our account also has Apporo Assistant, an assistant for professionals on construction projects (site staff and engineering support), provided by our business partner APPORO UNION INC. under the Apporo brand. The other apps are not assistants: 渥屋科技 (woowtech aiot) controls our smart-space hosts in homes, Apporo aiot controls Apporo building controllers, and woowtech platform is a client for a company's own Odoo server.
+
+6. No. Apporo Assistant belongs to a different provider and brand and serves professional teams at work. Merging a household assistant into a partner's professional app, or the reverse, would mix two audiences, brands and privacy and support relationships. The other apps control devices or business systems.
+
+7. Yes, with Apporo Assistant. WOOW TECH builds both from the same core frameworks: AssistantContracts (shared types), AssistantDomain (chat flow), AssistantModels (the user's AI service), AssistantMemory and AssistantSkills (on-device memory and skills), AssistantBrowser (browser and web research), AssistantMCP (the user's own tool servers) and AssistantPersistence (encrypted storage). woowtech agent also includes AssistantDocuments (PDF, HTML and CSV export). The name, icon, brand, default language, privacy policy and report inbox are separate.
+
+8. Yes. The app is derived from the open-source Android app Mika (Apache License 2.0); its license and notice are shown in the app. We rebuilt it natively for iOS in Swift and bundle five of its reference skill documents with attribution. What we added: the Traditional Chinese household experience, encrypted on-device storage, built-in browser research and web tasks that stop for the user's approval, connections to the user's own tool servers, document export, and reporting of AI responses. No commercial template or app-generation service was used.
+
+9. No. woowtech agent is WOOW TECH's own product, concept and brand, submitted by WOOW TECH CO., LTD. Answers come from the AI service each user chooses.
 
 Thank you for your time.
+
+WOOW TECH CO., LTD.
+```
 
 ## Notes
 
