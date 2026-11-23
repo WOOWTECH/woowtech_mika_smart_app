@@ -41,9 +41,11 @@ import Foundation
 
     /// Match the exact pre-request row. Deletion/replacement cannot be undone by
     /// a late response, and unrelated conversation deletion does not block this row.
-    /// Returns the conversations that gave way to make room (see ConversationArchive.save).
+    /// Returns the conversations that gave way to make room (see ConversationArchive.save,
+    /// also for `replacingLastTurn`).
     @discardableResult
-    func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws -> [UUID] {
+    func save(_ record: ArchivedConversation, expected: ArchivedConversation?,
+              replacingLastTurn: Bool = false) throws -> [UUID] {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
         var evicted: [UUID] = []
         let next = try vault.withExclusiveAccess {
@@ -56,7 +58,7 @@ import Foundation
                   current?.turns == expected?.turns else {
                 throw ConversationArchiveError.staleConversation
             }
-            evicted = try latest.save(record)
+            evicted = try latest.save(record, replacingLastTurn: replacingLastTurn)
             try vault.save(latest)
             return latest
         }

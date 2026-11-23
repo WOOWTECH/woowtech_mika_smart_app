@@ -234,13 +234,17 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     /// Saves one conversation and returns the conversations that gave way.
     /// A conversation is not tied to one model, like the Play build: the row
     /// keeps the destination of its latest turn.
+    /// `replacingLastTurn`: the row's last turn was saved while its reply was still
+    /// arriving (the app left the screen), and the record answers that same request.
     @discardableResult
-    public mutating func save(_ record: ArchivedConversation) throws -> [UUID] {
+    public mutating func save(_ record: ArchivedConversation, replacingLastTurn: Bool = false) throws -> [UUID] {
         var next = self
         if let index = next.conversations.firstIndex(where: { $0.id == record.id }) {
             let prior = next.conversations[index]
+            let kept = replacingLastTurn ? Array(prior.turns.dropLast()) : prior.turns
             guard record.turns.count >= prior.turns.count,
-                  Array(record.turns.prefix(prior.turns.count)) == prior.turns
+                  Array(record.turns.prefix(kept.count)) == kept,
+                  !replacingLastTurn || prior.turns.last.map({ $0.userID == record.turns[kept.count].userID }) == true
             else { throw ConversationArchiveError.staleConversation }
             // A model request captures an earlier row. Its completed turn may
             // arrive after the user renames that row; keep the latest title.

@@ -172,6 +172,22 @@ enum ConversationArchiveChecks {
         let before = state
         try a.rejects("old prefix cannot overwrite") { try state.save(first) }
         try a.check(state == before, "stale failure transactional")
+        // The last turn was saved while its reply was arriving (the app left the screen):
+        // the same request answered replaces it, and only when asked to.
+        let leftAt = third.turns[2]
+        let answered = try ArchivedConversation(id: first.id, destination: changed, updatedAt: Date(),
+            turns: Array(third.turns.prefix(2)) + [.init(userID: leftAt.userID, userText: leftAt.userText, assistantText: "Answer that ended later")])
+        try a.rejects("an ordinary save cannot replace the last turn") { try state.save(answered) }
+        let other = try ArchivedConversation(id: first.id, destination: changed, updatedAt: Date(),
+            turns: Array(third.turns.prefix(2)) + [.init(userText: leftAt.userText, assistantText: "Answer to another request")])
+        try a.rejects("a different request cannot replace the saved turn") { try state.save(other, replacingLastTurn: true) }
+        try a.check(state == before, "refused replacements leave the archive unchanged")
+        try state.save(answered, replacingLastTurn: true)
+        try a.check(state.conversations[0].turns == answered.turns && state.conversations[0].turns.count == 3,
+                    "the same request answered replaces the turn saved while it ran")
+        let earlier = try ArchivedConversation(id: first.id, destination: changed, updatedAt: Date(),
+            turns: [first.turns[0], .init(userID: next.turns[1].userID, userText: next.turns[1].userText, assistantText: "Rewritten earlier answer")])
+        try a.rejects("replacing never reaches an earlier turn") { try state.save(earlier, replacingLastTurn: true) }
         try a.check(dest != ConversationDestination(baseURL: dest.baseURL, model: dest.model, credentialAccount: UUID()), "credential generation is identity")
         try state.delete(id: first.id); try a.check(state.conversations.isEmpty, "delete removes complete record")
         try a.rejects("second delete is stale") { try state.delete(id: first.id) }

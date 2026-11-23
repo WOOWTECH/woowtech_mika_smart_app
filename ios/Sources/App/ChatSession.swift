@@ -240,7 +240,7 @@ final class ChatSession: ObservableObject {
     /// When the request on its way started; the working row shows the time since.
     @Published private(set) var requestStartedAt: Date?
     @Published private(set) var archiveNotice: String?
-    private var pendingArchiveSave: (record: ArchivedConversation, expected: ArchivedConversation?)?
+    private var pendingArchiveSave: (record: ArchivedConversation, expected: ArchivedConversation?, replacingLastTurn: Bool)?
     var canRetryArchiveSave: Bool { pendingArchiveSave != nil && !isSubmitting }
     let draftModel = ChatDraft()
     var draft: String {
@@ -726,7 +726,8 @@ final class ChatSession: ObservableObject {
         guard canRetryArchiveSave, let pendingArchiveSave, let archive else { return }
         do {
             if !archive.available { archive.reload() }
-            try archive.save(pendingArchiveSave.record, expected: pendingArchiveSave.expected)
+            try archive.save(pendingArchiveSave.record, expected: pendingArchiveSave.expected,
+                             replacingLastTurn: pendingArchiveSave.replacingLastTurn)
             self.pendingArchiveSave = nil; archiveNotice = nil
         } catch { archiveNotice = Self.archiveSaveFailure }
     }
@@ -1375,7 +1376,8 @@ final class ChatSession: ObservableObject {
     /// The app left the screen with a reply still arriving. iOS may suspend or close it
     /// before the reply ends (Android keeps a foreground service), so the turn is saved
     /// now: what has arrived with a note that it did not finish, or 沒有完成 when nothing
-    /// has. A reply that then finishes replaces it, since the turn's prior becomes this save.
+    /// has. A reply that then ends replaces this turn (archiveTurn), since the turn's
+    /// prior becomes this save.
     func checkpointPendingTurn() {
         guard isSubmitting, let turn = pendingTurn, checkpointedRequestID != turn.requestID, let archive,
               entries.last?.id == turn.user.id else { return }
@@ -1387,7 +1389,7 @@ final class ChatSession: ObservableObject {
         do {
             let record = try archivedRecord(turn, assistant: assistant)
             let evicted = try archive.save(record, expected: turn.prior)
-            pendingTurn?.prior = record
+            pendingTurn?.prior = archive.state.conversations.first { $0.id == record.id } ?? record
             checkpointedRequestID = turn.requestID
             deleteAttachments(ofEvicted: evicted)
         } catch {
@@ -1398,10 +1400,12 @@ final class ChatSession: ObservableObject {
     private func archiveTurn(_ turn: PendingTurn, assistant: ChatEntry) {
         guard let archive else { return }
         pendingArchiveSave = nil
+        // Saved once already when the app left the screen: this answer replaces that turn.
+        let replacing = checkpointedRequestID == turn.requestID
         do {
             let record = try archivedRecord(turn, assistant: assistant)
-            pendingArchiveSave = (record, turn.prior)
-            let evicted = try archive.save(record, expected: turn.prior)
+            pendingArchiveSave = (record, turn.prior, replacing)
+            let evicted = try archive.save(record, expected: turn.prior, replacingLastTurn: replacing)
             pendingArchiveSave = nil
             archiveNotice = nil
             deleteAttachments(ofEvicted: evicted)

@@ -659,6 +659,66 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    /// The app left the screen while a reply was arriving (ContentView checkpoints the
+    /// turn): the reply that then ends, answered, failed or stopped, replaces that saved
+    /// turn. In 285 the save refused it and kept 回覆已顯示，但本次對話未能保存.
+    static func checkpointThenEnd() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let gate = ArchiveGate(); let session = e.session(ArchiveModel(["Answer that ended after leaving"], gate: gate))
+        session.checkpointPendingTurn()
+        try a.check(e.archive.conversations.isEmpty, "nothing is saved when no reply is arriving")
+        session.draft = "Request while leaving the screen"; session.send()
+        guard let task = session.capturedArchiveRequest else { throw Failure(name: "capture checkpointed request") }
+        await gate.waitUntilStarted()
+        session.checkpointPendingTurn()
+        let left = e.archive.conversations
+        try a.check(left.count == 1 && left[0].turns.count == 1 && left[0].turns[0].userText == "Request while leaving the screen"
+                    && left[0].turns[0].userID == session.entries[0].id && left[0].turns[0].outcome == .failed
+                    && e.reopen().conversations == left, "leaving the screen saves the turn as not finished")
+        session.checkpointPendingTurn()
+        try a.check(e.archive.conversations == left, "a running turn is saved once")
+        await gate.release(); await task.value
+        let answered = e.archive.conversations
+        try a.check(session.archiveNotice == nil && !session.canRetryArchiveSave && answered.count == 1 && answered[0].id == left[0].id
+                    && answered[0].turns.count == 1 && answered[0].turns[0].userID == left[0].turns[0].userID
+                    && answered[0].turns[0].assistantID == session.entries[1].id && answered[0].turns[0].outcome == nil
+                    && answered[0].turns[0].assistantText == "Answer that ended after leaving",
+                    "the answer that ends afterwards replaces the saved turn")
+        try a.check(e.reopen().conversations == answered, "a relaunch reads the answered turn")
+
+        let failGate = ArchiveGate(); let failing = e.session(ArchiveModel([], gate: failGate))
+        try a.check(failing.openConversation(id: answered[0].id), "open the saved conversation")
+        failing.draft = "Second request while leaving"; failing.send()
+        guard let second = failing.capturedArchiveRequest else { throw Failure(name: "capture second checkpointed request") }
+        await failGate.waitUntilStarted()
+        failing.checkpointPendingTurn()
+        let saved = e.archive.conversations[0]
+        try a.check(saved.turns.count == 2 && saved.turns[0] == answered[0].turns[0] && saved.turns[1].outcome == .failed,
+                    "a later turn is saved after the earlier ones")
+        await failGate.release(); await second.value
+        let failed = e.archive.conversations[0]
+        try a.check(failing.archiveNotice == nil && failed.turns.count == 2 && failed.turns[0] == answered[0].turns[0]
+                    && failed.turns[1].userID == saved.turns[1].userID && failed.turns[1].assistantID == failing.entries.last?.id
+                    && failed.turns[1].assistantID != saved.turns[1].assistantID && failed.turns[1].outcome == .failed,
+                    "a reply that fails afterwards replaces the saved turn with its own reason")
+
+        let stopGate = ArchiveGate(); let stopping = e.session(ArchiveModel(["Never shown"], gate: stopGate))
+        try a.check(stopping.openConversation(id: failed.id), "open the conversation again")
+        stopping.draft = "Third request, stopped after coming back"; stopping.send()
+        guard let third = stopping.capturedArchiveRequest else { throw Failure(name: "capture third checkpointed request") }
+        await stopGate.waitUntilStarted()
+        stopping.checkpointPendingTurn()
+        stopping.cancel()
+        let stopped = e.archive.conversations[0]
+        try a.check(stopping.archiveNotice == nil && stopped.turns.count == 3 && Array(stopped.turns.prefix(2)) == failed.turns
+                    && stopped.turns[2].outcome == .cancelled && stopped.turns[2].assistantID == stopping.entries.last?.id,
+                    "stopping after coming back replaces the saved turn with 已停止")
+        await stopGate.release(); await third.value
+        try a.check(e.archive.conversations[0] == stopped && e.reopen().conversations[0] == stopped,
+                    "the stopped request's late result changes nothing")
+        return a.count
+    }
+
     static func lateCompletionAndDeletion() async throws -> Int {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
         let initial = e.session(ArchiveModel(["Seed answer"])); try await send(initial, "Seed actual request")
@@ -1118,12 +1178,12 @@ private actor ArchiveModel: ChatModelClient {
                 ArchiveAppChecks.protectedNewConversation(),
                 ArchiveAppChecks.protectedArchiveDeletion(),
                 ArchiveAppChecks.modelChangeKeepsConversations(), ArchiveAppChecks.legacyDestinationAfterImport(),
-                ArchiveAppChecks.failuresAndRetry(),
+                ArchiveAppChecks.failuresAndRetry(), ArchiveAppChecks.checkpointThenEnd(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay(),
                 ArchiveAppChecks.branchDurabilityAndFences(), ArchiveAppChecks.branchStalenessAndInFlight(),
                 ArchiveAppChecks.quotesInRealSession(), ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(),
                 ArchiveAppChecks.branchUsesLatestWholeArchive(), ArchiveAppChecks.messageMenuActions()]
-            print("{\"groups\":18,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":19,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -1136,6 +1196,7 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testQuotesInRealSession() async throws { let n = try await ArchiveAppChecks.quotesInRealSession(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testAssistantQuoteCannotAuthorizeMemory() async throws { let n = try await ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testNamespaceGates() throws { XCTAssertGreaterThan(try ArchiveAppChecks.namespaceGates(), 0) }
+    @MainActor func testCheckpointThenEnd() async throws { let n = try await ArchiveAppChecks.checkpointThenEnd(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCompletedPairsAndRestore() async throws { let n = try await ArchiveAppChecks.completedPairsAndRestore(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRecentDrawerShortcuts() async throws { let n = try await ArchiveAppChecks.recentDrawerShortcuts(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRenameDuringReplyAndEncryptedRelaunch() async throws {
