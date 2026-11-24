@@ -182,6 +182,8 @@ public enum ChatWebTaskPrompts {
     private var consent = ChatWebConsentGate()
     private var outwardPacing = ChatWebOutwardPacing()
     private var actionCount = 0
+    /// Seconds this task has waited before sending a model call again (ChatWebModelRetry).
+    private var retryWaited = 0.0
 
     /// Asks the user 允許這一次 / 拒絕 for one step that spends money; nil
     /// (no host) counts as a refusal.
@@ -292,11 +294,23 @@ public enum ChatWebTaskPrompts {
     private func requestCommand(base: [ModelMessage]) async throws -> String {
         let messages = contextMessages(base: base)
         onActivity?(.thinking)
-        modelCalls += 1
-        let raw = try await perform { [client, configuration, apiKey] in
-            try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+        var retries = 0
+        while true {
+            modelCalls += 1
+            do {
+                let raw = try await perform { [client, configuration, apiKey] in
+                    try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+                }
+                return raw.utf8.count <= 64 * 1024 ? raw : ""
+            } catch {
+                // Play's RetryPolicy: a passing fault is sent again; anything else ends the task.
+                guard !(error is CancellationError), !Task.isCancelled,
+                      let wait = ChatWebModelRetry.delay(for: error, retriesSoFar: retries, waitedInTask: retryWaited, jitter: jitter())
+                else { throw error }
+                retries += 1; retryWaited += wait
+                try await sleep(wait)
+            }
         }
-        return raw.utf8.count <= 64 * 1024 ? raw : ""
     }
 
     /// Recent results in full; older page reads shrink to one line each, and

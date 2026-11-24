@@ -338,7 +338,35 @@ import AssistantModels
             let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
             try check(result.status == .failed && result.stop == .modelFailed && (result.error as? URLError)?.code == .notConnectedToInternet,
                       "model failure kept")
+            try check(result.modelCalls == 1 + ChatWebModelRetry.maximumRetries, "a network fault is sent again three times first")
         }
+        // Play's RetryPolicy: passing faults are sent again after a backoff; other errors end the task at once.
+        do {
+            let finish = #"{"action":"finish","answer":"A 職缺月薪 60,000 元。","sources":[1]}"#
+            let model = FlakyModel(failures: [HTTPChatModelError.httpStatus(503), URLError(.networkConnectionLost)], replies: [finish])
+            let sleeper = SleepLog()
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { await sleeper.add($0) }, jitter: { 0 })
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            let waits = await sleeper.values
+            try check(result.status == .succeeded && result.modelCalls == 3 && waits == [0.5, 1.0], "a server error and a dropped connection are retried")
+        }
+        do {
+            let model = FlakyModel(failures: [HTTPChatModelError.httpStatus(401)], replies: [#"{"action":"finish","answer":"x","sources":[1]}"#])
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            try check(result.status == .failed && result.stop == .modelFailed && result.modelCalls == 1, "a key error is not retried")
+        }
+        try check(ChatWebModelRetry.delay(for: HTTPChatModelError.httpStatus(429), retriesSoFar: 2, waitedInTask: 0, jitter: 1) == 4,
+                  "the third wait is 4 s at most jitter")
+        try check(ChatWebModelRetry.delay(for: HTTPChatModelError.httpStatus(429), retriesSoFar: 3, waitedInTask: 0, jitter: 0) == nil,
+                  "three retries at most")
+        try check(ChatWebModelRetry.delay(for: HTTPChatModelError.timedOut, retriesSoFar: 0, waitedInTask: 299.8, jitter: 0) == nil,
+                  "the task's five minutes of waiting are a cap")
+        try check(ChatWebModelRetry.delay(for: HTTPChatModelError.httpStatus(400), retriesSoFar: 0, waitedInTask: 0, jitter: 0) == nil
+                  && ChatWebModelRetry.delay(for: HTTPChatModelError.truncatedResponse, retriesSoFar: 0, waitedInTask: 0, jitter: 0) == nil,
+                  "a bad request or a cut reply is not retried")
         // Stopping while a page loads keeps what was read and reports no sources.
         do {
             let web = tab()
@@ -793,6 +821,18 @@ actor SlowModel: ChatModelClient {
 actor SleepLog {
     private(set) var values: [Double] = []
     func add(_ value: Double) { values.append(value) }
+}
+
+/// Throws the given errors on its first calls, then replies in order.
+actor FlakyModel: ChatModelClient {
+    private var failures: [Error]
+    private var replies: [String]
+    init(failures: [Error], replies: [String]) { self.failures = failures; self.replies = replies }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if !failures.isEmpty { throw failures.removeFirst() }
+        guard !replies.isEmpty else { return #"{"action":"end_not_done","reason":"script ended"}"# }
+        return replies.removeFirst()
+    }
 }
 
 actor ScriptedModel: ChatModelClient {

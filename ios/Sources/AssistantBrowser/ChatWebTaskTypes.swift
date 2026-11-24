@@ -9,6 +9,40 @@ public enum ChatWebWaitCondition: String, Equatable, Sendable {
 
 public enum ChatWebCommandError: Error, Equatable, Sendable { case invalidCommand }
 
+/// Play's RetryPolicy for a web task's model calls. A passing fault (rate limit
+/// 429, a server error 5xx, a dropped, failed or timed-out connection) is sent
+/// again up to three times, after waits of 1, 2 and 4 s (half fixed, half
+/// random, at most 8 s), as long as the task's waits stay within five minutes.
+/// Other errors (key, quota, model name, other 4xx) end the task at once.
+public enum ChatWebModelRetry {
+    public static let maximumRetries = 3
+    public static let taskWaitBudget = 300.0
+
+    /// Seconds to wait before sending the call again, or nil to give up.
+    public static func delay(for error: Error, retriesSoFar: Int, waitedInTask: Double, jitter: Double) -> Double? {
+        guard retriesSoFar < maximumRetries, transient(error) else { return nil }
+        let ceiling = min(8.0, pow(2.0, Double(retriesSoFar)))
+        let wait = ceiling / 2 + ceiling / 2 * min(max(jitter, 0), 1)
+        return waitedInTask + wait <= taskWaitBudget ? wait : nil
+    }
+
+    public static func transient(_ error: Error) -> Bool {
+        if let error = error as? HTTPChatModelError {
+            switch error {
+            case .httpStatus(let code): return code == 429 || (500...599).contains(code)
+            case .timedOut, .transportFailure, .incompleteResponse: return true
+            default: return false
+            }
+        }
+        if let error = error as? URLError {
+            let passing: [URLError.Code] = [.timedOut, .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost,
+                                            .cannotFindHost, .dnsLookupFailed, .resourceUnavailable, .badServerResponse]
+            return passing.contains(error.code)
+        }
+        return false
+    }
+}
+
 /// One step a model asks for in a web task started from chat. A structured
 /// text protocol, one JSON object per reply; names follow the Play build's web
 /// tools so prompts stay comparable. No scripts, downloads or uploads.
