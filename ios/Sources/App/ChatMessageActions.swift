@@ -133,7 +133,7 @@ struct ChatQuoteChip: View {
                 .accessibilityIdentifier("chat.quote.text")
             Button(action: remove) {
                 Image(systemName: "xmark")
-                    .scaledFont(size: 12, weight: .semibold)
+                    .scaledFont(size: 12, weight: .semibold).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(colors.secondaryInk)
                     .frame(width: 40, height: 40)
                     .contentShape(Circle())

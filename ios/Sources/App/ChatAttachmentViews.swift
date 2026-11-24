@@ -173,7 +173,7 @@ struct ChatAttachmentTray: View {
                         .accessibilityIdentifier("chat.attach.open.\(index)")
                         Button { onRemove(item.id) } label: {
                             Image(systemName: "xmark")
-                                .scaledFont(size: 9, weight: .bold)
+                                .scaledFont(size: 9, weight: .bold).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                                 .foregroundStyle(.white)
                                 .frame(width: 20, height: 20)
                                 .background(Color.black, in: Circle())

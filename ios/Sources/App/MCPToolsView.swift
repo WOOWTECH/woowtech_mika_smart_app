@@ -100,7 +100,7 @@ private struct MCPServerRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "link")
-                .scaledFont(size: 16)
+                .scaledFont(size: 16).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .frame(width: 30, height: 30)
                 .background(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04), in: RoundedRectangle(cornerRadius: 9))
                 .accessibilityHidden(true)
@@ -372,7 +372,7 @@ private struct MCPServerDetail: View {
                                                  set: { session.selectTool(tool.name, enabled: $0) })) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "wrench.and.screwdriver")
-                                        .scaledFont(size: 16)
+                                        .scaledFont(size: 16).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                                         .foregroundStyle(.primary)
                                         .frame(width: 30, height: 30)
                                         .background(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04),
@@ -459,7 +459,7 @@ private struct MCPPageHeader: View {
                 .accessibilityIdentifier("tools.status")
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: symbol)
-                    .scaledFont(size: 18, weight: .semibold)
+                    .scaledFont(size: 18, weight: .semibold).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(tint)
                     .frame(width: 32, height: 32)
                     .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))

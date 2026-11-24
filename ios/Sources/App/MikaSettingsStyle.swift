@@ -141,9 +141,11 @@ struct MikaSettingsRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 // At the accessibility sizes the value goes under the title, so neither is cut.
+                // A value can be one long word, a provider's name: past AX3 it broke mid-word.
                 if typeSize.isAccessibilitySize, let value {
                     Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: valueTone))
                         .fixedSize(horizontal: false, vertical: true)
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 }
             }
             Spacer(minLength: 4)

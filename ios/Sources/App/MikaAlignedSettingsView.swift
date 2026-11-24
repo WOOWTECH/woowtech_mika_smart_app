@@ -256,7 +256,7 @@ private struct MikaSettingsStatusCard<Fix: View>: View {
         MikaSettingsCard {
             HStack(spacing: 12) {
                 Image(systemName: problem == nil ? "checkmark" : "exclamationmark")
-                    .scaledFont(size: 16, weight: .bold)
+                    .scaledFont(size: 16, weight: .bold).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(palette.color(for: tone))
                     .frame(width: 36, height: 36)
                     .background(palette.softColor(for: tone), in: Circle())

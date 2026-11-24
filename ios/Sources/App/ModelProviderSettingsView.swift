@@ -1607,8 +1607,10 @@ private struct ModelRoleCard: View {
                     // A model or provider name is one long word: past AX3 it broke mid-word.
                     .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 if let subtitle {
+                    // The provider's name too (OpenRouter broke at AX5, iPhone run of 287).
                     Text(verbatim: subtitle).font(.caption).foregroundStyle(subtitleOk ? colors.ok : colors.secondary)
                         .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 }
             }
             Spacer(minLength: 4)
@@ -1633,7 +1635,7 @@ private struct ModelProviderRow: View {
         let colors = MikaSettingsPalette(scheme: scheme)
         HStack(spacing: 14) {
             Text(verbatim: String(name.prefix(1)).uppercased())
-                .scaledFont(size: 13, weight: .bold).foregroundStyle(colors.ink)
+                .scaledFont(size: 13, weight: .bold).dynamicTypeSize(...DynamicTypeSize.xxxLarge).foregroundStyle(colors.ink)
                 .frame(width: 30, height: 30)
                 .background(colors.tile, in: RoundedRectangle(cornerRadius: 9))
                 .accessibilityHidden(true)

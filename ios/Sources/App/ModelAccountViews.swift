@@ -59,7 +59,7 @@ struct ModelAccountSignInGroup: View {
         } label: {
             HStack(spacing: 14) {
                 Text(verbatim: String(kind.providerName.prefix(1)))
-                    .scaledFont(size: 13, weight: .bold).foregroundStyle(colors.ink)
+                    .scaledFont(size: 13, weight: .bold).dynamicTypeSize(...DynamicTypeSize.xxxLarge).foregroundStyle(colors.ink)
                     .frame(width: 30, height: 30)
                     .background(colors.tile, in: RoundedRectangle(cornerRadius: 9))
                     .accessibilityHidden(true)

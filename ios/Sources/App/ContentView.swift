@@ -490,7 +490,7 @@ private struct MikaNavigationDrawer: View {
                      action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: symbol).scaledFont(size: 22)
+                Image(systemName: symbol).scaledFont(size: 22).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .frame(width: 22).foregroundStyle(palette.secondaryInk)
                 Text(title).scaledFont(size: 15.5).foregroundStyle(palette.ink)
                 Spacer(minLength: 0)
@@ -1394,7 +1394,7 @@ private struct ChatView: View {
                 }
             } label: {
                 Image(systemName: "arrow.up")
-                    .scaledFont(size: 20, weight: .semibold)
+                    .scaledFont(size: 20, weight: .semibold).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
                     .frame(width: 40, height: 40)
                     .background(session.canAttemptSend ? palette.accent : palette.disabledControl, in: Circle())
