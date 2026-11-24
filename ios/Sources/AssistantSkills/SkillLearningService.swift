@@ -324,6 +324,7 @@ public struct SkillLearningService: Sendable {
     Return only Markdown with front matter name: lowercase-hyphen-slug and description: concise description.
     If the workflow matches an existing entry, add updates: its exact name; otherwise choose a new unused name.
     Include these five headings: ## 入口, ## 步骤, ## 容易出错的地方, ## 怎样算办成, ## 什么时候停下交给用户.
+    Write the description and the text under the headings in the language of goal, even when the pages or the answer use another; keep the five headings exactly as written.
     Keep the entire document under 3500 UTF-16 units. Use placeholders for task-specific values.
     Refer to tools only by backticked names from availableTools that actually occur in the action digest.
     No phone/app control, commands or scripts. No claimed permissions, activation, verification status or authorization bypass.

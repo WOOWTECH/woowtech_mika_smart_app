@@ -163,9 +163,9 @@ struct ChatWebTaskEnvironment {
 
     /// Runs to the end. Stopping ends only this task's own work, so the chat
     /// can still write the stopped round into the conversation.
-    func run(conversation: [ModelMessage], entry: ChatWebCommand, entryRaw: String) async -> ChatWebTaskResult {
+    func run(conversation: [ModelMessage], entry: ChatWebCommand, entryRaw: String, request: String) async -> ChatWebTaskResult {
         let task = Task { @MainActor [runner] in
-            await runner.run(conversation: conversation, entry: entry, entryRaw: entryRaw)
+            await runner.run(conversation: conversation, entry: entry, entryRaw: entryRaw, request: request)
         }
         work = task
         var result = await task.value

@@ -1188,8 +1188,8 @@ final class ChatSession: ObservableObject {
                 case .mcp: reply = ""
                 case .web(let command, let raw, let exchange):
                     guard let webEnvironment else { return }
-                    let result = await self.runWebTask(entry: command, raw: raw, conversation: outgoing + exchange, client: client,
-                                                       configuration: configuration, key: key,
+                    let result = await self.runWebTask(entry: command, raw: raw, conversation: outgoing + exchange, request: utterance,
+                                                       client: client, configuration: configuration, key: key,
                                                        environment: webEnvironment, requestID: id)
                     webResult = result
                     reply = ChatWebTaskTranscript.text(for: result, localizer: AppLocalizer(language: self.interfaceLanguage()))
@@ -1659,14 +1659,14 @@ final class ChatSession: ObservableObject {
 
     /// Runs the web task a reply asked for. Like Android there is no overall
     /// time limit.
-    private func runWebTask(entry: ChatWebCommand, raw: String, conversation: [ModelMessage], client: any ChatModelClient,
-                            configuration: ModelConfiguration, key: String, environment: ChatWebTaskEnvironment,
-                            requestID id: UUID) async -> ChatWebTaskResult {
+    private func runWebTask(entry: ChatWebCommand, raw: String, conversation: [ModelMessage], request: String,
+                            client: any ChatModelClient, configuration: ModelConfiguration, key: String,
+                            environment: ChatWebTaskEnvironment, requestID id: UUID) async -> ChatWebTaskResult {
         deadline?.cancel(); deadline = nil
         replyPreview = nil
         let task = ChatWebTaskSession(client: client, configuration: configuration, apiKey: key, environment: environment)
         webTask = task
-        return await task.run(conversation: conversation, entry: entry, entryRaw: raw)
+        return await task.run(conversation: conversation, entry: entry, entryRaw: raw, request: request)
     }
 
     /// The scene changed: a web task pauses in the background and goes on

@@ -20,6 +20,8 @@ import AssistantModels
         try spending(check)
         try await actions(check)
         try await handovers(check)
+        try replyLanguage(check)
+        try await languageNudges(check)
         return count
     }
 
@@ -385,6 +387,128 @@ import AssistantModels
         try check(ChatWebTaskRunnerProbe.verdict(password, 200) == "needs_sign_in", "password field means sign-in")
         let thin = ChatWebPageCapture(url: jobA, title: "t", text: "載入中", links: [])
         try check(ChatWebTaskRunnerProbe.verdict(thin, 200) == "thin", "almost empty page")
+    }
+
+    // MARK: Reply language (Play's ReplyLanguage and language_nudge)
+
+    static func replyLanguage(_ check: Check) throws {
+        let latin = ReplyLanguage.Family("Latin script")
+        let english = "What Android version is this phone on, and how much storage is used?"
+        // One English sentence first, then the rest drifts into Chinese (labels read and not translated).
+        let drifted = """
+        Done — I opened Settings and looked at both pages.
+
+        **Android 版本：14**
+        - 设备：Phone X（型号 AB-1234），系统为 OEM OS 8.0，安全补丁是 2024 年 9 月 1 日
+        **存储使用情况**
+        - 已使用 **250.53 GB / 512 GB**，可用 261.47 GB
+        - 应用占 167.7 GB，图片和视频占 40.2 GB
+        两个数字对照得上，存储页和关于手机页显示的一致。
+        """
+        func mismatch(_ user: String, _ answer: String) -> ReplyLanguage.Mismatch? { ReplyLanguage.mismatch(user: user, answer: answer) }
+        let chineseToLatin = ReplyLanguage.Mismatch(answer: ReplyLanguage.chinese, user: latin)
+        try check(mismatch(english, drifted) == chineseToLatin, "an English request answered in drifting Chinese")
+        try check(mismatch(english, "已经打开设置看过了：安卓版本是 14，存储已使用 250.53 GB，总共 512 GB，剩余 261.47 GB，两个页面的数字对得上。")
+                  == chineseToLatin, "a fully Chinese answer to an English request")
+        try check(mismatch(english, """
+        **Android version: 14**
+        (from 关于手机 / About phone, where it lists Android 版本 14 and 安全补丁 2024-09-01)
+        - 应用 (Apps): 167.7 GB
+        - Storage used: 250.53 GB of 512 GB, with 261.47 GB free; the two pages agree with each other.
+        """) == nil, "English with the original labels in brackets passes")
+        try check(mismatch(english, "Open 「设置」, then 「关于手机」 and tap 「存储」. The page titled 「存储使用情况」 shows that "
+                           + "250.53 GB is used (已使用) and 261.47 GB is free (可用空间); the app list (应用列表) takes most of it, "
+                           + "followed by photos (图片和视频) and the system (系统数据).") == nil, "English quoting many Chinese labels passes")
+        try check(mismatch("帮我看看手机的网络和应用更新情况", "已经查过了：Settings 里 Wi-Fi 连着 HomeNetwork，Bluetooth 已关闭，Google Play 有 3 个应用待更新，"
+                           + "Android System WebView 是最新版本，Chrome 也不用更新。") == nil, "Chinese quoting English names passes")
+        try check(mismatch("Which apps are on my home screen?",
+                           "Here are the apps on your home screen:\n- 微信\n- 支付宝\n- 淘宝\n- 抖音\n- 美团\n- 高德地图\n- 小红书\n- 网易云音乐\n- 哔哩哔哩\n- 拼多多") == nil
+                  && mismatch("Which apps are on my home screen?", "Apps: 微信、支付宝、淘宝、抖音、美团、高德地图、小红书、网易云音乐、哔哩哔哩") == nil,
+                  "an answer listing only foreign names passes")
+        try check(mismatch(english, "蓝牙已开启。") == nil && mismatch("看看蓝牙开没开", "Bluetooth is on.") == nil, "short answers never mismatch")
+        try check(mismatch("", drifted) == nil && mismatch("  14  ", drifted) == nil, "an empty or tiny request never mismatches")
+        try check(mismatch("安卓版本是多少，存储用了多少", drifted) == nil, "the same family passes")
+        try check(mismatch("What Android version is this phone on?", "I opened Settings and checked both pages: the phone runs Android 14, and "
+                           + "250.53 GB of 512 GB is used, leaving 261.47 GB free. The numbers on the storage page match the ones on the about page.") == nil,
+                  "English answered in English passes")
+        let japanese = "設定を開いて確認しました。アンドロイドのバージョンは14で、ストレージは250ギガバイト使われています。"
+        try check(Array(ReplyLanguage.units(japanese, skipNames: false).keys) == [ReplyLanguage.japanese], "kana make it Japanese, not Chinese")
+        let afterFirstLine = String(drifted[drifted.index(after: drifted.firstIndex(of: "\n")!)...])
+        try check(mismatch("アンドロイドのバージョンを教えてください", afterFirstLine) == .init(answer: ReplyLanguage.chinese, user: ReplyLanguage.japanese),
+                  "asked in Japanese, answered in Chinese")
+        try check(mismatch("アンドロイドのバージョンを教えてください", japanese) == nil, "asked and answered in Japanese")
+        try check(mismatch(english, japanese) == .init(answer: ReplyLanguage.japanese, user: latin), "asked in English, answered in Japanese")
+        let stripped = ReplyLanguage.stripQuoted("看 `设置页面` 和 https://例子.com/路径 还有 “引号里” \"双引号\" 《书名》 （外（里）层）<标签>")
+        try check(Set(stripped.split(whereSeparator: \.isWhitespace).map(String.init)) == ["看", "和", "还有"], "code, links, quotes, brackets and tags left out")
+        try check(ReplyLanguage.units("打开设置", skipNames: false) == [ReplyLanguage.chinese: 4], "Han counts characters")
+        try check(ReplyLanguage.units("Open Settings 512 GB OS", skipNames: false) == [latin: 2], "Latin counts words, not abbreviations or units")
+        try check(ReplyLanguage.units("설정 열기", skipNames: false) == [ReplyLanguage.korean: 2], "Hangul counts words")
+        // The iPad screenshot run of 2026-11-24: an English request about Taipei, answered from Chinese pages.
+        let taipei = "Use the built-in browser to look up how Taipei City handles PET bottles, batteries and food waste. Include the source links."
+        try check(mismatch(taipei, """
+        臺北市的寶特瓶、電池和廚餘分屬不同的回收方式：寶特瓶和電池在資源回收日交給資源回收車，廚餘則跟著一般垃圾車收運。
+
+        **寶特瓶**
+        - 臺北市資源回收採「分天分類」，分為「平面類」、「立體類」和「其他類」三大類。
+        - 寶特瓶屬於**立體類**，於**每週二、四、六**回收。
+        """) == chineseToLatin, "the Taipei answer in Chinese is caught")
+        try check(mismatch(taipei, """
+        Taipei sorts recycling by day. PET bottles belong to the "three-dimensional" group (立體類) and are collected on Tuesday, \
+        Thursday and Saturday; batteries go in the "other" group (其他類), collected Monday, Tuesday, Thursday, Friday and Saturday. \
+        Food waste (廚餘) goes to the regular garbage truck.
+        """) == nil, "the Taipei answer in English with the originals in brackets passes")
+    }
+
+    static func languageNudges(_ check: Check) async throws {
+        let entry = #"{"action":"web_read_page","url":"https://www.104.com.tw/jobs/search/?keyword=iOS"}"#
+        let request = "Find iOS jobs on 104 and tell me the monthly pay of the first two, with the sources."
+        let chinese = #"{"action":"finish","answer":"第一個職缺是 iOS 工程師 A，月薪 60,000 元；第二個職缺是 iOS 工程師 B，月薪面議。兩個職缺都在台北市，需要三年以上的工作經驗。","sources":[1]}"#
+        let english = #"{"action":"finish","answer":"The first job, iOS 工程師 A (iOS Engineer A), pays NT$60,000 a month; the second one's pay is negotiable. Both are in Taipei and ask for three years of experience.","sources":[1]}"#
+        func run(_ replies: [String], conversation: [ModelMessage], request: String? = nil) async throws
+            -> (ChatWebTaskResult, [[ModelMessage]]) {
+            let model = ScriptedModel(replies)
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry, request: request)
+            return (result, await model.requests)
+        }
+        // An English request answered in Chinese goes back once; the rewrite is delivered.
+        do {
+            let (result, requests) = try await run([chinese, english], conversation: [ModelMessage(role: "user", content: request)])
+            try check(result.status == .succeeded && result.answer?.hasPrefix("The first job") == true, "the rewritten answer is delivered")
+            try check(result.modelCalls == 2 && result.sources.map(\.id) == [1], "one more model call, sources kept")
+            let second = requests.count == 2 ? requests[1] : []
+            let nudge = second.last?.content ?? ""
+            try check(nudge.hasPrefix("Host result: the answer was not delivered") && nudge.contains("written mostly in Chinese")
+                      && nudge.contains("the user's request is in Latin script"), "the answer goes back naming both languages")
+            try check(second.count >= 2 && second[second.count - 2].role == "assistant" && second[second.count - 2].content.contains("第一個職缺"),
+                      "the model sees the answer it gave")
+        }
+        // Still not in the request's language after the rewrite: delivered as it is, never sent back twice.
+        do {
+            let (result, _) = try await run([chinese, chinese], conversation: [ModelMessage(role: "user", content: request)])
+            try check(result.status == .succeeded && result.answer?.hasPrefix("第一個職缺") == true && result.modelCalls == 2,
+                      "a second answer in the other language goes out")
+        }
+        // Matching languages finish at once.
+        do {
+            let (zh, _) = try await run([chinese], conversation: [ModelMessage(role: "user", content: "幫我在 104 找 iOS 職缺，告訴我前兩個的月薪")])
+            let (en, _) = try await run([english], conversation: [ModelMessage(role: "user", content: request)])
+            try check(zh.modelCalls == 1 && zh.answer?.hasPrefix("第一個職缺") == true, "Chinese answered in Chinese finishes at once")
+            try check(en.modelCalls == 1 && en.answer?.hasPrefix("The first job") == true, "English answered in English finishes at once")
+        }
+        // The user's own words decide, not the last user-role message before the task (here a memory tool result).
+        do {
+            let conversation = [ModelMessage(role: "user", content: request),
+                                ModelMessage(role: "assistant", content: #"{"command":"memory_read"}"#),
+                                ModelMessage(role: "user", content: "工具結果：家裡有兩個小孩，六歲和九歲，對花生過敏；每週三晚上倒垃圾。")]
+            let (passed, _) = try await run([chinese, english], conversation: conversation, request: request)
+            try check(passed.modelCalls == 2 && passed.answer?.hasPrefix("The first job") == true, "the request passed in is the language followed")
+        }
+        let instructions = ChatWebTaskPrompts.taskInstructions(searchTemplate: "x")
+        try check(instructions.contains("in the language of the user's request (their chat message that started this task), even when a page you read uses another language"),
+                  "the task prompt follows the request's language, not the pages'")
+        try check(!instructions.contains("language of the user's latest message"), "page results are not called the user's latest message")
     }
 
     // MARK: Money rule (1b)
