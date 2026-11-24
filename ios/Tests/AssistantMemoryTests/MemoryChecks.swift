@@ -238,6 +238,14 @@ enum MemoryChecks {
             ("Remember to buy milk", nil), ("Do you remember my name?", nil), ("寫一封信給同事，記得語氣客氣一點", nil),
             ("記得帶傘", nil), ("你記得我昨天說的嗎？", nil), ("我不記得他的名字", nil), ("提醒大家記得帶雨衣", nil),
             ("請記住暗號是藍色鯨魚", nil), ("請記住", nil), ("請記住這個", nil), ("Remember this", nil),
+            // A question after the request ends it, even one with 記得 or remember (it is not a second request).
+            ("請記住：我喜歡喝無糖綠茶。你記得我喜歡什麼嗎？", "我喜歡喝無糖綠茶"),
+            ("Remember that I prefer window seats. Do you remember what I like?", "I prefer window seats"),
+            // The home screen's family examples.
+            ("記住我們家小孩對花生過敏，推薦餐廳或食譜時要避開", "我們家小孩對花生過敏，推薦餐廳或食譜時要避開"),
+            ("Remember that our kids are allergic to peanuts, so avoid them in restaurant and recipe ideas.",
+             "our kids are allergic to peanuts, so avoid them in restaurant and recipe ideas"),
+            ("你記得我們家有哪些要注意的事？", nil), ("What do you remember about our family?", nil),
             ("記住單字的方法", nil), ("Remember the Titans cast", nil), ("幫我記下今天的會議重點", nil), ("要記住單字有什麼方法？", nil),
             ("記住：我的車停在B2", "我的車停在B2"), ("Remember my sister is Amy", "my sister is Amy"), ("Could you please remember that I'm vegetarian?", nil),
             ("請記住單字卡放在抽屜裡", "單字卡放在抽屜裡"), ("記得我不吃香菜", "我不吃香菜")]

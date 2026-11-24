@@ -111,13 +111,17 @@ enum MemorySafety {
     static func notDurable(_ text: String) -> Bool {
         let asked = #"記住|記得|记住|记得|以後|以后|往後|往后|每次|一律|今後|今后|\bremember\b|\bfrom\s+now\s+on\b|\balways\b"#
         if matches(asked, text) { return false }
+        if isQuestion(text) { return true }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters).subtracting(CharacterSet(charactersIn: "?？")))
-        if trimmed.hasSuffix("?") || trimmed.hasSuffix("？") || trimmed.hasSuffix("嗎") || trimmed.hasSuffix("吗") || trimmed.hasSuffix("呢") {
-            return true
-        }
         let task = #"^(?:請|请|麻煩|麻烦|幫我|帮我|可以|能不能|能否|please\b|can\s+you\b|could\s+you\b)|(?:幫我|帮我|請你|请你)\s*(?:寫|写|找|查|搜|比較|比较|翻譯|翻译|算|整理|列|說明|说明|分析|摘要|產生|生成|畫|画|做|讀|读|看)"#
         let puzzle = #"暗號|暗号|代號|代号|密語|密语|通關|通关|謎題|谜题|測試標記|测试标记|\bcode\s*word\b|\bsecret\s+(?:word|phrase)\b|\bpassphrase\b"#
         return matches(task, trimmed) || matches(puzzle, text)
+    }
+
+    /// Words that end as a question (?, ？, 嗎, 呢).
+    static func isQuestion(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters).subtracting(CharacterSet(charactersIn: "?？")))
+        return trimmed.hasSuffix("?") || trimmed.hasSuffix("？") || trimmed.hasSuffix("嗎") || trimmed.hasSuffix("吗") || trimmed.hasSuffix("呢")
     }
 
     /// The words after an explicit 「請記住…」, 「記住：…」, 「記住我…」, "please remember …" or
@@ -138,7 +142,8 @@ enum MemorySafety {
         var kept: [String] = []
         for sentence in sentences(String(text[opening.upperBound...])) {
             let task = matches(#"^(?:另外|順便|顺便|然後|然后|接著|接着|also\b|then\b)"#, sentence)
-            if task || notDurable(sentence) { break }
+            // A question ends the request even with 記得 in it (「…。你記得我喜歡什麼嗎？」).
+            if task || isQuestion(sentence) || notDurable(sentence) { break }
             kept.append(sentence.trimmingCharacters(in: CharacterSet(charactersIn: "。.！!～~")))
         }
         let content = kept.joined(separator: matches(#"\p{Han}"#, text) ? "。" : ". ")
