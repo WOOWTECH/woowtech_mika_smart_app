@@ -23,10 +23,22 @@ extension ModelAccountKind {
     /// The account page people manage usage or grants on.
     var managePage: URL { self == .chatGPT ? ChatGPTSignIn.usagePage : XAISignIn.accountPage }
     var manageTitle: AppText { self == .chatGPT ? .chatgptManageUsage : .accountManageXAI }
+
+    /// The sign-ins 用帳號登入 offers. The App Store build offers ChatGPT only: the xAI sign-in
+    /// borrows the public client of xAI's own command-line tool, which xAI did not set up for this
+    /// App, and App Review asks for permission to use a third-party service (5.2.2). Debug builds
+    /// keep it for the existing checks. A provider signed in before stays usable.
+    static var offeredSignIns: [ModelAccountKind] {
+        #if DEBUG
+        return [.chatGPT, .xai]
+        #else
+        return [.chatGPT]
+        #endif
+    }
 }
 
-/// Android AccountSignInGroup: 用帳號登入 · 不用填 Key with ChatGPT and
-/// xAI / Grok. A signed-in row opens its provider; any other opens the
+/// Android AccountSignInGroup: 用帳號登入 · 不用填 Key with the offered sign-ins
+/// (offeredSignIns). A signed-in row opens its provider; any other opens the
 /// explanation sheet, where the sign-in starts only after the person continues.
 struct ModelAccountSignInGroup: View {
     @ObservedObject var signIn: ModelAccountSignIn
@@ -42,9 +54,10 @@ struct ModelAccountSignInGroup: View {
                 .accessibilityIdentifier("signin.group")
             MikaSettingsCard {
                 VStack(spacing: 0) {
-                    row(.chatGPT)
-                    Divider().padding(.leading, 60)
-                    row(.xai)
+                    ForEach(ModelAccountKind.offeredSignIns, id: \.self) { kind in
+                        if kind != ModelAccountKind.offeredSignIns.first { Divider().padding(.leading, 60) }
+                        row(kind)
+                    }
                 }
             }
         }

@@ -1048,8 +1048,8 @@
       "key": "shell.replyExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "幫我寫一則友善的訊息回覆",
-        "en": "Help me write a friendly reply to this message."
+        "zh-Hant": "幫我寫一則給老師的請假訊息：孩子發燒，明天在家休息一天",
+        "en": "Write a short note to my child’s teacher: she has a fever and will stay home tomorrow."
       }
     },
     {
@@ -1057,8 +1057,8 @@
       "key": "shell.newsExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點",
-        "en": "Find a recent AI news article in the built-in browser and summarize three key points."
+        "zh-Hant": "在內建瀏覽器找這個週末台北適合親子的活動，整理三個給我",
+        "en": "Find three family-friendly things to do in Taipei this weekend in the built-in browser."
       }
     },
     {
@@ -1066,8 +1066,8 @@
       "key": "shell.shoppingExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
-        "en": "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons."
+        "zh-Hant": "在 momo 購物找 1,000 元以內、4.5 星以上的兒童保溫瓶，比較三款的優缺點",
+        "en": "Find three kids’ water bottles under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons."
       }
     },
     {
@@ -1075,8 +1075,8 @@
       "key": "shell.rememberExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "記住我偏好使用繁體中文，回答簡短一點",
-        "en": "Remember that I prefer concise answers in Traditional Chinese."
+        "zh-Hant": "記住我們家小孩對花生過敏，推薦餐廳或食譜時要避開",
+        "en": "Remember that our kids are allergic to peanuts, so avoid them in restaurant and recipe ideas."
       }
     },
     {
@@ -1084,8 +1084,8 @@
       "key": "shell.recallExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "你記得我有哪些偏好？",
-        "en": "What preferences have I told you to remember?"
+        "zh-Hant": "你記得我們家有哪些要注意的事？",
+        "en": "What do you remember about our family?"
       }
     },
     {
@@ -1093,8 +1093,8 @@
       "key": "shell.webExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
-        "en": "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me."
+        "zh-Hant": "查台北市垃圾車和資源回收的收運時間，附上來源",
+        "en": "Look up Taipei’s garbage truck and recycling collection times, with sources."
       }
     },
     {
@@ -4639,8 +4639,8 @@
       "key": "welcome.lead",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。",
-        "en": "Chat, speak, browse and keep useful notes in one place."
+        "zh-Hant": "全家的生活小幫手：排行程、比價、整理帳單和通知單，記住家裡的大小事。",
+        "en": "A helper for family life: plan trips, compare prices, sort out bills and notices, and remember what matters at home."
       }
     },
     {
@@ -4711,8 +4711,8 @@
       "key": "welcome.memory.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "保留往後對話需要的資訊",
-        "en": "Keep useful details for later conversations"
+        "zh-Hant": "記住家人的喜好和要注意的事",
+        "en": "Remember your family’s preferences and what to watch out for"
       }
     },
     {

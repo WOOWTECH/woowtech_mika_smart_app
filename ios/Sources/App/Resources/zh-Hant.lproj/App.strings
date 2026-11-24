@@ -111,12 +111,12 @@
 "shell.greetingEvening" = "晚安";
 "shell.greetingNight" = "夜深了";
 "shell.whatToDo" = "想聊什麼，或需要幫忙查找什麼？";
-"shell.replyExample" = "幫我寫一則友善的訊息回覆";
-"shell.newsExample" = "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點";
-"shell.shoppingExample" = "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點";
-"shell.rememberExample" = "記住我偏好使用繁體中文，回答簡短一點";
-"shell.recallExample" = "你記得我有哪些偏好？";
-"shell.webExample" = "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較";
+"shell.replyExample" = "幫我寫一則給老師的請假訊息：孩子發燒，明天在家休息一天";
+"shell.newsExample" = "在內建瀏覽器找這個週末台北適合親子的活動，整理三個給我";
+"shell.shoppingExample" = "在 momo 購物找 1,000 元以內、4.5 星以上的兒童保溫瓶，比較三款的優缺點";
+"shell.rememberExample" = "記住我們家小孩對花生過敏，推薦餐廳或食譜時要避開";
+"shell.recallExample" = "你記得我們家有哪些要注意的事？";
+"shell.webExample" = "查台北市垃圾車和資源回收的收運時間，附上來源";
 "shell.attachPDF" = "附加 PDF";
 "shell.viewPDFAttachment" = "檢視 PDF 附件";
 "shell.messagePlaceholder" = "輸入訊息";
@@ -487,7 +487,7 @@
 "model.pickMain" = "選主模型";
 "model.testNote" = "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。";
 "welcome.title" = "你好，我是渥屋助理";
-"welcome.lead" = "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。";
+"welcome.lead" = "全家的生活小幫手：排行程、比價、整理帳單和通知單，記住家裡的大小事。";
 "welcome.chat" = "AI 對話";
 "welcome.chat.body" = "提問並延續之前的對話";
 "welcome.voice" = "語音輸入";
@@ -495,7 +495,7 @@
 "welcome.web" = "上網查";
 "welcome.web.body" = "內建瀏覽器，讀網頁、比價、查資料";
 "welcome.memory" = "記憶";
-"welcome.memory.body" = "保留往後對話需要的資訊";
+"welcome.memory.body" = "記住家人的喜好和要注意的事";
 "welcome.note" = "先設定你自己的模型服務，就可以開始使用。";
 "welcome.start" = "開始設定";
 "welcome.later" = "稍後再說";

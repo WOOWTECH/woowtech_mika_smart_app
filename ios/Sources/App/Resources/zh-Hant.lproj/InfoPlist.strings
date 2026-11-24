@@ -1,5 +1,5 @@
-"NSMicrophoneUsageDescription" = "渥屋助理會在你使用語音輸入或允許網站使用麥克風時使用麥克風。";
-"NSSpeechRecognitionUsageDescription" = "渥屋助理使用裝置上的語音辨識，將你主動說出的內容加入聊天草稿。";
-"NSCameraUsageDescription" = "渥屋助理會在你於聊天中拍照附加，或允許網站使用相機時使用相機。";
-"NSLocalNetworkUsageDescription" = "只有在你把模型服務或 MCP 伺服器設成區域網路上的位址時，渥屋助理才會連到你區網裡的那台裝置。";
-"NSPhotoLibraryAddUsageDescription" = "只有在你從附件預覽的分享選單選「儲存影像」時，渥屋助理才會把照片存到你的相簿。";
+"NSMicrophoneUsageDescription" = "渥屋助理會在你用說的輸入訊息（例如用說的列出要買的東西），或允許網站使用麥克風時使用麥克風。";
+"NSSpeechRecognitionUsageDescription" = "渥屋助理使用裝置上的語音辨識，把你主動說出的內容（例如「幫我排週末行程」）轉成聊天草稿裡的文字。";
+"NSCameraUsageDescription" = "渥屋助理會在你於聊天中拍照附加（例如拍下學校通知單或繳費單，請助理整理重點），或允許網站使用相機時使用相機。";
+"NSLocalNetworkUsageDescription" = "只有在你把模型服務或 MCP 伺服器設成區域網路上的位址時（例如放在家裡電腦上的模型服務），渥屋助理才會連到你區網裡的那台裝置。";
+"NSPhotoLibraryAddUsageDescription" = "只有在你從附件預覽的分享選單選「儲存影像」時（例如把附上的照片存回相簿），渥屋助理才會把照片存到你的相簿。";

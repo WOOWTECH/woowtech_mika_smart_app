@@ -111,12 +111,12 @@
 "shell.greetingEvening" = "Good evening";
 "shell.greetingNight" = "Up late";
 "shell.whatToDo" = "What would you like help with?";
-"shell.replyExample" = "Help me write a friendly reply to this message.";
-"shell.newsExample" = "Find a recent AI news article in the built-in browser and summarize three key points.";
-"shell.shoppingExample" = "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.";
-"shell.rememberExample" = "Remember that I prefer concise answers in Traditional Chinese.";
-"shell.recallExample" = "What preferences have I told you to remember?";
-"shell.webExample" = "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.";
+"shell.replyExample" = "Write a short note to my child’s teacher: she has a fever and will stay home tomorrow.";
+"shell.newsExample" = "Find three family-friendly things to do in Taipei this weekend in the built-in browser.";
+"shell.shoppingExample" = "Find three kids’ water bottles under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.";
+"shell.rememberExample" = "Remember that our kids are allergic to peanuts, so avoid them in restaurant and recipe ideas.";
+"shell.recallExample" = "What do you remember about our family?";
+"shell.webExample" = "Look up Taipei’s garbage truck and recycling collection times, with sources.";
 "shell.attachPDF" = "Attach PDF";
 "shell.viewPDFAttachment" = "View PDF attachment";
 "shell.messagePlaceholder" = "Type a message";
@@ -487,7 +487,7 @@
 "model.pickMain" = "Choose main model";
 "model.testNote" = "“Test and save” sends one fixed test message to the model you entered and saves only if it replies. Your chats aren’t sent, though the provider may charge a little.";
 "welcome.title" = "Hi, I’m woowtech agent";
-"welcome.lead" = "Chat, speak, browse and keep useful notes in one place.";
+"welcome.lead" = "A helper for family life: plan trips, compare prices, sort out bills and notices, and remember what matters at home.";
 "welcome.chat" = "AI chat";
 "welcome.chat.body" = "Ask questions and continue past conversations";
 "welcome.voice" = "Voice input";
@@ -495,7 +495,7 @@
 "welcome.web" = "Browse the web";
 "welcome.web.body" = "Built-in browser to read pages, compare prices and look things up";
 "welcome.memory" = "Memory";
-"welcome.memory.body" = "Keep useful details for later conversations";
+"welcome.memory.body" = "Remember your family’s preferences and what to watch out for";
 "welcome.note" = "Set up your own model service to begin.";
 "welcome.start" = "Get started";
 "welcome.later" = "Not now";

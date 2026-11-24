@@ -195,7 +195,7 @@ final class WoowAssistantUITests: XCTestCase {
         let start = app.buttons["welcome.start"]
         XCTAssertTrue(start.waitForExistence(timeout: 15))
         XCTAssertEqual(app.staticTexts["welcome.title"].label, "你好，我是渥屋助理")
-        XCTAssertEqual(app.staticTexts["welcome.lead"].label, "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。")
+        XCTAssertEqual(app.staticTexts["welcome.lead"].label, "全家的生活小幫手：排行程、比價、整理帳單和通知單，記住家裡的大小事。")
         for feature in ["chat", "voice", "web", "memory"] {
             XCTAssertTrue(app.descendants(matching: .any)["welcome.feature." + feature].exists, "Welcome lists \(feature)")
         }

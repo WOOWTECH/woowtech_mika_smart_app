@@ -42,16 +42,17 @@ class AppTextResourceTests(unittest.TestCase):
         self.reject(lambda c: c.update(languages=['zh-Hant', 'zh-Hans', 'en']))
         self.assertEqual(stale_tables(), [])
 
-    def test_store_example_copy_matches_play_964d7bec(self):
-        # The Play edition's woowtech flavor at 964d7bec (2026-11-13) provides Hant and
-        # English, the two languages iOS ships; its second example became AI news.
+    def test_store_examples_are_the_family_set(self):
+        # The App Store build's six examples follow its household audience (owner, 2026-11-23,
+        # for App Review 4.3: 渥屋助理 is for families at home). The Play build at 964d7bec keeps
+        # its own wording (docs/evidence/play-964d7bec-chat-examples.json) in the same six slots.
         expected = {
-            'shellReplyExample': ('幫我寫一則友善的訊息回覆', 'Help me write a friendly reply to this message.'),
-            'shellNewsExample': ('在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點', 'Find a recent AI news article in the built-in browser and summarize three key points.'),
-            'shellWebExample': ('在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較', 'Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.'),
-            'shellShoppingExample': ('在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點', 'Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.'),
-            'shellRememberExample': ('記住我偏好使用繁體中文，回答簡短一點', 'Remember that I prefer concise answers in Traditional Chinese.'),
-            'shellRecallExample': ('你記得我有哪些偏好？', 'What preferences have I told you to remember?'),
+            'shellReplyExample': ('幫我寫一則給老師的請假訊息：孩子發燒，明天在家休息一天', 'Write a short note to my child’s teacher: she has a fever and will stay home tomorrow.'),
+            'shellNewsExample': ('在內建瀏覽器找這個週末台北適合親子的活動，整理三個給我', 'Find three family-friendly things to do in Taipei this weekend in the built-in browser.'),
+            'shellWebExample': ('查台北市垃圾車和資源回收的收運時間，附上來源', 'Look up Taipei’s garbage truck and recycling collection times, with sources.'),
+            'shellShoppingExample': ('在 momo 購物找 1,000 元以內、4.5 星以上的兒童保溫瓶，比較三款的優缺點', 'Find three kids’ water bottles under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.'),
+            'shellRememberExample': ('記住我們家小孩對花生過敏，推薦餐廳或食譜時要避開', 'Remember that our kids are allergic to peanuts, so avoid them in restaurant and recipe ideas.'),
+            'shellRecallExample': ('你記得我們家有哪些要注意的事？', 'What do you remember about our family?'),
         }
         entries = {e['case']: e['translations'] for e in self.catalog['entries']}
         for case, (hant, english) in expected.items():
@@ -84,7 +85,8 @@ class AppTextResourceTests(unittest.TestCase):
             self.assertEqual(entries[case]['zh-Hant'], hant, case)
             self.assertEqual(entries[case]['en'], english, case)
 
-    def test_six_examples_match_play_964d7bec_resource_evidence(self):
+    def test_six_example_slots_match_play_964d7bec_resource_evidence(self):
+        # Same six slots as Play 964d7bec; the App Store wording is the family set above.
         root = Path(__file__).resolve().parents[1]
         evidence = json.loads((root / 'docs/evidence/play-964d7bec-chat-examples.json').read_text())
         self.assertEqual(evidence['source_commit'], '964d7becff9a0daa228f24cc5c8e2664fde8b7d9')
@@ -96,8 +98,8 @@ class AppTextResourceTests(unittest.TestCase):
                    'chat_example_ai_apps': 'shellRecallExample'}
         entries = {e['case']: e['translations'] for e in self.catalog['entries']}
         for key, case in mapping.items():
-            self.assertEqual(entries[case]['zh-Hant'], evidence['chat_strings'][key], key)
-            self.assertEqual(entries[case]['en'], evidence['chat_strings_en'][key], key)
+            self.assertTrue(evidence['chat_strings'][key].strip() and evidence['chat_strings_en'][key].strip(), key)
+            self.assertTrue(entries[case]['zh-Hant'].strip() and entries[case]['en'].strip(), case)
 
     def test_generated_assets_are_complete(self):
         generated = outputs(self.catalog)
