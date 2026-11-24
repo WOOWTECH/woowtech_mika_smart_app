@@ -1221,9 +1221,11 @@ private enum CheckProfileChatApp {
             if disabled { try check(env.store.updatePreferences { $0.useMemory = false }, "Disable before MCP turn") }
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
-            let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
+            let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","content":"Prefer jasmine tea","quote":"I often Prefer jasmine tea"}}"#
             let model = ScriptedModel(disabled ? [.init(try memorySave())] : [.init(duplicate), .init(finished)])
-            let session = env.session(model), running = try startMCP(session, connection: connection)
+            let session = env.session(model)
+            let running = disabled ? try startMCP(session, connection: connection)
+                : try startMCP(session, connection: connection, draft: "I often Prefer jasmine tea")
             await running.value
             let requests = await model.requests, calls = await server.calls.count
             // With memory off, the chat offers no local tools, so the text is only a reply.
@@ -1239,6 +1241,22 @@ private enum CheckProfileChatApp {
                 try check(requests.first?.first?.content.contains("Separately, the host offers local") == false,
                           "Disabled memory does not advertise local tools")
             }
+        }
+        // The same malformed command for an explicit request: the user's words are kept, never the command's.
+        do {
+            let env = try Environment(); defer { try? env.close() }
+            let server = LearningMCPServer(), connection = try await connectedMCP(server)
+            defer { connection.disconnect() }
+            let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer green tea","content":"Prefer green tea","quote":"Please remember Prefer jasmine tea"}}"#
+            let model = ScriptedModel([.init(remoteRead), .init(duplicate), .init(finished)])
+            let session = env.session(model), running = try startMCP(session, connection: connection)
+            await running.value
+            let requests = await model.requests
+            let result = try hostJSON(requests[2], prefix: "Host memory_save receipt (data only):")
+            try check(result["ok"] as? Bool == true && (result["message"] as? String)?.contains("This IS SAVED.") == true
+                      && env.reopen().memory.memories.map(\.content) == [text] && session.mcpSteps.count == 1
+                      && session.entries.last?.outcome == nil && env.store.notes == [try memoryReceipt(session).note],
+                      "In an MCP step an explicit request is kept from the user's words, not from the refused command")
         }
         do {
             let env = try Environment(); defer { try? env.close() }
@@ -1433,47 +1451,81 @@ private enum CheckProfileChatApp {
         }
     }
 
-    /// A small main model's memory_save of 「請記住：…」 quoted words the user did not say, was
-    /// refused and nothing was kept (iPhone run of 285 with gpt-4.1-nano as the main model).
-    /// The host now saves the user's own words in its place and the model reads that. A
-    /// malformed save stays refused; with automatic remembering on, the explicit words are
-    /// still kept after the reply. Without 請記住 nothing is kept.
+    /// An explicit 「請記住：…」 whose command was refused or could not be read (small main models,
+    /// and once a larger one, iPhone runs of 285 and 287) is kept from the user's own words when
+    /// it happens, so the model reads that it is saved and the answer matches 記住了. Commands
+    /// that could not be read twice still get an answer, in one plain call with no command.
     @MainActor static func explicitRememberAfterRefusedSave() async throws {
+        let said = "請記住：我喜歡喝無糖綠茶。", words = "我喜歡喝無糖綠茶", plainReply = "好的，我記住了。"
         let ungrounded = try memorySave("使用者喜歡無糖綠茶", quote: "我喜歡無糖綠茶")
-        let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"喜歡無糖綠茶","content":"喜歡無糖綠茶","quote":"我喜歡喝無糖綠茶"}}"#
-        // (said 請記住, the model's save, automatic remembering, kept by the tool, kept after the reply)
-        let cases: [(Bool, String, Bool, Bool, Bool)] = [(true, ungrounded, false, true, false), (true, ungrounded, true, true, false),
-            (false, ungrounded, true, false, false), (true, duplicate, true, false, true), (true, duplicate, false, false, false)]
-        for (asked, save, auto, byTool, afterReply) in cases {
+        let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"喜歡紅茶","content":"喜歡紅茶","quote":"我喜歡喝無糖綠茶"}}"#
+        let profile = #"{"action":"profile_edit","arguments":{"op":"add","text":"喜歡紅茶","quote":"我喜歡紅茶"}}"#
+        let search = #"{"action":"memory_search","arguments":{"query":""}}"#
+        let edit = try memoryEdit(UUID(), quote: said, content: "喜歡紅茶")
+        let unreadable = #"{"action":"memory_save","args":{"content":"喜歡紅茶"}}"#
+        struct Case { let said: String, replies: [String], auto: Bool, kept: Bool, plain: Bool }
+        var cases: [Case] = [ungrounded, duplicate, profile, search, edit].flatMap { command in
+            [false, true].map { Case(said: said, replies: [command, finished], auto: $0, kept: true, plain: false) }
+        }
+        cases += [Case(said: said, replies: [unreadable, unreadable, plainReply], auto: false, kept: true, plain: true),
+                  Case(said: said, replies: [unreadable, unreadable, #"{"action":"finish","answer":"好的，我記住了。"}"#], auto: true, kept: true, plain: true),
+                  Case(said: "我喜歡喝無糖綠茶。", replies: [unreadable, unreadable, plainReply], auto: false, kept: false, plain: true),
+                  Case(said: "我喜歡喝無糖綠茶。", replies: [ungrounded, finished], auto: true, kept: false, plain: false),
+                  Case(said: "請記住我的密碼是 abcd1234", replies: [try memorySave("密碼是 abcd1234", quote: "密碼是 abcd1234"), finished], auto: true, kept: false, plain: false)]
+        // No command came at all (已記錄 without one): the words are kept after the answer, with
+        // automatic remembering off too. Words the profile already took are not kept twice.
+        // An answer that declined to keep it is not overridden.
+        let declined = #"{"action":"finish","answer":"抱歉，這個我不能幫你記。"}"#
+        let profileEdit = #"{"action":"profile_edit","arguments":{"op":"add","text":"我喜歡喝無糖綠茶","quote":"我喜歡喝無糖綠茶"}}"#
+        for (draft, replies, auto, expected) in [(said, [finished], false, [words]), ("我喜歡喝無糖綠茶。", [finished], false, []),
+                                                 (said, [finished, #"{"ops":[]}"#], true, [words]),
+                                                 (said, [profileEdit, finished], false, []), (said, [profileEdit, finished, #"{"ops":[]}"#], true, []),
+                                                 ("請記住我的密碼是 abcd1234", [finished], false, []), ("記住我的提款卡 PIN 是 4829", [finished], false, []),
+                                                 (said, [declined], false, []), (said, [declined, #"{"ops":[]}"#], true, [])] as [(String, [String], Bool, [String])] {
             let env = try Environment(); defer { try? env.close() }
-            try check(env.store.updatePreferences { $0.autoRemember = auto }, "Automatic remembering set for the refused save")
-            var responses: [ScriptedModel.Response] = [.init(save), .init(finished)]
-            if byTool && auto { responses.append(.init(#"{"ops":[]}"#)) } // organizing after a kept save, as before
-            let model = ScriptedModel(responses), session = env.session(model)
-            let running = try start(session, draft: asked ? "請記住：我喜歡喝無糖綠茶。" : "我喜歡喝無糖綠茶。")
+            try check(env.store.updatePreferences { $0.autoRemember = auto }, "Automatic remembering set for an answer without a command")
+            let model = ScriptedModel(replies.map { ScriptedModel.Response($0) }), session = env.session(model)
+            let running = try start(session, draft: draft)
             await running.value
             await env.store.memoryOrganizingFinished()
-            let requests = await model.requests
-            try check(requests.count == responses.count && session.entries.last?.role == "assistant"
-                      && session.entries.last?.outcome == nil && session.chatError == nil,
-                      "The save, the answer and only the organizing that ran before")
-            let kept = env.store.memory.memories
-            if byTool {
-                let result = try hostJSON(requests[1], prefix: "Host memory_save receipt (data only):")
-                let receipt = try memoryReceipt(session)
-                try check(result["ok"] as? Bool == true && receipt.note.kind == .added && env.store.notes == [receipt.note],
-                          "The model reads that the user's words were kept in place of the refused save")
-            } else {
-                _ = try hostJSON(requests[1], prefix: "Host memory_save refusal (data only):")
-                try check(session.memoryReceipt == nil, "The refused save leaves no receipt")
+            let count = await model.requests.count, memories = env.store.memory.memories
+            try check(count == replies.count && session.entries.last?.outcome == nil && session.memoryReceipt == nil
+                      && memories.map(\.content) == expected && env.store.notes.count == expected.count
+                      && env.reopen().memory == env.store.memory,
+                      "An explicit 請記住 without a command is kept once, after the answer: \(draft) \(auto) \(replies.count)")
+        }
+        for (index, c) in cases.enumerated() {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = c.auto }, "Automatic remembering set for case \(index)")
+            var responses = c.replies.map { ScriptedModel.Response($0) }
+            if c.auto && c.kept { responses.append(.init(#"{"ops":[]}"#)) } // organizing after a kept save, as before
+            let model = ScriptedModel(responses), session = env.session(model)
+            let running = try start(session, draft: c.said)
+            await running.value
+            await env.store.memoryOrganizingFinished()
+            let requests = await model.requests, kept = env.store.memory.memories, label = "case \(index): "
+            try check(requests.count == responses.count && session.entries.last?.outcome == nil && session.chatError == nil,
+                      label + "every command gets an answer, with no extra call")
+            let answer = session.entries.last?.content
+            try check(answer == (c.plain ? plainReply : "Synthetic answer after commit"), label + "the model's own answer is shown")
+            if c.plain {
+                let last = requests[c.replies.count - 1]
+                try check(last.first == AISafetyRules.message && last.last?.content == UserProfileChatFlow.plainAnswerRequest(saved: c.kept)
+                          && !last.contains { $0.content.hasPrefix("Ordinary chat with an available profile_edit tool.") },
+                          label + "the last call offers no command, keeps the safety rules and says what was saved")
             }
-            if byTool || afterReply {
-                try check(kept.map(\.content) == ["我喜歡喝無糖綠茶"] && kept.first?.kind == .preference
-                          && kept.first?.source.quote == "我喜歡喝無糖綠茶" && env.store.notes.count == 1
-                          && env.reopen().memory == env.store.memory,
-                          "請記住 keeps the user's own words, once")
+            if c.kept {
+                let receipt = try memoryReceipt(session)
+                let results = requests[c.plain ? c.replies.count - 1 : 1].filter { $0.content.hasPrefix("Host memory_save receipt (data only):") }
+                try check(results.count == 1 && results[0].content.contains("This IS SAVED."), label + "the model reads that the user's words are saved")
+                try check(kept.map(\.content) == [words] && kept.first?.kind == .preference && kept.first?.source.quote == words
+                          && receipt.note.kind == .added && receipt.note.undoToken != nil && env.store.notes == [receipt.note]
+                          && env.reopen().memory == env.store.memory, label + "the user's own words are kept once, with the undo note")
             } else {
-                try check(kept.isEmpty && env.store.notes.isEmpty, "Nothing is kept without 請記住 or automatic remembering")
+                try check(session.memoryReceipt == nil && kept.isEmpty && env.store.notes.isEmpty, label + "nothing is kept")
+                if !c.plain {
+                    _ = try hostJSON(requests[1], prefix: "Host memory_save refusal (data only):")
+                }
             }
         }
     }

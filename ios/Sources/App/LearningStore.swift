@@ -419,7 +419,8 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     func rememberAfterReply(utterance: String, conversationID: String,
                             expectedGeneration: UUID, client: any ChatModelClient,
                             configuration: ModelConfiguration, apiKey: String,
-                            preservingToolNotes: [MemoryNote] = [], toolForgot: Bool = false) {
+                            preservingToolNotes: [MemoryNote] = [], toolForgot: Bool = false, profileChanged: Bool = false,
+                            reply: String = "") {
         // A user may clear/edit data while the MAIN reply is still in flight,
         // before extraction even exists. Its old utterance cannot repopulate data.
         guard generation == expectedGeneration else { return }
@@ -428,7 +429,19 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         // memory, the same words are not organized again. On the iPhone they
         // then forgot the similar memory the person had just kept.
         guard !toolForgot else { return }
-        guard available, memory.preferences.useMemory, memory.preferences.autoRemember else { return }
+        guard available, memory.preferences.useMemory else { return }
+        // What the reply's own tools kept, in the memories or the profile, is not kept again,
+        // and what the answer declined to keep (a PIN, live run of 287) is not kept against it.
+        // The reply only decides that: it never becomes part of a memory.
+        let keptByTool = !preservingToolNotes.isEmpty || profileChanged || MemoryExtractor.answerDeclines(reply)
+        guard memory.preferences.autoRemember else {
+            // An explicit 請記住 is not automatic: words no tool kept are kept, as the answer
+            // often says they are (已記錄 without any command, small models).
+            if !keptByTool, let review = MemoryToolRun(state: memory, utterances: [utterance]).explicitSave() {
+                _ = try? commitMemoryTool(review, expectedGeneration: generation, conversationID: conversationID)
+            }
+            return
+        }
         let snapshot = memory
         // Extraction sends related saved memories along with the utterance.
         // Bind its separate producer to the generation created above as well.
@@ -445,7 +458,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                 try Task.checkCancellation()
                 guard let self, self.extractionID == id else { return }
                 // An explicit 請記住 that neither the reply's tool nor the extraction kept.
-                if plan.operationCount == 0, preservingToolNotes.isEmpty,
+                if plan.operationCount == 0, !keptByTool,
                    let explicit = MemoryExtractor.explicitRequestPlan(input: input, state: snapshot) {
                     plan = explicit
                 }
@@ -471,7 +484,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                         self.notice = "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。"
                     } else if (error as? LearningFileError) == .busy {
                         self.notice = "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。"
-                    } else if preservingToolNotes.isEmpty, let explicit = MemoryExtractor.explicitRequestPlan(input: input, state: snapshot),
+                    } else if !keptByTool, let explicit = MemoryExtractor.explicitRequestPlan(input: input, state: snapshot),
                               self.applyExplicitRemember(explicit) {
                         // The organizing failed, but the words the user asked to keep are kept.
                     } else {
@@ -480,20 +493,6 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                 }
             }
         }
-    }
-
-    /// The reply's own memory command was refused, so its words are not organized
-    /// (ChatSession.localCommandRefusedRequestID). An explicit 請記住 still keeps the
-    /// user's own words, with the checks of explicitRequestPlan: a small main model
-    /// sent a memory_save the host refused and said 我已記住…但此變更未能成功保存
-    /// (iPhone run of 285).
-    func rememberExplicitRequest(utterance: String, conversationID: String, expectedGeneration: UUID) {
-        guard generation == expectedGeneration, available,
-              memory.preferences.useMemory, memory.preferences.autoRemember,
-              let plan = MemoryExtractor.explicitRequestPlan(
-                  input: MemoryExtractionInput(utterances: [utterance], conversationID: conversationID), state: memory)
-        else { return }
-        _ = applyExplicitRemember(plan)
     }
 
     /// Keeps an explicit 請記住 when the organizing itself failed; false when it cannot.

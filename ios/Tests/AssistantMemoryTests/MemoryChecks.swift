@@ -73,9 +73,22 @@ enum MemoryChecks {
         var check = Check(), state = MemoryState()
         for value in ["我的密碼是123456", "password: sample1234", "驗證碼 １ ２ ３ ４", "123456是我的密码",
                       "API key: dummy_credential_value", "4111 1111 1111 1111", "A123456789",
-                      "https://example.invalid/webhook/dummy-not-real", "https://example.invalid/mcp?token=dummy-not-real"] {
+                      "https://example.invalid/webhook/dummy-not-real", "https://example.invalid/mcp?token=dummy-not-real",
+                      "我的提款卡 PIN 是 4829", "記住我的PIN是4829", "PIN碼：4829", "My PIN code is 4829", "4829是我的提款卡PIN", "OTP 是 553201",
+                      "金鑰是sk-abcdefghijklmnop", "身分證字號A123456789", "我的動態碼 8812", "門鎖密碼改成9912", "密碼叫做 helloWorld",
+                      "密碼是四八二九", "我的 Wi-Fi 密碼是 Abc12345", "請記住我家的門鎖密碼：559913"] {
             try check.rejects(.sensitiveContent) { _ = try state.add(kind: .fact, content: value) }
             try check.expect(state.memories.isEmpty, "Rejected sensitive value leaves state unchanged")
+        }
+        for value in ["我喜歡喝無糖綠茶", "我的車牌是 ABC-1234", "手機 0912345678", "我住 101 大樓 2048 室", "hotpot 1234 號店",
+                      "pinned 4829 items", "我在 2026 年學密碼學", "生日 1990-01-01", "每天走 5000 步", "Pinterest 2048", "我常忘記密碼"] {
+            try check.expect(!MemorySafety.sensitive(value), "Ordinary words are not a secret: " + value)
+        }
+        for value in ["這個我不幫你記喔，PIN 屬於高度敏感的資料", "抱歉，我不能記住密碼。", "I can't store that.", "Sorry, that is sensitive."] {
+            try check.expect(MemorySafety.declines(value), "Declined: " + value)
+        }
+        for value in ["好的，已記住：你喜歡喝無糖綠茶。", "已記錄：您習慣早上七點起床。", "Got it, I'll remember that.", "了解！"] {
+            try check.expect(!MemorySafety.declines(value), "Not declined: " + value)
         }
         for index in 0..<500 {
             try state.add(kind: .fact, content: "記憶項目 \(index)", now: date)
@@ -190,27 +203,48 @@ enum MemoryChecks {
                          "A password is never kept")
         try check.expect(MemoryExtractor.explicitRequestPlan(input: .init(utterances: ["今天天氣很好"]), state: state) == nil,
                          "No request, nothing kept")
-        // A small main model's memory_save of an explicit 請記住 was refused and nothing was
-        // kept (iPhone run of 285): the user's own words are saved in its place.
+        // A command for an explicit 請記住 was refused or could not be read, and the answer said it
+        // was not saved (iPhone runs of 285 and 287): the user's own words are saved in its place.
         let explicitRun = MemoryToolRun(state: state, utterances: ["請記住：我喜歡喝無糖綠茶。"])
-        let keptSave = explicitRun.explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_save")
-        try check.expect(keptSave?.after?.content == "我喜歡喝無糖綠茶" && keptSave?.kind == .preference && keptSave?.quote == "我喜歡喝無糖綠茶",
-                         "A refused save of 請記住 keeps the user's words")
-        try check.expect(explicitRun.explicitSave(after: MemoryToolError.contentNotFromUser, toolName: "memory_save") != nil,
-                         "A save with details the user did not say is replaced too")
-        try check.expect(explicitRun.explicitSave(after: MemoryToolError.invalidArguments, toolName: "memory_save") == nil
-                         && explicitRun.explicitSave(after: MemoryToolError.disabled, toolName: "memory_save") == nil
-                         && explicitRun.explicitSave(after: MemoryToolError.editNotRequested, toolName: "memory_save") == nil
-                         && explicitRun.explicitSave(after: MemoryError.sensitiveContent, toolName: "memory_save") == nil,
-                         "Malformed arguments and other refusals stay refused")
-        try check.expect(explicitRun.explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_edit") == nil,
-                         "Only a save is replaced")
+        let keptSave = explicitRun.explicitSave(after: MemoryToolError.quoteNotFromUser)
+        try check.expect(keptSave?.after?.content == "我喜歡喝無糖綠茶" && keptSave?.kind == .preference
+                         && keptSave?.quote == "我喜歡喝無糖綠茶" && keptSave?.toolName == "memory_save",
+                         "A refused command of 請記住 keeps the user's words")
+        let replaceable: [Error] = [MemoryToolError.invalidArguments, MemoryToolError.contentNotFromUser, MemoryToolError.notFound,
+                                    MemoryError.invalidKeywords, UserProfileToolError.quoteNotFromUser, UserProfileError.profileFull,
+                                    UserProfileChatError.invalidCommand, UserProfileChatError.callLimit]
+        try check.expect(replaceable.allSatisfy { explicitRun.explicitSave(after: $0) != nil },
+                         "Any command that was refused for itself, or could not be read, leaves the user's words")
+        let refused: [Error] = [MemoryToolError.disabled, MemoryToolError.staleRevision, MemoryToolError.ambiguousTarget,
+                                MemoryError.sensitiveContent, MemoryError.capacityExceeded, MemoryError.duplicate,
+                                UserProfileToolError.staleRevision, UserProfileError.duplicate, UserProfileChatError.expired,
+                                URLError(.notConnectedToInternet)]
+        try check.expect(refused.allSatisfy { explicitRun.explicitSave(after: $0) == nil },
+                         "What must not be kept, changed data and other failures keep nothing")
         try check.expect(MemoryToolRun(state: state, utterances: ["我喜歡喝無糖綠茶。"])
-                            .explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_save") == nil,
+                            .explicitSave(after: MemoryToolError.quoteNotFromUser) == nil,
                          "Without 請記住 the refusal stays")
         try check.expect(MemoryToolRun(state: state, utterances: ["請記住我的密碼是 abcd1234"])
-                            .explicitSave(after: MemoryToolError.quoteNotFromUser, toolName: "memory_save") == nil,
+                            .explicitSave(after: MemoryToolError.invalidArguments) == nil,
                          "A password is never kept in place of a refused save")
+        // Only a request that opens the message counts, up to the first question or task after it.
+        let asks: [(String, String?)] = [
+            ("請記住：我喜歡喝無糖綠茶。", "我喜歡喝無糖綠茶"), ("記住我偏好使用繁體中文，回答簡短一點", "我偏好使用繁體中文，回答簡短一點"),
+            ("Remember that I prefer concise answers in Traditional Chinese.", "I prefer concise answers in Traditional Chinese"),
+            ("Please remember Prefer jasmine tea", "Prefer jasmine tea"), ("麻煩幫我記住，我對花生過敏！", "我對花生過敏"),
+            ("你好，請記得我住在台北。", "我住在台北"), ("請記住我喜歡靠走道的座位。另外幫我查一下台北天氣。", "我喜歡靠走道的座位"),
+            ("請記住：我吃素。我對蝦子過敏。", "我吃素。我對蝦子過敏"), ("Remember that I like the 3.5 GB plan. Also book a table", "I like the 3.5 GB plan"),
+            ("I can't remember the movie title", nil), ("What preferences have I told you to remember?", nil),
+            ("Remember to buy milk", nil), ("Do you remember my name?", nil), ("寫一封信給同事，記得語氣客氣一點", nil),
+            ("記得帶傘", nil), ("你記得我昨天說的嗎？", nil), ("我不記得他的名字", nil), ("提醒大家記得帶雨衣", nil),
+            ("請記住暗號是藍色鯨魚", nil), ("請記住", nil), ("請記住這個", nil), ("Remember this", nil),
+            ("記住單字的方法", nil), ("Remember the Titans cast", nil), ("幫我記下今天的會議重點", nil), ("要記住單字有什麼方法？", nil),
+            ("記住：我的車停在B2", "我的車停在B2"), ("Remember my sister is Amy", "my sister is Amy"), ("Could you please remember that I'm vegetarian?", nil),
+            ("請記住單字卡放在抽屜裡", "單字卡放在抽屜裡"), ("記得我不吃香菜", "我不吃香菜")]
+        for (said, kept) in asks {
+            try check.expect(MemoryExtractor.explicitRequest(said, conversationID: nil, state: MemoryState())?.content == kept,
+                             "An explicit request or not: " + said)
+        }
         let negative = try MemoryExtractor.parse(response([["op": "forget", "target": state.memories[0].id.uuidString, "quote": "刪除茶的記憶"]]), input: .init(utterances: ["不要刪除茶的記憶"]), state: state)
         try check.expect(negative.operationCount == 0, "Negated delete is not authorization")
         let forgotten = try MemoryExtractor.parse(response([["op": "forget", "target": "#1", "quote": "請忘記茶的記憶"]]), input: .init(utterances: ["請忘記茶的記憶"]), state: state)

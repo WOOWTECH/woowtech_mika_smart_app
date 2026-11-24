@@ -796,11 +796,18 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(unanswered(session) && e.archive.conversations.isEmpty && session.replyPreview == nil,
                         "invalid command neither displays tool bytes nor persists")
             client.emit(#"{"action":"unknown","arguments":{"secret":"HIDDEN"}}"#, at: 1); client.finish(at: 1)
+            // One plain call with no command follows; a command there too fails closed.
+            try await wait("one plain call after the correction") { client.counts.stream == 3 }
+            try a.check(unanswered(session) && e.archive.conversations.isEmpty && session.replyPreview == nil,
+                        "the second malformed command is neither shown nor saved")
+            client.emit(#"{"action":"unknown","arguments":{"secret":"HIDDEN"}}"#, at: 2)
+            try a.check(session.replyPreview == nil, "a command in the plain call is never previewed")
+            client.finish(at: 2)
             await task.value
             try a.check(ended(session, .failed) && session.replyPreview == nil && session.chatError == nil
                         && !(session.entries.last?.content.contains("HIDDEN") ?? true),
-                        "second malformed command fails closed after one correction")
-            try a.check(client.counts.stream == 2 && client.counts.complete == 0, "no hidden transport retry")
+                        "a command in the plain call too fails closed")
+            try a.check(client.counts.stream == 3 && client.counts.complete == 0, "no hidden transport retry")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }
@@ -839,11 +846,16 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(observed.allSatisfy { !$0.contains("TOOL_SECRET") && !$0.contains("TRAILING_SECRET")
                 && !$0.contains("arguments") && !$0.contains("action") }, "no tool or wire fields in any preview")
             client.emit(#"{"action":"invalid","arguments":{"secret":"TOOL_SECRET"}}"#, at: 1)
-            client.finish(at: 1); await task.value
-            try a.check(ended(session, .failed) && noSavedAnswer(e.archive) && session.replyPreview == nil
-                        && !(session.entries.last?.content.contains("SECRET") ?? true)
-                        && session.chatError == nil && client.counts.stream == 2 && client.counts.complete == 0,
-                        "duplicate, extra and trailing bytes never become completed answers")
+            client.finish(at: 1)
+            try await wait("plain call after two invalid envelopes") { client.counts.stream == 3 }
+            client.emit("Plain answer", at: 2)
+            try await wait("plain answer preview") { session.replyPreview?.text == "Plain answer" }
+            client.finish(at: 2); await task.value
+            try a.check(session.entries.last?.outcome == nil && session.entries.last?.content == "Plain answer" && session.replyPreview == nil
+                        && session.chatError == nil && client.counts.stream == 3 && client.counts.complete == 0,
+                        "duplicate, extra and trailing bytes never become the answer; the plain call's text does")
+            try a.check(observed.allSatisfy { !$0.contains("SECRET") && !$0.contains("action") } && session.profileReceipt == nil
+                        && session.memoryReceipt == nil && e.learning.memory.memories.isEmpty, "no invalid envelope is shown or applied")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }

@@ -108,6 +108,9 @@ public struct MemoryExtractor: Sendable {
                                     operations: [.add(request.kind, request.content, [], request.quote)])
     }
 
+    /// Whether the answer declined to keep what was asked, which an explicit request does not override.
+    public static func answerDeclines(_ reply: String) -> Bool { MemorySafety.declines(reply) }
+
     /// What an explicit 請記住 asks to keep: its kind, the cleaned words and the words quoted
     /// from the user. nil when there is no such request, the words are sensitive or already
     /// kept, or they do not pass the usual checks. Whether memory is on is the caller's check.

@@ -1216,11 +1216,8 @@ final class ChatSession: ObservableObject {
                     self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
                         expectedGeneration: learningGeneration, client: client, configuration: light.configuration, apiKey: light.key,
                         preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [],
-                        toolForgot: self.memoryForgotRequestID == id)
-                } else if self.skillSavedRequestID != id, self.memoryReceiptRequestID != id, self.memoryForgotRequestID != id {
-                    // The model's memory command was refused and kept nothing: an explicit 請記住 still counts.
-                    self.learning.rememberExplicitRequest(utterance: utterance, conversationID: self.conversationID,
-                                                          expectedGeneration: learningGeneration)
+                        toolForgot: self.memoryForgotRequestID == id, profileChanged: self.profileReceiptRequestID == id,
+                        reply: reply)
                 }
                 self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
                     priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
@@ -1498,7 +1495,8 @@ final class ChatSession: ObservableObject {
     private func completePlain(messages input: [ModelMessage], configuration: ModelConfiguration,
                                key: String, client: any ChatModelClient, requestID id: UUID, generation: UUID,
                                skillIndex: String?? = nil, utterance: String = "",
-                               webOffer: String? = nil, mcpOffer: String? = nil) async throws -> ChatPathReply {
+                               webOffer: String? = nil, mcpOffer: String? = nil,
+                               holdsCommand: Bool = false) async throws -> ChatPathReply {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
         // One system message: the skill tools offer, the web task offer and the
@@ -1526,7 +1524,7 @@ final class ChatSession: ObservableObject {
         }
         // A reply opening with "{" or a code fence may be a skill, web or MCP
         // command: it is shown only once it turns out to be an answer.
-        let holdsAtStart: Bool? = skillIndex == nil && webOffer == nil && mcpOffer == nil ? false : nil
+        let holdsAtStart: Bool? = skillIndex == nil && webOffer == nil && mcpOffer == nil && !holdsCommand ? false : nil
         var holds = holdsAtStart, request = messages
         var text = "", bytes = 0, resent = false, nudged = false
         while true {
@@ -1704,8 +1702,16 @@ final class ChatSession: ObservableObject {
         let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry, webEntry: web, mcpEntry: mcpEntry)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         defer { flow.cancel() }
-        /// The model reads why a command was refused and still answers the user.
+        /// The model reads why a command was refused and still answers the user. An explicit
+        /// 請記住 is kept in its place, so the answer never says 未能保存 beside 記住了.
         func refuse(_ toolName: String, _ error: Error) throws {
+            if memoryRun.explicitSave(after: error) != nil {
+                try flow.validateKeptInstead()
+                if let receipt = keepExplicitRequest(after: error, run: memoryRun, generation: generation, requestID: requestID) {
+                    try flow.recordKeptInstead(resultJSON: receipt.keptInsteadJSON())
+                    return
+                }
+            }
             guard let refusal = LocalToolRefusal.resultJSON(for: error) else { throw error }
             localCommandRefusedRequestID = requestID
             try flow.recordRefused(toolName: toolName, resultJSON: refusal)
@@ -1719,13 +1725,20 @@ final class ChatSession: ObservableObject {
         while true {
             // Like the Play build, learning data changed during the reply,
             // by the user or by the model's own tool call, never stops it.
-            let step = try await flow.advance(client: client, configuration: configuration, apiKey: key,
+            let step: UserProfileChatStep
+            do {
+                step = try await flow.advance(client: client, configuration: configuration, apiKey: key,
                                               validateState: { [weak self] in
-                guard let self, self.requestID == requestID else { throw CancellationError() }
-                try Task.checkCancellation()
-            }) { [weak self] answer in
-                guard let self, self.requestID == requestID, !Task.isCancelled else { return }
-                self.replyPreview = answer.map { ChatReplyPreview(id: requestID, text: $0, phase: .receiving) }
+                    guard let self, self.requestID == requestID else { throw CancellationError() }
+                    try Task.checkCancellation()
+                }) { [weak self] answer in
+                    guard let self, self.requestID == requestID, !Task.isCancelled else { return }
+                    self.replyPreview = answer.map { ChatReplyPreview(id: requestID, text: $0, phase: .receiving) }
+                }
+            } catch let error as UserProfileChatError where error == .invalidCommand || error == .callLimit {
+                return try await answerWithoutCommands(after: error, flow: flow, run: memoryRun, messages: messages,
+                                                       generation: generation, configuration: configuration, key: key,
+                                                       client: client, requestID: requestID)
             }
             try Task.checkCancellation()
             guard self.requestID == requestID else { throw CancellationError() }
@@ -1769,13 +1782,7 @@ final class ChatSession: ObservableObject {
             case .proposedMemoryChange(let toolName, let arguments):
                 do {
                     try validateMemoryRun(memoryRun, generation: generation)
-                    let review: MemoryToolReview
-                    do { review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments) }
-                    catch {
-                        // A refused save of an explicit 請記住 keeps the user's own words instead.
-                        guard let explicit = memoryRun.explicitSave(after: error, toolName: toolName) else { throw error }
-                        review = explicit
-                    }
+                    let review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments)
                     // Memory tools also apply directly, with an undo note in the chat.
                     try flow.validateReview()
                     let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
@@ -1844,6 +1851,43 @@ final class ChatSession: ObservableObject {
                                  validateState: { [weak self] in
             guard let self, self.requestID == id else { throw CancellationError() }
         })
+    }
+
+    /// An explicit 請記住 whose command was refused or could not be read is kept from the user's
+    /// own words (MemoryToolRun.explicitSave), with the usual 記住了 and undo. nil when there is
+    /// nothing to keep, or this request already changed a memory.
+    private func keepExplicitRequest(after error: Error, run: MemoryToolRun, generation: UUID,
+                                     requestID: UUID) -> MemoryToolReceipt? {
+        guard memoryReceiptRequestID != requestID, (try? validateMemoryRun(run, generation: generation)) != nil,
+              let review = run.explicitSave(after: error),
+              let receipt = try? learning.commitMemoryTool(review, expectedGeneration: generation,
+                                                           conversationID: conversationID) else { return nil }
+        memoryReceipt = receipt
+        memoryReceiptRequestID = requestID
+        return receipt
+    }
+
+    /// The model's commands could not be used twice, or it ran out of calls (small models,
+    /// 沒有完成 in the iPhone run of 287). Like Android, where a bad call never ends the reply,
+    /// the request still gets its answer: one plain call that offers no command and runs
+    /// nothing. An explicit 請記住 is kept first.
+    private func answerWithoutCommands(after error: UserProfileChatError, flow: UserProfileChatFlow, run: MemoryToolRun,
+                                       messages: [ModelMessage], generation: UUID, configuration: ModelConfiguration,
+                                       key: String, client: any ChatModelClient, requestID: UUID) async throws -> ChatPathReply {
+        try Task.checkCancellation()
+        guard self.requestID == requestID else { throw CancellationError() }
+        var done = flow.exchange
+        if !flow.didCommit,
+           let receipt = keepExplicitRequest(after: error, run: run, generation: generation, requestID: requestID) {
+            done.append(ModelMessage(role: "user", content: UserProfileChatFlow.keptInsteadReceipt(try receipt.keptInsteadJSON())))
+        }
+        let saved = flow.didCommit || memoryReceiptRequestID == requestID
+        done.append(ModelMessage(role: "user", content: UserProfileChatFlow.plainAnswerRequest(saved: saved)))
+        replyPreview = nil
+        let reply = try await completePlain(messages: messages + done, configuration: configuration, key: key, client: client,
+                                            requestID: requestID, generation: generation, holdsCommand: true)
+        guard case .answer(let text) = reply, let answer = UserProfileChatFlow.plainAnswerText(text) else { throw error }
+        return .answer(answer)
     }
 
     private func validateMemoryRun(_ run: MemoryToolRun, generation: UUID) throws {
@@ -1956,6 +2000,11 @@ final class ChatSession: ObservableObject {
         guard self.requestID == requestID else { throw CancellationError() }
         do { return try applyMCPLocal(proposal, turn: turn, requestID: requestID) }
         catch {
+            // An explicit 請記住 is kept in place of the refused command, as in the chat without MCP.
+            if proposal.action.isMutation,
+               let receipt = keepExplicitRequest(after: error, run: turn.memory, generation: turn.generation, requestID: requestID) {
+                return .committedReceipt(json: try receipt.keptInsteadJSON())
+            }
             // The model reads why it was refused and goes on with the request.
             guard let refusal = LocalToolRefusal.resultJSON(for: error) else { throw error }
             localCommandRefusedRequestID = requestID
@@ -1985,13 +2034,8 @@ final class ChatSession: ObservableObject {
             return .committedReceipt(json: String(decoding: data, as: UTF8.self))
         case .memorySave, .memoryEdit:
             try validateMemoryRun(turn.memory, generation: turn.generation)
-            let review: MemoryToolReview
-            do { review = try turn.memory.prepare(toolName: proposal.action.rawValue, argumentsJSON: proposal.argumentsJSON) }
-            catch {
-                // A refused save of an explicit 請記住 keeps the user's own words instead.
-                guard let explicit = turn.memory.explicitSave(after: error, toolName: proposal.action.rawValue) else { throw error }
-                review = explicit
-            }
+            let review = try turn.memory.prepare(toolName: proposal.action.rawValue,
+                                                 argumentsJSON: proposal.argumentsJSON)
             let receipt = try learning.commitMemoryTool(review, expectedGeneration: turn.generation,
                                                         conversationID: conversationID)
             memoryReceipt = receipt

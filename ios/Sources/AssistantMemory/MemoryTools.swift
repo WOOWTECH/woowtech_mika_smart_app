@@ -173,20 +173,38 @@ public struct MemoryToolRun: Sendable {
     /// Current-run user words only. The pinned save-only previous-confirmation
     /// exception is intentionally NOT offered by this first API. Website/tool/
     /// assistant text and old turns must not be passed as current utterances.
-    /// A well-formed memory_save refused for quoting words or details the user did not say,
-    /// while the user asked outright, 請記住…: the user's words after the request are saved
-    /// instead (MemoryExtractor.explicitRequest), so the model reads that they were kept. A
-    /// small main model sent such saves and the request was lost (iPhone run of 285). nil
-    /// for any other refusal (malformed arguments stay refused), or without such a request.
-    public func explicitSave(after error: Error, toolName: String) -> MemoryToolReview? {
-        guard toolName == "memory_save", let error = error as? MemoryToolError,
-              [.quoteNotFromUser, .contentNotFromUser].contains(error),
-              let utterance = utterances.last,
+    /// The user asked outright, 請記住…, and the command for it was refused or could not be
+    /// read: the user's own words after the request are saved instead
+    /// (MemoryExtractor.explicitRequest), never the command's, so the model reads that they
+    /// were kept and the answer matches. Small models sent such commands; a larger one did
+    /// too, and its answer said not saved beside 記住了 (iPhone runs of 285 and 287). nil for
+    /// what must not be kept (sensitive, already there, memory full or off), for saved data
+    /// that changed under the reply, or without such a request.
+    public func explicitSave(after error: Error) -> MemoryToolReview? {
+        switch error {
+        case let error as MemoryToolError:
+            guard [.invalidArguments, .quoteNotFromUser, .contentNotFromUser, .editNotRequested, .notFound].contains(error) else { return nil }
+        case let error as MemoryError:
+            guard [.invalidContent, .invalidKeywords, .notFound].contains(error) else { return nil }
+        case let error as UserProfileToolError:
+            guard error != .staleRevision else { return nil }
+        case let error as UserProfileError:
+            guard [.invalidSentence, .profileFull, .matchNotUnique].contains(error) else { return nil }
+        case let error as UserProfileChatError:
+            guard [.invalidCommand, .callLimit].contains(error) else { return nil }
+        default: return nil
+        }
+        return explicitSave()
+    }
+
+    /// The same words when no command came for the request at all.
+    public func explicitSave() -> MemoryToolReview? {
+        guard let utterance = utterances.last,
               let request = MemoryExtractor.explicitRequest(utterance, conversationID: nil, state: snapshot),
               let data = try? JSONSerialization.data(withJSONObject:
                   ["kind": request.kind.rawValue, "content": request.content, "quote": request.quote])
         else { return nil }
-        return try? prepare(toolName: toolName, argumentsJSON: String(decoding: data, as: UTF8.self))
+        return try? prepare(toolName: "memory_save", argumentsJSON: String(decoding: data, as: UTF8.self))
     }
 
     public func prepare(toolName: String, argumentsJSON: String) throws -> MemoryToolReview {
@@ -305,6 +323,13 @@ public struct MemoryToolReceipt: Encodable, Sendable {
         kind = item?.kind; status = item?.status; deleted = op == .delete ? true : nil; self.note = note
     }
     public func resultJSON() throws -> String { try memoryToolJSON(self) }
+
+    /// The receipt of words kept in place of a refused command (MemoryToolRun.explicitSave), in one object.
+    public func keptInsteadJSON() throws -> String {
+        var object = try JSONSerialization.jsonObject(with: Data(resultJSON().utf8)) as? [String: Any] ?? [:]
+        object["message"] = "The command's own arguments were not used: the host saved the user's exact words instead. This IS SAVED."
+        return String(decoding: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]), as: UTF8.self)
+    }
 }
 
 private func memoryToolJSON<T: Encodable>(_ value: T) throws -> String {

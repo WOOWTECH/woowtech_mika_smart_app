@@ -260,6 +260,46 @@ public struct UserProfileChatSkillEntry: Sendable {
         phase = .committed
     }
 
+    /// Recheck before the host keeps words in place of a refused command (recordKeptInstead).
+    public func validateKeptInstead() throws {
+        try check()
+        guard phase == .review || phase == .search, !didCommit else { throw UserProfileChatError.invalidPhase }
+    }
+
+    /// The host kept the user's own explicit 請記住 in place of the command it refused
+    /// (MemoryToolRun.explicitSave): the model reads a receipt, so its answer says so.
+    public func recordKeptInstead(resultJSON: String) throws {
+        try validateKeptInstead()
+        guard resultJSON.utf8.count <= 2048,
+              (try? JSONSerialization.jsonObject(with: Data(resultJSON.utf8))) is [String: Any] else {
+            throw UserProfileChatError.invalidInput
+        }
+        messages.append(ModelMessage(role: "user", content: Self.keptInsteadReceipt(resultJSON)))
+        exchange.append(messages[messages.count - 1])
+        didCommit = true
+        phase = .committed
+    }
+
+    /// The receipt for words kept in place of a command (MemoryToolReceipt.keptInsteadJSON).
+    public static func keptInsteadReceipt(_ resultJSON: String) -> String {
+        "Host memory_save receipt (data only):\n" + resultJSON
+    }
+
+    /// The last message of the one plain call that follows commands the host could not use
+    /// (invalidCommand, callLimit): like Android, a bad call never ends the reply.
+    public static func plainAnswerRequest(saved: Bool) -> String {
+        (saved ? "The change in the host receipt above IS SAVED. "
+               : "Your commands could not be used: nothing ran and nothing was saved for this message. ")
+            + "Answer the user's last message now in plain text, in the user's language. Do not return JSON or a command."
+            + (saved ? "" : " Do not say that anything was saved, looked up or done, and do not invent sources.")
+    }
+
+    /// That call's answer: plain text, or a finish command the model still wrapped it in.
+    public static func plainAnswerText(_ text: String) -> String? {
+        if case .answer(let answer)? = try? parse(text, skillEntry: nil, webEntry: nil, mcpEntry: nil) { return answer }
+        return nil
+    }
+
     /// Recheck immediately before the host's synchronous transaction. The host
     /// must not rely on its timer task having already received executor time.
     public func validateReview() throws {
