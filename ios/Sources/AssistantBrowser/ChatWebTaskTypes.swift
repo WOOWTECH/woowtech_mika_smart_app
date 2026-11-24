@@ -77,9 +77,10 @@ public enum ChatWebCommand: Equatable, Sendable {
     }
 
     /// Exactly one JSON object with exactly the keys of one command. Duplicate
-    /// keys are refused. A single surrounding Markdown code fence is tolerated.
+    /// keys are refused. A single surrounding Markdown code fence is tolerated,
+    /// and so is tool-call markup leaked around the object (see withoutCallTags).
     public static func parse(_ reply: String) throws -> ChatWebCommand {
-        let body = unfenced(reply)
+        let body = withoutCallTags(unfenced(reply))
         guard body.utf8.count <= 64 * 1024, let fields = try? RawCommandEnvelope.fields(in: body),
               let envelope = try? JSONDecoder().decode(Envelope.self, from: Data(body.utf8)) else {
             throw ChatWebCommandError.invalidCommand
@@ -181,6 +182,33 @@ public enum ChatWebCommand: Equatable, Sendable {
             throw ChatWebCommandError.invalidCommand
         }
     }
+
+    /// The JSON object alone when the only other text around it is tool-call
+    /// markup a model leaked from its own format (<invoke>, </invoke>,
+    /// <function_calls> and the like: the review model wrote them in half of
+    /// the replies on 2026-11-24); any other text around it keeps the reply as it is.
+    public static func withoutCallTags(_ text: String) -> String {
+        guard let open = text.firstIndex(of: "{"), let close = text.lastIndex(of: "}"), open < close else { return text }
+        let outside = String(text[..<open]) + "\n" + String(text[text.index(after: close)...])
+        let range = NSRange(outside.startIndex..., in: outside)
+        guard callTags.firstMatch(in: outside, range: range) != nil,
+              callTags.stringByReplacingMatches(in: outside, range: range, withTemplate: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
+        return String(text[open...close])
+    }
+
+    /// A reply that is plain text instead of a command (no JSON command and no
+    /// call markup), trimmed, when it is long enough to be an answer.
+    public static func plainAnswer(_ reply: String) -> String? {
+        let text = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count >= 80, text.utf16.count <= maximumAnswerCharacters, !text.contains("\"action\""),
+              callTags.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) == nil else { return nil }
+        return text
+    }
+
+    // A constant pattern; a typo shows on the first check run.
+    private static let callTags = try! NSRegularExpression(
+        pattern: "</?(?:invoke|function_calls|tool_calls?|tool_use)\\b[^<>]*>", options: [.caseInsensitive])
 
     /// Removes one surrounding ``` or ```json fence and outer whitespace.
     public static func unfenced(_ text: String) -> String {

@@ -134,6 +134,22 @@ import AssistantModels
         try check(parsed("```json\n{\"action\":\"web_back\"}\n```") == .back, "one surrounding fence tolerated")
         try check(parsed(#"Sure! {"action":"web_back"}"#) == nil, "prose around the command refused")
         try check(parsed(#"[{"action":"web_back"}]"#) == nil, "arrays refused")
+        // Tool-call markup the review model leaked around half its commands on 2026-11-24.
+        try check(parsed("<invoke>\n</invoke>\n{\"action\":\"web_navigate\",\"url\":\"https://www.mobile01.com/\"}")
+                  == .navigate(url: "https://www.mobile01.com/"), "an empty invoke block before the command")
+        try check(parsed("<invoke>\n{\"action\":\"web_open_link\",\"linkID\":2}\n</invoke>") == .openLink(id: 2), "the command inside invoke tags")
+        try check(parsed(#"<invoke>{"action":"web_open_link","linkID":2}</invoke>"#) == .openLink(id: 2), "invoke tags on one line")
+        try check(parsed(#"<function_calls><invoke name="web">{"action":"web_back"}</invoke></function_calls>"#) == .back,
+                  "function_calls and a named invoke")
+        try check(parsed(#"<invoke>{"action":"web_back"}</invoke> then I will read it"#) == nil, "markup plus prose still refused")
+        try check(parsed(#"<invoke>{"action":"web_back"}{"action":"finish","answer":"x"}</invoke>"#) == nil, "two commands in markup refused")
+        try check((try? ChatWebCommand.parseEntry("<invoke>{\"action\":\"web_read_page\",\"url\":\"https://e.com/\"}</invoke>")) != nil,
+                  "entry inside invoke tags")
+        let answer = "I compared three models from one Taiwanese review article.\n\n| Model | Price (NT$) |\n|---|---|\n| Coway AP-1019C | 7,990 |"
+        try check(ChatWebCommand.plainAnswer("  " + answer + "\n") == answer, "a plain-text answer is recognised")
+        try check(ChatWebCommand.plainAnswer("I will open the second result now.") == nil, "a short note is not an answer")
+        try check(ChatWebCommand.plainAnswer(answer + #" {"action":"finish","answer":"x"}"#) == nil, "text with a command is not a plain answer")
+        try check(ChatWebCommand.plainAnswer("<invoke>" + answer + "</invoke>") == nil, "call markup is not a plain answer")
         try check((try? ChatWebCommand.parseEntry(#"{"action":"web_read_page","url":"https://e.com/"}"#)) != nil, "entry: read with URL")
         try check((try? ChatWebCommand.parseEntry(#"{"action":"web_navigate","url":"https://e.com/"}"#)) != nil, "entry: navigate")
         try check((try? ChatWebCommand.parseEntry(#"{"action":"web_read_page"}"#)) == nil, "entry: read needs a URL")
@@ -237,6 +253,37 @@ import AssistantModels
             let requests = await model.requests
             try check(requests[1].last?.content.hasPrefix("Host result: your previous reply could not be used") == true, "correction sent")
             try check(result.pagesRead.count == 1, "pages read are kept")
+        }
+        // A plain-text final answer: asked once to come as finish, and a second one in a row is taken as it is.
+        do {
+            let prose = "Here are three purifiers sold in Taiwan for a 33 m² living room, with NT$ prices from one review article and its sources."
+            let model = ScriptedModel([prose, prose])
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry, request: "Compare three air purifiers sold in Taiwan, with NT$ prices.")
+            let requests = await model.requests
+            try check(requests[1].last?.content.hasPrefix("Host result: your previous reply was plain text") == true, "plain text is asked to come as finish")
+            try check(result.status == .succeeded && result.answer == prose && result.modelCalls == 2 && result.sources.map(\.id) == [1],
+                      "a second plain-text answer is delivered with the pages read")
+        }
+        do {
+            let prose = "Here are three purifiers sold in Taiwan for a 33 m² living room, with NT$ prices from one review article and its sources."
+            let model = ScriptedModel([prose, #"<invoke>{"action":"finish","answer":"三款清淨機的比較","sources":[1]}</invoke>"#])
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            try check(result.status == .succeeded && result.answer == "三款清淨機的比較", "the finish that follows the request is used")
+        }
+        // A command inside leaked call markup runs, and the history keeps it bare.
+        do {
+            let model = ScriptedModel(["<invoke>\n{\"action\":\"web_find\",\"text\":\"職缺\"}\n</invoke>", #"{"action":"finish","answer":"好了","sources":[1]}"#])
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            let requests = await model.requests
+            let second = requests.count == 2 ? requests[1] : []
+            try check(result.status == .succeeded && result.steps.contains { $0.kind == .find }, "the command in markup ran")
+            try check(second.count >= 2 && second[second.count - 2].content == #"{"action":"web_find","text":"職缺"}"#, "the history keeps the bare command")
         }
         // Refused addresses and failures come back to the model as results.
         do {

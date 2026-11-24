@@ -255,14 +255,25 @@ public enum ChatWebTaskPrompts {
                 let raw = try await requestCommand(base: base)
                 if let command = try? ChatWebCommand.parse(raw) {
                     invalidInARow = 0
-                    next = (command, ChatWebCommand.unfenced(raw))
+                    // The history keeps the bare command, so leaked call markup is not copied in later replies.
+                    next = (command, ChatWebCommand.withoutCallTags(ChatWebCommand.unfenced(raw)))
                 } else {
                     invalidInARow += 1; invalidTotal += 1
+                    // Play takes a reply without a call as the final answer. Here plain text is asked once
+                    // to come again as finish; a second plain-text answer in a row is taken as it is.
+                    let prose = ChatWebCommand.plainAnswer(raw)
+                    if invalidInARow >= 2, let prose {
+                        invalidInARow = 0
+                        next = (.finish(answer: prose, sources: []), prose)
+                        continue
+                    }
                     guard invalidInARow < 2, invalidTotal <= 4 else {
                         return result(.failed, stop: .invalidCommands, sources: chooseSources([]))
                     }
-                    let correction = """
+                    let correction = prose == nil ? """
                     Host result: your previous reply could not be used and nothing was done. Return exactly one JSON object with one of the listed commands and only its keys, without Markdown fences or other text.
+                    """ : """
+                    Host result: your previous reply was plain text, not a command, so the user has not seen it. If it is your final answer, send it again as one finish command: {"action":"finish","answer":"…","sources":[1,2]}. Otherwise return the next command. Return exactly one JSON object, without Markdown fences or other text.
                     """
                     exchanges.append(Exchange(command: String(raw.prefix(2_000)), observation: correction, compact: correction))
                     next = nil
