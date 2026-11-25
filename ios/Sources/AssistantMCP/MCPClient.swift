@@ -1,14 +1,33 @@
 import Foundation
 
+/// How a client authorizes its requests: "Authorization: Bearer <token>" on every request.
+public enum MCPCredential: Sendable {
+    /// A fixed access token, like the Play build's.
+    case bearer(String)
+    /// An OAuth sign-in (MCPOAuth): the provider's current token, refreshed
+    /// before it expires and once after the server refused it.
+    case oauth(any MCPAccessTokenProviding)
+}
+
+/// Gives an OAuth sign-in's access token (ModelAccountTokenGate, MCPOAuth.tokenGate).
+/// `rejected` is a token the server just refused with HTTP 401: the provider then
+/// refreshes, unless the saved token is already another one. A sign-in that ran
+/// out throws MCPError.signInRequired.
+public protocol MCPAccessTokenProviding: Sendable {
+    func accessToken(rejected: String?) async throws -> String
+}
+
 /// A foreground Streamable HTTP client. It starts no server, discovers no URLs,
 /// performs no automatic retries, and persists no endpoint/session/arguments.
+/// The one exception: an OAuth token the server refused with 401 is refreshed and
+/// the refused request sent once more, since the server ran none of it.
 /// The 2024-11-05 version is accepted over this transport; legacy SSE endpoint
 /// discovery, sampling, elicitation and unsolicited server requests are not enabled.
 public actor MCPClient {
     private let endpoint: URL
     /// Sent as "Authorization: Bearer <token>" on every request, like the Play
-    /// build's access token. Never logged, never part of an error.
-    private let token: String?
+    /// build's access token or an OAuth sign-in's. Never logged, never part of an error.
+    private let credential: MCPCredential?
     private let transport: MCPHTTPTransport
     private let timeout: Duration
     private var server: MCPServerInfo?
@@ -20,16 +39,24 @@ public actor MCPClient {
     static let maximumItems = 10_000
 
     public init(endpoint: URL, token: String? = nil) {
+        self.init(endpoint: endpoint, credential: token.map(MCPCredential.bearer))
+    }
+
+    public init(endpoint: URL, credential: MCPCredential?) {
         self.endpoint = endpoint
-        self.token = token
+        self.credential = credential
         transport = MCPHTTPTransport(configuration: .ephemeral)
         timeout = .seconds(60)
     }
 
     // Injection is internal so production clients always use an ephemeral session.
     init(endpoint: URL, configuration: URLSessionConfiguration, timeout: Duration = .seconds(60), token: String? = nil) {
+        self.init(endpoint: endpoint, configuration: configuration, timeout: timeout, credential: token.map(MCPCredential.bearer))
+    }
+
+    init(endpoint: URL, configuration: URLSessionConfiguration, timeout: Duration = .seconds(60), credential: MCPCredential?) {
         self.endpoint = endpoint
-        self.token = token
+        self.credential = credential
         transport = MCPHTTPTransport(configuration: configuration)
         self.timeout = max(.milliseconds(1), min(timeout, .seconds(60)))
     }
@@ -226,6 +253,41 @@ public actor MCPClient {
     private func request(_ method: String, params: JSONValue?, notification: Bool = false,
                          deadline: ContinuousClock.Instant) async throws -> MCPHTTPReply {
         try Task.checkCancellation()
+        var body: [String: JSONValue] = ["jsonrpc": .string("2.0"), "method": .string(method)]
+        if let params = params { body["params"] = params }
+        var id: String?
+        if !notification { nextID += 1; id = String(nextID); body["id"] = .string(String(nextID)) }
+        let data: Data
+        do { data = try JSONEncoder().encode(JSONValue.object(body)) }
+        catch { throw MCPError.invalidRequest }
+        guard data.count <= MCPHTTPTransport.maximumResponseBytes else { throw MCPError.invalidRequest }
+        let token = try await accessToken(rejected: nil)
+        let reply: MCPHTTPReply
+        do {
+            reply = try await send(data, expectedID: id, token: token, deadline: deadline)
+        } catch let refused as MCPAuthorizationFailure {
+            // A 401 refused the token before the server handled anything, so an OAuth sign-in is
+            // refreshed and the same request sent once more; a second 401 needs a new sign-in.
+            // TODO: step-up authorization. A 403 insufficient_scope (a token without a scope the
+            // server now wants) stays an HTTP 403; a new sign-in does not ask for that scope yet.
+            guard refused.status == 401, case .oauth? = credential else {
+                // A server that names its OAuth sign-in wants one instead of a fixed token or none.
+                if refused.status == 401, refused.challenge?.resourceMetadata != nil { throw MCPError.signInRequired }
+                throw MCPError.sanitized(refused)
+            }
+            let refreshed = try await accessToken(rejected: token)
+            do { reply = try await send(data, expectedID: id, token: refreshed, deadline: deadline) }
+            catch let again as MCPAuthorizationFailure {
+                throw again.status == 401 ? MCPError.signInRequired : MCPError.sanitized(again)
+            }
+        }
+        if method != "initialize", let received = reply.sessionID, received != sessionID { throw MCPError.invalidResponse }
+        return reply
+    }
+
+    private func send(_ body: Data, expectedID: String?, token: String?,
+                      deadline: ContinuousClock.Instant) async throws -> MCPHTTPReply {
+        try Task.checkCancellation()
         let remaining = ContinuousClock.now.duration(to: deadline)
         guard remaining > .zero else { throw MCPError.timedOut }
         let seconds = Double(remaining.components.seconds) + Double(remaining.components.attoseconds) / 1e18
@@ -240,15 +302,22 @@ public actor MCPClient {
         request.setValue(server?.protocolVersion, forHTTPHeaderField: "MCP-Protocol-Version")
         // Redirects are refused (MCPRejectRedirects), so the token only ever goes to this endpoint.
         if let token { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
-        var body: [String: JSONValue] = ["jsonrpc": .string("2.0"), "method": .string(method)]
-        if let params = params { body["params"] = params }
-        var id: String?
-        if !notification { nextID += 1; id = String(nextID); body["id"] = .string(String(nextID)) }
-        do { request.httpBody = try JSONEncoder().encode(JSONValue.object(body)) }
-        catch { throw MCPError.invalidRequest }
-        guard (request.httpBody?.count ?? 0) <= MCPHTTPTransport.maximumResponseBytes else { throw MCPError.invalidRequest }
-        let reply = try await transport.send(request, expectedID: id, deadline: deadline)
-        if method != "initialize", let received = reply.sessionID, received != sessionID { throw MCPError.invalidResponse }
-        return reply
+        request.httpBody = body
+        return try await transport.send(request, expectedID: expectedID, deadline: deadline)
+    }
+
+    /// The token for one request; nil without a credential.
+    private func accessToken(rejected: String?) async throws -> String? {
+        switch credential {
+        case .bearer(let token)?: return token
+        case .oauth(let tokens)?:
+            let token: String
+            do { token = try await tokens.accessToken(rejected: rejected) }
+            catch { throw MCPError.sanitized(error) }
+            // Like a fixed token: one line of visible ASCII, so the header can never be split.
+            guard !token.isEmpty, token.utf8.allSatisfy({ (0x21...0x7e).contains($0) }) else { throw MCPError.signInRequired }
+            return token
+        case nil: return nil
+        }
     }
 }

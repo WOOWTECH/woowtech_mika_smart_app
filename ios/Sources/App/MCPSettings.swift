@@ -4,7 +4,7 @@ import Security
 enum MCPSettingsError: Error, LocalizedError {
     case keychainStatus(OSStatus)
     case invalidEndpoint, invalidToken, unavailableKeychain, invalidTestNamespace, missingLiveTestEndpoint
-    case invalidName, tooManyServers
+    case invalidName, tooManyServers, invalidClient
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +24,8 @@ enum MCPSettingsError: Error, LocalizedError {
             return "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。"
         case .tooManyServers:
             return "最多可以儲存 16 個 MCP 伺服器。"
+        case .invalidClient:
+            return "用戶端 ID 和密鑰要是一行英數字與符號，最長 1 KB。"
         }
     }
 }
@@ -31,23 +33,30 @@ enum MCPSettingsError: Error, LocalizedError {
 protocol MCPEndpointStoring {
     func load() throws -> URL?
     func save(endpoint: String) throws
-    /// Removes everything saved for the server: endpoint, access token and tool choice.
+    /// Removes everything saved for the server: endpoint, access token, OAuth sign-in and tool choice.
     func remove() throws
     /// Like the Play build's optional access token, sent as a Bearer header.
     func loadToken() throws -> String?
     func hasToken() throws -> Bool
     /// nil removes the token.
     func save(token: String?) throws
+    /// The server's OAuth sign-in (MCPOAuthSession as JSON); nil when it does
+    /// not sign in with OAuth.
+    func loadOAuth() throws -> Data?
+    /// nil removes the sign-in, and with it the choice of OAuth.
+    func save(oauth: Data?) throws
     /// The tools the assistant may use; nil means all of them (the Play default).
     func loadAllowedTools() throws -> [String]?
     func save(allowedTools: [String]?) throws
 }
 
-/// Test doubles that only hold an endpoint have no token and allow every tool.
+/// Test doubles that only hold an endpoint have no token or sign-in and allow every tool.
 extension MCPEndpointStoring {
     func loadToken() throws -> String? { nil }
     func hasToken() throws -> Bool { try loadToken() != nil }
     func save(token: String?) throws {}
+    func loadOAuth() throws -> Data? { nil }
+    func save(oauth: Data?) throws {}
     func loadAllowedTools() throws -> [String]? { nil }
     func save(allowedTools: [String]?) throws {}
 }
@@ -62,8 +71,8 @@ protocol MCPSecureItems {
 }
 
 /// One Keychain service holds every MCP item: each server's endpoint, access
-/// token and tool choice, and the server list. FreshInstallKeychainReset removes
-/// the whole service after a reinstall, so every server goes with it.
+/// token, OAuth sign-in and tool choice, and the server list. FreshInstallKeychainReset
+/// removes the whole service after a reinstall, so every server and sign-in goes with it.
 /// No endpoint, hostname, token or secret is written to UserDefaults or diagnostic output.
 struct MCPKeychainItems: MCPSecureItems {
     let service: String
@@ -142,10 +151,11 @@ final class MCPMemoryItems: MCPSecureItems {
     func removeAll() throws { values = [:] }
 }
 
-/// One server's endpoint, access token and tool choice: the accounts
-/// "<prefix>endpoint", "<prefix>token" and "<prefix>allowed-tools". The WHOLE
-/// webhook URL is a credential, including host, path and query, and so is the
-/// access token.
+/// One server's endpoint, access token, OAuth sign-in and tool choice: the
+/// accounts "<prefix>endpoint", "<prefix>token", "<prefix>oauth" and
+/// "<prefix>allowed-tools". The WHOLE webhook URL is a credential, including
+/// host, path and query, and so are the access token and the sign-in's tokens
+/// and client secret.
 struct MCPSettingsStore: MCPEndpointStoring {
     let items: any MCPSecureItems
     /// "" for the server of the single-server version: its accounts stay as
@@ -162,7 +172,7 @@ struct MCPSettingsStore: MCPEndpointStoring {
     }
 
     static let productionService = "io.woowtech.assistant.mcp-endpoint.v1"
-    static let accounts = ["endpoint", "token", "allowed-tools"]
+    static let accounts = ["endpoint", "token", "oauth", "allowed-tools"]
 
     /// Bearer tokens are visible ASCII without spaces, so the header can never be
     /// split or extended. Home Assistant's long-lived tokens are JWTs and pass.
@@ -172,6 +182,17 @@ struct MCPSettingsStore: MCPEndpointStoring {
         guard !token.isEmpty, token.utf8.count <= maximumTokenBytes,
               token.utf8.allSatisfy({ (0x21...0x7e).contains($0) }) else { throw MCPSettingsError.invalidToken }
         return token
+    }
+
+    /// A client the user registered for OAuth (RFC 6749 §2.2: printable ASCII):
+    /// one line of at most 1 KB. An empty secret is a public client.
+    static let maximumClientBytes = 1024
+    static func validateClient(_ text: String, optional: Bool = false) throws -> String {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.isEmpty, optional { return value }
+        guard !value.isEmpty, value.utf8.count <= maximumClientBytes,
+              value.utf8.allSatisfy({ (0x20...0x7e).contains($0) }) else { throw MCPSettingsError.invalidClient }
+        return value
     }
 
     static func validate(_ text: String) throws -> URL {
@@ -212,8 +233,8 @@ struct MCPSettingsStore: MCPEndpointStoring {
         try items.write(Data(url.absoluteString.utf8), account: prefix + "endpoint")
     }
 
-    /// This server's accounts only: the endpoint, access token and tool
-    /// choice. The server list and the other servers stay.
+    /// This server's accounts only: the endpoint, access token, OAuth sign-in
+    /// and tool choice. The server list and the other servers stay.
     func remove() throws {
         for name in Self.accounts { try items.remove(prefix + name) }
     }
@@ -228,6 +249,14 @@ struct MCPSettingsStore: MCPEndpointStoring {
     func save(token: String?) throws {
         guard let token else { return try items.remove(prefix + "token") }
         try items.write(Data(try Self.validateToken(token).utf8), account: prefix + "token")
+    }
+
+    /// Kept whole, ThisDeviceOnly like every item: never logged or shown.
+    func loadOAuth() throws -> Data? { try items.read(prefix + "oauth") }
+
+    func save(oauth: Data?) throws {
+        guard let oauth else { return try items.remove(prefix + "oauth") }
+        try items.write(oauth, account: prefix + "oauth")
     }
 
     func loadAllowedTools() throws -> [String]? {
@@ -325,9 +354,10 @@ struct MCPServerDirectory {
         MCPSettingsStore(items: items, prefix: record.accountPrefix)
     }
 
-    /// Writes a new server's endpoint and token, then the list. When any write
-    /// fails, nothing of the new server is left behind.
-    func add(name: String, endpoint: String, token: String?, to records: [MCPServerRecord]) throws -> MCPServerRecord {
+    /// Writes a new server's endpoint and token or OAuth choice, then the list.
+    /// When any write fails, nothing of the new server is left behind.
+    func add(name: String, endpoint: String, token: String?, oauth: Data? = nil,
+             to records: [MCPServerRecord]) throws -> MCPServerRecord {
         guard records.count < Self.maximumServers else { throw MCPSettingsError.tooManyServers }
         let url = try MCPSettingsStore.validate(endpoint)
         let token = try token.map(MCPSettingsStore.validateToken)
@@ -337,6 +367,7 @@ struct MCPServerDirectory {
         do {
             try store.save(endpoint: url.absoluteString)
             if let token { try store.save(token: token) }
+            if let oauth { try store.save(oauth: oauth) }
             try save(records + [record])
         } catch {
             try? store.remove()

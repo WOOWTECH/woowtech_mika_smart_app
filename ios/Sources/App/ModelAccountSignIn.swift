@@ -256,7 +256,7 @@ final class ModelAccountSignIn: ObservableObject {
     private static let pageCloseNanoseconds: UInt64 = 700_000_000
 
     /// No page ever redirects here; OpenAI sends the browser back to the loopback listener.
-    private static let unusedCallbackScheme = "io.woowtech.assistant.signin"
+    static let unusedCallbackScheme = "io.woowtech.assistant.signin"
 
     private func authPageClosed(_ error: Error?) {
         guard authSession != nil else { return }
@@ -427,11 +427,7 @@ final class ModelAccountSignIn: ObservableObject {
     }
 
     /// A server's error code as shown: short, and only the characters codes use.
-    nonisolated static func shownCode(_ code: String?) -> String {
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
-        guard let code, !code.isEmpty, code.count <= 64, code.unicodeScalars.allSatisfy(allowed.contains) else { return "unknown" }
-        return code
-    }
+    nonisolated static func shownCode(_ code: String?) -> String { AppLocalizer.signInCode(code) }
 }
 
 /// The repository handed to the listener's callback, which runs off the main actor.
@@ -440,11 +436,17 @@ private struct ModelAccountRepositoryBox: @unchecked Sendable {
 }
 
 /// The page the loopback listener answers the browser with, in the interface language.
-private struct ModelAccountCallbackPage: @unchecked Sendable {
+struct ModelAccountCallbackPage: @unchecked Sendable {
     let localizer: AppLocalizer
 
     func html(_ error: ChatGPTSignInError?) -> String {
-        let message = error.map { localizer.text(ModelAccountSignIn.failureText(.chatGPT, $0)) } ?? localizer.text(.chatgptPageDone)
+        html(message: error.map { localizer.text(ModelAccountSignIn.failureText(.chatGPT, $0)) } ?? localizer.text(.chatgptPageDone))
+    }
+
+    /// Another sign-in's page (an MCP server's): nil is signed in.
+    func html(failure: AppText?) -> String { html(message: localizer.text(failure ?? .chatgptPageDone)) }
+
+    private func html(message: String) -> String {
         let title = Self.escaped(localizer.text(.shellBrandTitle))
         return "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             + "<title>\(title)</title></head><body style=\"font-family:-apple-system,sans-serif;margin:40px 24px;text-align:center\">"
@@ -457,9 +459,9 @@ private struct ModelAccountCallbackPage: @unchecked Sendable {
     }
 }
 
-/// The window ASWebAuthenticationSession shows OpenAI's page over.
+/// The window ASWebAuthenticationSession shows a sign-in page over (OpenAI's, an MCP server's).
 @MainActor
-private final class ModelAccountPresentationAnchor: NSObject, ASWebAuthenticationPresentationContextProviding {
+final class ModelAccountPresentationAnchor: NSObject, ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let windows = scenes.flatMap(\.windows)

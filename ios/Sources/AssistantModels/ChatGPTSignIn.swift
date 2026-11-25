@@ -239,7 +239,7 @@ extension ChatGPTSignIn {
             scopes: (root["scope"] as? String)?.split(separator: " ").map(String.init) ?? []))
     }
 
-    static func formRequest(_ url: String, _ fields: [(String, String)]) -> URLRequest {
+    public static func formRequest(_ url: String, _ fields: [(String, String)]) -> URLRequest {
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -250,11 +250,11 @@ extension ChatGPTSignIn {
 
     /// OkHttp 4.12's query-component and form encoding, which the Play build sends: only
     /// `A–Z a–z 0–9 - . _ *` stay; every other UTF-8 byte is %XX (a space is %20, `+` is %2B).
-    static func formEncode(_ fields: [(String, String)]) -> String {
+    public static func formEncode(_ fields: [(String, String)]) -> String {
         fields.map { percentEncode($0.0) + "=" + percentEncode($0.1) }.joined(separator: "&")
     }
 
-    static func percentEncode(_ text: String) -> String {
+    public static func percentEncode(_ text: String) -> String {
         let hex = Array("0123456789ABCDEF".utf8)
         var out: [UInt8] = []
         for byte in text.utf8 {
@@ -271,7 +271,7 @@ extension ChatGPTSignIn {
     }
 
     /// A JSON integer (or an integer written as a string, like kotlinx `longOrNull`); not a Boolean.
-    static func int64(_ value: Any?) -> Int64? {
+    public static func int64(_ value: Any?) -> Int64? {
         if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() {
             let double = number.doubleValue
             guard double == double.rounded(), abs(double) < 9.2e18 else { return nil }
@@ -582,10 +582,10 @@ extension ChatGPTSignIn {
                               expiresAtMs: nowMs() + tokens.expiresIn * 1000, scopes: tokens.scopes)
     }
 
-    struct DeadlineExceeded: Error {}
+    public struct DeadlineExceeded: Error {}
 
     /// `body`'s value, or `DeadlineExceeded` after `seconds` (the body is cancelled).
-    static func withDeadline<T: Sendable>(_ seconds: TimeInterval,
+    public static func withDeadline<T: Sendable>(_ seconds: TimeInterval,
                                           _ body: @escaping @Sendable () async throws -> T) async throws -> T {
         try await withThrowingTaskGroup(of: T?.self) { group in
             group.addTask { try await body() }

@@ -135,7 +135,10 @@ public enum ModelAccountClock {
 public actor ModelAccountTokenGate<Session: ModelAccountSessionValue> {
     public typealias Refresh = @Sendable (Session) async throws -> ModelAccountRefreshResult<Session>
 
-    private let kind: ModelAccountKind
+    /// What a call throws when this device has to sign in again, and when the
+    /// issuer refused a refresh for another reason.
+    private let signInExpired: any Error & Sendable
+    private let refused: any Error & Sendable
     private let load: @Sendable () throws -> Session?
     private let save: @Sendable (_ before: Session, _ after: Session) throws -> Void
     private let refresh: Refresh
@@ -153,7 +156,20 @@ public actor ModelAccountTokenGate<Session: ModelAccountSessionValue> {
                 save: @escaping @Sendable (_ before: Session, _ after: Session) throws -> Void,
                 refresh: @escaping Refresh,
                 accept: @escaping @Sendable (Session) throws -> Void = { _ in }) {
-        self.kind = kind; self.refreshAheadMs = refreshAheadMs; self.nowMs = nowMs
+        self.init(signInExpired: ModelAccountError.signInExpired(kind), refused: ModelAccountError.unauthorized(kind),
+                  refreshAheadMs: refreshAheadMs, nowMs: nowMs, load: load, save: save, refresh: refresh, accept: accept)
+    }
+
+    /// A sign-in that is not a model account (an MCP server's OAuth sign-in):
+    /// its calls throw `signInExpired` and `refused` instead of ModelAccountError.
+    public init(signInExpired: any Error & Sendable, refused: any Error & Sendable, refreshAheadMs: Int64 = 300_000,
+                nowMs: @escaping @Sendable () -> Int64 = { ModelAccountClock.nowMs() },
+                load: @escaping @Sendable () throws -> Session?,
+                save: @escaping @Sendable (_ before: Session, _ after: Session) throws -> Void,
+                refresh: @escaping Refresh,
+                accept: @escaping @Sendable (Session) throws -> Void = { _ in }) {
+        self.signInExpired = signInExpired; self.refused = refused
+        self.refreshAheadMs = refreshAheadMs; self.nowMs = nowMs
         self.load = load; self.save = save; self.refresh = refresh; self.accept = accept
     }
 
@@ -170,12 +186,12 @@ public actor ModelAccountTokenGate<Session: ModelAccountSessionValue> {
     }
 
     private func current(rejected: String?) async throws -> String {
-        guard let session = try load(), session.signedIn else { throw ModelAccountError.signInExpired(kind) }
+        guard let session = try load(), session.signedIn else { throw signInExpired }
         let token = session.accessToken
         if !token.isEmpty, token != rejected, nowMs() < session.expiresAtMs - refreshAheadMs { return token }
         guard !session.refreshToken.isEmpty else {
             try? save(session, session.signedOut())
-            throw ModelAccountError.signInExpired(kind)
+            throw signInExpired
         }
         switch try await refresh(session) {
         case .refreshed(let next):
@@ -187,10 +203,10 @@ public actor ModelAccountTokenGate<Session: ModelAccountSessionValue> {
         case .rejected(let terminal):
             if terminal {
                 try? save(session, session.signedOut())
-                throw ModelAccountError.signInExpired(kind)
+                throw signInExpired
             }
             // A client problem and the like: retrying won't help, but the token isn't dead.
-            throw ModelAccountError.unauthorized(kind)
+            throw refused
         case .failed(let error):
             throw error
         }

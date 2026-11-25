@@ -2196,6 +2196,222 @@
       }
     },
     {
+      "case": "mcpInvalidClient",
+      "key": "mcp.invalid.client",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用戶端 ID 和密鑰要是一行英數字與符號，最長 1 KB。",
+        "en": "The client ID and secret must each be one line of letters, digits and symbols, at most 1 KB."
+      }
+    },
+    {
+      "case": "mcpAuth",
+      "key": "mcp.auth",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "驗證方式",
+        "en": "Authentication"
+      }
+    },
+    {
+      "case": "mcpAuthNone",
+      "key": "mcp.auth.none",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不需要",
+        "en": "None"
+      }
+    },
+    {
+      "case": "mcpAuthToken",
+      "key": "mcp.auth.token",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "固定權杖",
+        "en": "Fixed token"
+      }
+    },
+    {
+      "case": "mcpAuthOAuth",
+      "key": "mcp.auth.oauth",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "OAuth 登入",
+        "en": "OAuth sign-in"
+      }
+    },
+    {
+      "case": "mcpAuthOAuthHelp",
+      "key": "mcp.auth.oauth.help",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "按「登入」會開啟伺服器的登入頁，登入後回到 App。權杖會自動更新，只保存在這台裝置的 Keychain。",
+        "en": "Sign in opens the server’s sign-in page, then returns to the app. Tokens renew by themselves and stay only in this device’s Keychain."
+      }
+    },
+    {
+      "case": "mcpSignIn",
+      "key": "mcp.sign.in",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入",
+        "en": "Sign in"
+      }
+    },
+    {
+      "case": "mcpSignOut",
+      "key": "mcp.sign.out",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登出",
+        "en": "Sign out"
+      }
+    },
+    {
+      "case": "mcpSigningIn",
+      "key": "mcp.signing.in",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等待瀏覽器登入…",
+        "en": "Waiting for browser sign-in…"
+      }
+    },
+    {
+      "case": "mcpCancelSignIn",
+      "key": "mcp.cancel.sign.in",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消登入",
+        "en": "Cancel sign-in"
+      }
+    },
+    {
+      "case": "mcpSignedIn",
+      "key": "mcp.signed.in",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已登入",
+        "en": "Signed in"
+      }
+    },
+    {
+      "case": "mcpNotSignedIn",
+      "key": "mcp.not.signed.in",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未登入",
+        "en": "Not signed in"
+      }
+    },
+    {
+      "case": "mcpSignInRequired",
+      "key": "mcp.sign.in.required",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要重新登入",
+        "en": "Sign in again"
+      }
+    },
+    {
+      "case": "mcpSignInRequiredError",
+      "key": "mcp.sign.in.required.error",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個伺服器的登入已失效或被拒絕，請按「登入」重新登入。",
+        "en": "This server’s sign-in has expired or was refused. Tap Sign in to sign in again."
+      }
+    },
+    {
+      "case": "mcpOAuthRequired",
+      "key": "mcp.oauth.required",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個伺服器要求用 OAuth 登入：把「驗證方式」改成「OAuth 登入」並儲存，再按「登入」。",
+        "en": "This server asks for an OAuth sign-in: set Authentication to OAuth sign-in, save, then tap Sign in."
+      }
+    },
+    {
+      "case": "mcpSignedInNotice",
+      "key": "mcp.signed.in.notice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入成功。可以按「連線並探索目錄」檢查工具。",
+        "en": "Signed in. Tap Connect and discover catalog to check the tools."
+      }
+    },
+    {
+      "case": "mcpSignedOutNotice",
+      "key": "mcp.signed.out.notice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已登出：這台裝置上這個伺服器的權杖已清除。要連授權一起撤銷，請到該服務的帳號設定。",
+        "en": "Signed out: this server’s tokens were removed from this device. To revoke the access as well, use the service’s account settings."
+      }
+    },
+    {
+      "case": "mcpUserClient",
+      "key": "mcp.user.client",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "進階：自行註冊的用戶端",
+        "en": "Advanced: your own registered client"
+      }
+    },
+    {
+      "case": "mcpClientID",
+      "key": "mcp.client.id",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用戶端 ID（Client ID）",
+        "en": "Client ID"
+      }
+    },
+    {
+      "case": "mcpClientSecret",
+      "key": "mcp.client.secret",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用戶端密鑰（選填）",
+        "en": "Client secret (optional)"
+      }
+    },
+    {
+      "case": "mcpUserClientHelp",
+      "key": "mcp.user.client.help",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "伺服器不讓 App 自動註冊時才需要：先在它的授權伺服器註冊一個用戶端，重新導向網址填 http://127.0.0.1/auth/callback（要接受任何連接埠），再把 Client ID 填在這裡，儲存後登入。留空就自動註冊。",
+        "en": "Only needed when the server doesn’t let apps register themselves: register a client with its authorization server with the redirect URL http://127.0.0.1/auth/callback (any port must be accepted), enter its client ID here, save, then sign in. Leave it empty to register automatically."
+      }
+    },
+    {
+      "case": "mcpUserClientStored",
+      "key": "mcp.user.client.stored",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已儲存自行註冊的用戶端；不顯示內容。",
+        "en": "Your registered client is saved; it isn’t shown."
+      }
+    },
+    {
+      "case": "mcpSignInFailSetup",
+      "key": "mcp.sign.in.fail.setup",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "找不到這個伺服器的登入設定，或設定不完整，無法用 OAuth 登入。",
+        "en": "This server’s sign-in settings are missing or incomplete, so OAuth sign-in can’t be used."
+      }
+    },
+    {
+      "case": "mcpSignInFailNoRegistration",
+      "key": "mcp.sign.in.fail.no.registration",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個伺服器不讓 App 自動註冊。請先在它的授權伺服器註冊用戶端，再到「進階」填入 Client ID 後重新登入。",
+        "en": "This server doesn’t let apps register themselves. Register a client with its authorization server, enter its client ID under Advanced, then sign in again."
+      }
+    },
+    {
       "case": "searchTitle",
       "key": "search.title",
       "parameters": [],
