@@ -25,8 +25,10 @@ class MCPOAuthTests(unittest.TestCase):
         for source, old, new in [
                 (OAUTH, 'guard params["state"] == attempt.state else', 'guard params["state"] != nil else'),
                 (OAUTH, '("code_verifier", attempt.verifier)', '("code_verifier", attempt.state)'),
-                (OAUTH, "[allowed(challenge?.resourceMetadata), wellKnown(", "[wellKnown("),
+                (OAUTH, "[http.allows(challenge?.resourceMetadata), wellKnown(", "[wellKnown("),
                 (OAUTH, 'return found == expected || found == expected + "/" || found + "/" == expected', "return !found.isEmpty"),
+                (OAUTH, "init(configuration: URLSessionConfiguration, allowsLoopbackHTTP: Bool = false)",
+                 "init(configuration: URLSessionConfiguration, allowsLoopbackHTTP: Bool = true)"),
                 (CLIENT, "let refreshed = try await accessToken(rejected: token)", "let refreshed = token"),
                 (SESSION, "if (error as? MCPError) == .signInRequired {", "if (error as? MCPError) == .transportFailure {")]:
             original = (ROOT / source).read_text()
