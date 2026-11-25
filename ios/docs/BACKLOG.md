@@ -20,7 +20,9 @@
 - [x] Persistent WebKit profiles, independent live tabs, encrypted bookmarks/history and metadata restoration (acceptance tracked per revision).
 - [ ] Site-mode controls and full process/login recovery parity.
 - [ ] Decide explicit opt-in local-network browsing policy; the starter URL filter defaults to public destinations and does not yet satisfy full Mika parity.
-- [x] Manual native browser file chooser, bounded WKDownload storage, progress/cancel/share/delete and selected-PDF import/execution.
+- [x] Manual native browser file chooser. Browser downloads and the downloaded-PDF import/execution were removed on 2026-11-14 (b96a1eb2, like the Play build).
+- [ ] Browser downloads again (owner decision 2026-11-25, unlike the Play build), on `feature/ios-next-files-20261125`, not in 291: a question before each download, bounded storage in the app (200 MB a file, 500 MB in all), progress/stop, 存到檔案/分享/附加到對話/移除 and cleanup after a day (docs-woowtech/BROWSER_DOWNLOADS.md). Local rule and WebKit policy checks pass; build, simulator and device acceptance pending.
+- [ ] Files the assistant creates with file_create (PDF, Word, Excel, PowerPoint, ZIP), same branch: native writers, a card to preview, save or share, nothing leaves the app before the person taps (docs-woowtech/DOCUMENT_GENERATION.md). Writer and parsing checks pass; real-model and device acceptance pending.
 - [ ] General chat attachments, file metadata and output workspace integration.
 - [x] XCTest / XCUITest fixtures for run cancellation, app relaunch and browser navigation, including hosted WebKit integration (revision-specific acceptance in VERIFICATION).
 

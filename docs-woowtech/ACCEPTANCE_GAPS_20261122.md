@@ -33,6 +33,7 @@
 - **[P]** [iPad 269 團隊回歸](IPAD_269_TEAM_VALIDATION.md)，含 native273–275、正式／QA iPad、Android 實機及保留失敗。
 - **[D]** [文件產生實作與逐次驗證](DOCUMENT_GENERATION.md)，含 iPad248–251、iOS／Android 模擬器、文件生命週期與能力邊界。
 - **[V]** [iPad 歷史視覺回歸](IPAD_VISUAL_VALIDATION.md)。舊段落的「未測」以後續精確版本結果補充，不整段升格為新版通過。
+- **[DL]** [瀏覽器下載規格](BROWSER_DOWNLOADS.md)與[助理建立檔案](DOCUMENT_GENERATION.md#2026-11-25-助理建立檔案file_create)：owner 2026-11-25 決定，分支`feature/ios-next-files-20261125`，不在291；本機規則／寫入器／WebKit政策檢查與iOS17 typecheck通過，未做完整建置、模擬器或真機。
 
 ## 版本與執行環境不能互換
 
@@ -66,7 +67,7 @@
 | 預設選擇／認證／模型供應商 | **部分驗證／目前單模型受阻**：272唯讀清單只有1個既有且selected項，未切換／探測；strict credential狀態unknown。固定「已連線」不當可用性，型別只由來源映射推論 [J]。既有ChatGPT/xAI入口及舊iPad真短答保留 [P] | 274於20:53單次探測仍UI限流[W]（raw HTTP未知），無既有替代供應商；真服務恢復需可用模型／已授權帳號。全新安裝預設、登入到期／恢復、多供應商／視覺／斷線逾時仍缺。全域picker有隱含probe及consent寫入，不盲切；不捏造憑證或把限流當認證失敗 |
 | 瀏覽搜尋／歷史 | **部分驗證／測試前置已修**：舊受控WebKit對照證明pill匹配可早於保存；UITest現要求ready且無workspace error，native297精確案例1/1，重啟同namespace讀到1筆精確搜尋及引擎 [B]；舊iPad／native7結果各留原版本 [D,F] | 舊失敗最後AX至terminate缺逐callback時間線，不能完全歸因；297為本機WebKit合成頁，無產品保存程式修補；274另補公開URL真載入／一次重啟保存[Y]，未重跑自訂搜尋。真網站的新增查詢、登入／跳轉仍須正式裝置證據；commit本身不當保存界線 |
 | 瀏覽器網站登入／跳轉 | **已有入口、商用流程未完**：網站資料保留與合成登入案例有歷史文件；這批270未做新登入／跳轉 [F,D] | 需指定已授權網站與帳號，由使用者完成必要驗證；最小檢查登入→同源／跨源回跳→重啟會話→明示登出。fixture cookie保存不能替代真網站驗收 |
-| 瀏覽器下載／單筆歷史刪除 | **目前未提供，不是待測PASS**：270人工瀏覽明確拒絕下載；只有清空全部歷史UI，沒有單筆刪除入口 [D,F；來源見下] | 下載屬2026-11-14配合Play移除的能力，不依舊文件當成現存功能。若恢復成產品需求，先定下載授權／檔案交付／清理規格再實作；單筆歷史底層方法存在，缺的是UI。既有文件匯出成功不能填此格 |
+| 瀏覽器下載／單筆歷史刪除 | **下載：規格已定、下一版分支已實作，未驗收**：291以前（含270）人工瀏覽仍拒絕下載 [D,F]。owner 2026-11-25決定恢復（與Play不同），授權／交付／清理規格見[DL]，本機規則與真WebKit政策檢查通過。**單筆歷史：** 仍只有清空全部歷史UI [來源見下] | 下載待完整建置後依[DL]清單驗：真網站三種觸發、提問與取消、上限／停止、存到檔案／分享／附加到對話、任務交接、重啟清理；不以本機檢查或舊下載文件充當。單筆歷史底層方法存在，缺的是UI。既有文件匯出成功不能填此格 |
 | HTML／PDF基本文件 | **272短篇限定通過**：既有39字回覆→生成／預覽重開／系統保存，HTML1271、PDF18442 bytes與cache逐byte一致；PDFKit1頁完整來源、實際取消及4檔限定清理 [J]。舊iPad100列5頁留原版本 [D] | 下一個未測情境為中文寬／長表多頁PDF、系統閱讀器與實際接收端；不重跑短篇充數。不挪用舊iPad多頁結果補272 |
 | 文件錯誤與預覽邊界 | **已實作／本機限定通過**：`21a884b8`來源錯誤／UTF-8／quota修補，native28940/40、Android2908/8與兩品牌編譯 [D,N]；272短篇文件／系統取消有真機證據 [J]。PDF Publishing本次定位並修duration-only發布，299紅→300三案綠，尚不在272 [K] | 272未驗無效來源／64KiB／生成中取消；274已有一頁PDF／關閉後鍵盤及Return實機[G]，警告管線無控制事件仍UNKNOWN。hosted preference、294 AX及295串流失敗仍各留；Android新修補instrumentation／真機、CSV接收端／ENOSPC仍缺 |
 | CSV正向與接收端 | **270未測；其他環境部分通過**：iPad248真CSV保存與精確bytes、公式防護／前導零；Android API36真觸控CSV與POCO文件證據 [D,P] | 在iPhone選一張含中文／引號／換行／前導零／公式字串的表，保存並比對完整bytes。目標試算表開啟需實際接收App（舊iPad缺Numbers）；與系統預覽分開判定 |
@@ -77,15 +78,15 @@
 
 ## 已確認的實作邊界
 
-- [ChatSession.swift](../ios/Sources/App/ChatSession.swift)：`ChatDraft.text`為記憶體狀態；[BrowserSession.swift](../ios/Sources/App/BrowserSession.swift)：`shouldPerformDownload`／不可顯示response拒絕及`noDownloadMessage`；[BrowserStartPageView.swift](../ios/Sources/App/BrowserStartPageView.swift)只有清空歷史入口，[BrowserWorkspace.swift](../ios/Sources/App/BrowserWorkspace.swift)已有`removeHistory`方法。以上將「未提供UI／持久化」與「缺測試」分開。
+- [ChatSession.swift](../ios/Sources/App/ChatSession.swift)：`ChatDraft.text`為記憶體狀態；[BrowserSession.swift](../ios/Sources/App/BrowserSession.swift)：291以前`shouldPerformDownload`／不可顯示response一律拒絕，下一版分支改為只放行使用者自己點的下載並先提問（[DL]），非使用者點的仍以`noDownloadMessage`拒絕；[BrowserStartPageView.swift](../ios/Sources/App/BrowserStartPageView.swift)只有清空歷史入口，[BrowserWorkspace.swift](../ios/Sources/App/BrowserWorkspace.swift)已有`removeHistory`方法。以上將「未提供UI／持久化」與「缺測試」分開。
 - [ModelProviderSettingsView.swift](../ios/Sources/App/ModelProviderSettingsView.swift)及[帳號／多MCP計畫](../ios/docs/ACCOUNT_SIGNIN_MULTI_MCP_PLAN.md)可用來定位設定與登入路徑；計畫的Phase／Done means不是實際通過證據。[連線檢查邊界](../ios/docs/MODEL_CONNECTION_CHECK.md)亦明示單一文字測試不保證串流、工具、視覺或供應商全支援。
-- [Memory／Skills文件](../ios/docs/MEMORY_SKILLS_PARITY.md#ios-only-screens-removed--2026-11-14)保留2026-11-14移除頁面／瀏覽下載的決策；前面的歷史實作與[11/12瀏覽器稽核](../ios/docs/ANDROID_BROWSER_PARITY_AUDIT.md)不能倒推270仍有下載。任意自然語言產檔代理、Word／Excel、雲端產檔、自動外送仍在[D]首版範圍外，不假裝已實作或自動擴增本輪任務。
+- [Memory／Skills文件](../ios/docs/MEMORY_SKILLS_PARITY.md#ios-only-screens-removed--2026-11-14)保留2026-11-14移除頁面／瀏覽下載的決策；前面的歷史實作與[11/12瀏覽器稽核](../ios/docs/ANDROID_BROWSER_PARITY_AUDIT.md)不能倒推270仍有下載。291以前任意自然語言產檔、Word／Excel仍在[D]首版範圍外；下一版分支以file_create補上PDF／Word／Excel／PowerPoint／ZIP建立（[DL]），使用者按存到檔案或分享前不離開App，尚未真模型／真機驗收。雲端產檔、自動外送仍不在範圍內，不假裝已實作。
 
 ## 接續順序與關閉條件
 
 1. **先關實際遮字缺陷**：Parent修產品／串流測試、Mendel加嚴可見性回歸；本文件不碰其檔案。只在新build的精確native案例及原iPhone相同短歷史畫面過關後更新該列，270本身的失敗不改寫。
 2. **補不依賴新帳號的缺口**：iPhone CSV正向／多頁PDF、一次新增搜尋重啟、相機／相簿、未測鍵盤模式；先利用已保存回答／自有QA資料。實際執行由Parent序列安排，此表不是新的全套測試指令。
 3. **有前置才驗真服務**：模型限流解除後做原A31唯讀MCP完整終態，再補有授權的供應商／網站登入；無有效服務／帳號或外接硬體就明記blocked，不用mock補成商用通過。技能真模型檢索與外部接收端亦各自留證。
-4. **實作缺口另列變更**：持久草稿、單筆歷史入口、已移除下載、Android錯誤契約先確認範圍；不得因舊測試或舊能力表存在就聲稱已完成。每次關閉缺口須附來源commit、安裝build／裝置OS、真／合成服務、具體步驟與產物／畫面；保留失敗及未測邊界。
+4. **實作缺口另列變更**：持久草稿、單筆歷史入口、Android錯誤契約先確認範圍；下載與建立檔案的範圍已在[DL]定案並於下一版分支實作，待完整建置驗收；不得因舊測試或舊能力表存在就聲稱已完成。每次關閉缺口須附來源commit、安裝build／裝置OS、真／合成服務、具體步驟與產物／畫面；保留失敗及未測邊界。
 
 本表整合各證據文件的實際執行結果；獨立核對不重複計為新實機操作，任何單項PASS均不表示270或後續版本商用全數通過。
