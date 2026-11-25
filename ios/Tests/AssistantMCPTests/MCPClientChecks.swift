@@ -234,7 +234,9 @@ enum MCPClientChecks {
             (.init(chunks: [Data(repeating: 32, count: MCPHTTPTransport.maximumResponseBytes + 1)]), .responseTooLarge),
             (.init(headers: ["Content-Type": "text/event-stream"], chunks: [Data("data: {}\n".utf8)]), .invalidResponse),
             (.init(headers: ["Content-Type": "text/html"], chunks: [Data("secret".utf8)]), .invalidResponse),
-            (.init(failure: URLError(.cannotConnectToHost, userInfo: [NSURLErrorFailingURLStringErrorKey: "secret"])), .transportFailure)
+            (.init(failure: URLError(.cannotConnectToHost,
+                                     userInfo: [NSURLErrorFailingURLErrorKey: URL(string: "https://fixture.invalid/secret")!])),
+             .transportFailure)
         ] {
             let scenario = MCPProtocolFixture.Scenario { _, _, _ in reply }
             let url = MCPProtocolFixture.register(scenario)
