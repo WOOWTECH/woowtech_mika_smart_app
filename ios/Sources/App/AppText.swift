@@ -713,6 +713,20 @@ enum AppText: Equatable {
     case chatAttachVisionFailedAgain
     case chatAttachVisionFailedNoPictures
     case chatAttachUnreadable
+    case chatFileCreating
+    case chatFileSave
+    case chatFileShare
+    case chatFileRemove
+    case chatFilePreviewHint
+    case chatFileSaved
+    case chatFileShared
+    case chatFileRemoved
+    case chatFileMissing
+    case chatFileKindPDF
+    case chatFileKindWord
+    case chatFileKindExcel
+    case chatFileKindPowerPoint
+    case chatFileKindZIP
     case chatMessageCopy
     case chatMessageCopied
     case chatMessageQuote
@@ -1819,6 +1833,20 @@ enum AppText: Equatable {
         case .chatAttachVisionFailedAgain: return "chat.attach.visionFailed.again"
         case .chatAttachVisionFailedNoPictures: return "chat.attach.visionFailed.noPictures"
         case .chatAttachUnreadable: return "chat.attach.unreadable"
+        case .chatFileCreating: return "chat.file.creating"
+        case .chatFileSave: return "chat.file.save"
+        case .chatFileShare: return "chat.file.share"
+        case .chatFileRemove: return "chat.file.remove"
+        case .chatFilePreviewHint: return "chat.file.previewHint"
+        case .chatFileSaved: return "chat.file.saved"
+        case .chatFileShared: return "chat.file.shared"
+        case .chatFileRemoved: return "chat.file.removed"
+        case .chatFileMissing: return "chat.file.missing"
+        case .chatFileKindPDF: return "chat.file.kind.pdf"
+        case .chatFileKindWord: return "chat.file.kind.word"
+        case .chatFileKindExcel: return "chat.file.kind.excel"
+        case .chatFileKindPowerPoint: return "chat.file.kind.powerPoint"
+        case .chatFileKindZIP: return "chat.file.kind.zip"
         case .chatMessageCopy: return "chat.message.copy"
         case .chatMessageCopied: return "chat.message.copied"
         case .chatMessageQuote: return "chat.message.quote"
@@ -3052,6 +3080,20 @@ enum AppText: Equatable {
         case .chatAttachVisionFailedAgain: return "請再試一次，或到設定的模型頁換一個看圖模型。"
         case .chatAttachVisionFailedNoPictures: return "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。"
         case .chatAttachUnreadable: return "這些附件讀不到內容，沒有加入："
+        case .chatFileCreating: return "正在建立檔案…"
+        case .chatFileSave: return "存到檔案"
+        case .chatFileShare: return "分享"
+        case .chatFileRemove: return "移除檔案"
+        case .chatFilePreviewHint: return "預覽檔案"
+        case .chatFileSaved: return "已存到檔案，App 裡的副本已刪除"
+        case .chatFileShared: return "已分享，App 裡的副本已刪除"
+        case .chatFileRemoved: return "已移除，App 裡的副本已刪除"
+        case .chatFileMissing: return "這個檔案已經不在了，可以請助理重新建立"
+        case .chatFileKindPDF: return "PDF 文件"
+        case .chatFileKindWord: return "Word 文件"
+        case .chatFileKindExcel: return "Excel 試算表"
+        case .chatFileKindPowerPoint: return "PowerPoint 簡報"
+        case .chatFileKindZIP: return "ZIP 壓縮檔"
         case .chatMessageCopy: return "複製"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"

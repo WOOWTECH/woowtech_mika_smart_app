@@ -78,6 +78,7 @@ struct ContentView: View {
             }
             mcpServers.onConnectionChange = { [weak session] in session?.cancelMCP() }
             session.interfaceLanguage = { [weak languages] in languages?.resolved ?? .traditionalChinese }
+            session.fileTool = ChatFileCreation.tool(store: session.createdFileStore)
             // Like Android, no banner about the chat that is already in front.
             notifications.isOnScreen = { destination in
                 switch destination {
@@ -615,6 +616,7 @@ private struct ChatView: View {
     @State private var selectingText: ChatSelectTextTarget?
     @State private var reportTarget: AIResponseReportTarget?
     @State private var documentTarget: DocumentExportSource?
+    @State private var createdFileDelivery: ChatCreatedFileDelivery?
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
@@ -772,6 +774,15 @@ private struct ChatView: View {
             if !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.attachments.isEmpty {
                 messageBubble(index: index, entry: entry, words: words, targets: targets)
             }
+            // The files this reply made (file_create), each waiting for the person.
+            if let files = session.createdFiles[entry.id], !files.isEmpty {
+                ChatCreatedFileCards(files: files, colors: attachmentColors, localizer: localizer,
+                                     identifier: "chat.message.\(index).files",
+                                     onPreview: previewCreatedFile,
+                                     onSave: { deliverCreatedFile(.save($0)) },
+                                     onShare: { deliverCreatedFile(.share($0)) },
+                                     onRemove: { session.finishCreatedFile($0, as: .removed) })
+            }
         }
         .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
         .id(entry.id)
@@ -891,6 +902,22 @@ private struct ChatView: View {
         attachmentPreview = ChatAttachmentPreviewTarget(url: url)
     }
 
+    /// Quick Look, as for attachments; a file the app already deleted says so on its card.
+    private func previewCreatedFile(_ file: ChatCreatedFile) {
+        guard attachmentPreview == nil, session.createdFileIsAvailable(file) else { return }
+        voice.cancel()
+        isEditingDraft = false
+        attachmentPreview = ChatAttachmentPreviewTarget(url: file.url)
+    }
+
+    /// The system's save or share sheet for a created file; nothing leaves the app before it.
+    private func deliverCreatedFile(_ target: ChatCreatedFileDelivery) {
+        guard createdFileDelivery == nil, session.createdFileIsAvailable(target.file) else { return }
+        voice.cancel()
+        isEditingDraft = false
+        createdFileDelivery = target
+    }
+
     /// Keyboard and composer resizing can move UIKit's content offset without
     /// a reader gesture. Keep the existing follow intent until layout settles.
     private func composerLayoutChanged() {
@@ -969,6 +996,9 @@ private struct ChatView: View {
             // Play's chat step line while a skill tool runs.
             Text(localizer.text(step == .find ? .chatSkillFind : step == .read ? .chatSkillRead : .chatSkillSave))
                 .font(.caption).accessibilityIdentifier("chat.skillStep")
+        }
+        if session.creatingFile {
+            Text(localizer.text(.chatFileCreating)).font(.caption).accessibilityIdentifier("chat.fileStep")
         }
         if session.profileReceipt != nil {
             Text(localizer.text(.chatReceiptProfile))
@@ -1376,17 +1406,8 @@ private struct ChatView: View {
                 voice.cancel()
                 isEditingDraft = false
                 showsAttachPanel = false
-                // Only explicit local export requests with a saved source open this flow.
-                // A request with attachments/quotes continues through the normal chat path.
-                if session.pendingAttachments.isEmpty, session.pendingQuote == nil,
-                   let format = DocumentExportRequest.parse(session.draft),
-                   let entry = session.entries.last, entry.role == "assistant",
-                   session.messageActionTargets.replies.contains(entry.id) {
-                    documentTarget = DocumentExportSource(content: entry.content, format: format)
-                    // The request is done, so like a sent message it leaves the composer empty.
-                    session.draft = ""
-                    return
-                }
+                // Asking for a file in any words reaches the model, which makes it
+                // with file_create; a reply's long-press menu still exports it.
                 session.attemptSend(mcp: mcp)
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
@@ -1513,6 +1534,8 @@ private struct ChatView: View {
                 photoLimit: photoPickerLimit,
                 add: { files in Task { await session.addAttachments(files) } },
                 loadingStarted: { session.attachmentsLoadingStarted() }))
+            .modifier(ChatCreatedFilePresentations(delivery: $createdFileDelivery,
+                                                   finish: { session.finishCreatedFile($0, as: $1) }))
             .onChange(of: isEditingDraft) { _, editing in
                 if editing { showsAttachPanel = false }
                 composerLayoutChanged()

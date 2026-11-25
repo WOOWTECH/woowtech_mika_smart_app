@@ -490,7 +490,8 @@ private struct DocumentPDFPreview: UIViewRepresentable {
     func updateUIView(_ view: PDFView, context: Context) {}
 }
 
-private struct DocumentSavePicker: UIViewControllerRepresentable {
+/// The system's Files sheet for one file, a copy; created files use it too (ChatCreatedFilePresentations).
+struct DocumentSavePicker: UIViewControllerRepresentable {
     let url: URL
     let complete: (Bool) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(complete: complete) }
@@ -508,7 +509,8 @@ private struct DocumentSavePicker: UIViewControllerRepresentable {
     }
 }
 
-private struct DocumentSharePicker: UIViewControllerRepresentable {
+/// The system's share sheet for one file; created files use it too.
+struct DocumentSharePicker: UIViewControllerRepresentable {
     let url: URL
     let complete: (Bool, Bool) -> Void
     func makeUIViewController(context: Context) -> UIActivityViewController {

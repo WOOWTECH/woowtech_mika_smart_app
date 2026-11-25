@@ -6789,6 +6789,132 @@
       }
     },
     {
+      "case": "chatFileCreating",
+      "key": "chat.file.creating",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在建立檔案…",
+        "en": "Creating the file…"
+      }
+    },
+    {
+      "case": "chatFileSave",
+      "key": "chat.file.save",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "存到檔案",
+        "en": "Save to Files"
+      }
+    },
+    {
+      "case": "chatFileShare",
+      "key": "chat.file.share",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "分享",
+        "en": "Share"
+      }
+    },
+    {
+      "case": "chatFileRemove",
+      "key": "chat.file.remove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除檔案",
+        "en": "Remove file"
+      }
+    },
+    {
+      "case": "chatFilePreviewHint",
+      "key": "chat.file.previewHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "預覽檔案",
+        "en": "Previews the file"
+      }
+    },
+    {
+      "case": "chatFileSaved",
+      "key": "chat.file.saved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已存到檔案，App 裡的副本已刪除",
+        "en": "Saved to Files; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "chatFileShared",
+      "key": "chat.file.shared",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已分享，App 裡的副本已刪除",
+        "en": "Shared; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "chatFileRemoved",
+      "key": "chat.file.removed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已移除，App 裡的副本已刪除",
+        "en": "Removed; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "chatFileMissing",
+      "key": "chat.file.missing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個檔案已經不在了，可以請助理重新建立",
+        "en": "This file is no longer here. Ask the assistant to make it again."
+      }
+    },
+    {
+      "case": "chatFileKindPDF",
+      "key": "chat.file.kind.pdf",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "PDF 文件",
+        "en": "PDF document"
+      }
+    },
+    {
+      "case": "chatFileKindWord",
+      "key": "chat.file.kind.word",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "Word 文件",
+        "en": "Word document"
+      }
+    },
+    {
+      "case": "chatFileKindExcel",
+      "key": "chat.file.kind.excel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "Excel 試算表",
+        "en": "Excel workbook"
+      }
+    },
+    {
+      "case": "chatFileKindPowerPoint",
+      "key": "chat.file.kind.powerPoint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "PowerPoint 簡報",
+        "en": "PowerPoint presentation"
+      }
+    },
+    {
+      "case": "chatFileKindZIP",
+      "key": "chat.file.kind.zip",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "ZIP 壓縮檔",
+        "en": "ZIP archive"
+      }
+    },
+    {
       "case": "chatMessageCopy",
       "key": "chat.message.copy",
       "parameters": [],

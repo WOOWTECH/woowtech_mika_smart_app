@@ -280,7 +280,9 @@ enum CheckDocumentCreation {
         expectError(.tooManyEntries, "33 entries") {
             _ = try parse(["format": "zip", "file_name": "a", "entries": (0..<33).map { ["name": "f\($0).txt", "text": "x"] }])
         }
-        expectError(.invalidCommand, "a command over 256 KiB") {
+        expect(DocumentCreationCommand.isCommand(#"{"action":"file_create","arguments":{"format":"rtf"}}"#), "any file_create arguments are a command")
+        expect(!DocumentCreationCommand.isCommand(#"{"action":"skill_read","arguments":{}}"#) && !DocumentCreationCommand.isCommand("text"), "other replies are not")
+        expectError(.commandTooLarge, "a command over 256 KiB") {
             _ = try parse(["format": "pdf", "file_name": "a", "markdown": String(repeating: "x", count: 262_144)])
         }
         expectError(.unknownFile, "a ZIP entry naming no made file") {

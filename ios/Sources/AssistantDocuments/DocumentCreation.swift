@@ -7,7 +7,7 @@ public enum DocumentCreationFormat: String, CaseIterable, Equatable, Sendable {
 /// Stable failure cases. Each becomes a code and an instruction for the model
 /// (DocumentCreationResult); content is never included.
 public enum DocumentCreationError: Error, Equatable, Sendable {
-    case invalidCommand, invalidFormat, invalidFileName, invalidTitle, invalidText
+    case invalidCommand, commandTooLarge, invalidFormat, invalidFileName, invalidTitle, invalidText
     case emptyContent, tooLarge, tooManySheets, tooManyRows, tooManyColumns, tooManyCells, cellTooLong
     case tooManySlides, tooManyBullets, slideTextTooLong
     case tooManyEntries, invalidEntryName, duplicateEntryName, unknownFile
@@ -66,13 +66,23 @@ public struct DocumentCreationCommand: Equatable, Sendable {
     public let title: String
     public let content: Content
 
+    /// A reply that asks for file_create: one JSON object with the action and
+    /// its arguments, whatever they hold. The host runs it, and a mistake in the
+    /// arguments goes back to the model as a failed result instead of being
+    /// shown to the person as the answer.
+    public static func isCommand(_ text: String) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: Data(unfenced(text).utf8)) as? [String: Any] else { return false }
+        return Set(object.keys) == ["action", "arguments"] && object["action"] as? String == action
+            && object["arguments"] is [String: Any]
+    }
+
     /// Exactly one command, a single surrounding code fence tolerated. Unknown
     /// keys, missing ones and the wrong types are refused, never guessed.
     public static func parse(_ text: String) throws -> DocumentCreationCommand {
         let body = unfenced(text)
-        guard body.utf8.count <= DocumentCreationLimits.maximumCommandBytes,
-              let object = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any],
-              Set(object.keys) == ["action", "arguments"], object["action"] as? String == action,
+        guard isCommand(body) else { throw DocumentCreationError.invalidCommand }
+        guard body.utf8.count <= DocumentCreationLimits.maximumCommandBytes else { throw DocumentCreationError.commandTooLarge }
+        guard let object = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any],
               let arguments = object["arguments"] as? [String: Any] else { throw DocumentCreationError.invalidCommand }
         guard let raw = arguments["format"] as? String,
               let format = DocumentCreationFormat(rawValue: raw.lowercased()) else { throw DocumentCreationError.invalidFormat }
@@ -196,7 +206,7 @@ public struct DocumentCreationCommand: Equatable, Sendable {
             }
             guard raw.count <= DocumentCreationLimits.maximumFileNameCharacters,
                   !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw DocumentCreationError.invalidEntryName }
-            // One folder level: a path is flattened into the name.
+            // A path's separators are dropped: every entry is at the top of the ZIP.
             let name = DocumentFileName.unique(DocumentFileName.sanitized(raw, extension: nil), taken: taken)
             taken.insert(name.lowercased())
             if let text = entry["text"] as? String {
@@ -323,6 +333,11 @@ public enum DocumentCreationResult {
         return json(["ok": false, "error": code, "message": "No file was made: " + message, "recoverable": true])
     }
 
+    /// The host's own reason a file was not made, which the model can fix.
+    public static func failed(_ code: String, _ message: String) -> String {
+        json(["ok": false, "error": code, "message": message, "recoverable": true])
+    }
+
     /// The host refused the command before it ran, for a reason of its own.
     public static func refused(_ code: String, _ message: String) -> String {
         json(["ok": false, "error": code, "message": message, "recoverable": false])
@@ -332,6 +347,7 @@ public enum DocumentCreationResult {
         let limits = DocumentCreationLimits.self
         switch error as? DocumentCreationError {
         case .invalidCommand?: return ("invalid_arguments", "the arguments do not match file_create for this format. Use exactly the keys shown for it.")
+        case .commandTooLarge?: return ("command_too_large", "the command is longer than \(limits.maximumCommandBytes / 1_024) KB. Make the file shorter, or make several files and bundle them in a ZIP.")
         case .invalidFormat?: return ("invalid_format", "format must be pdf, docx, xlsx, pptx or zip.")
         case .invalidFileName?: return ("invalid_file_name", "file_name must be 1-\(limits.maximumFileNameCharacters) characters.")
         case .invalidTitle?: return ("invalid_title", "title must be one line of at most \(limits.maximumTitleCharacters) characters.")

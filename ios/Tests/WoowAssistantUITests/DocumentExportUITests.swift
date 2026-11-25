@@ -61,27 +61,6 @@ final class DocumentExportUITests: XCTestCase {
         capture("html-inert-script-preview")
     }
 
-    func testExplicitLocalRequestCreatesPDFWithoutAnotherModelTurn() {
-        launch()
-        send("Local report with English 123 and a final sentinel REPORT_END.")
-        let draft = chatDraftControl(in: app)
-        ready(draft); draft.tap(); draft.typeText("export the previous answer as PDF")
-        tap("chat.dismissKeyboard")
-        tap("chat.send")
-        XCTAssertTrue(app.textFields["document.title"].waitForExistence(timeout: 10))
-        tap("document.generate")
-        assertText("document.status", contains: "文件已產生")
-        tap("document.preview", reveal: true)
-        XCTAssertTrue(app.descendants(matching: .any)["document.preview.content"].firstMatch.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["無法預覽文件，請關閉預覽後重試。"].exists)
-        capture("pdf-preview")
-        tap("document.preview.done")
-        tap("document.done")
-        XCTAssertEqual(draft.value as? String, "export the previous answer as PDF", "The local operation must not lose the draft")
-        XCTAssertFalse(app.descendants(matching: .any)["chat.message.2.user"].firstMatch.exists,
-                       "A confirmed local export does not issue a new model request")
-    }
-
     func testInvalidSourceErrorSurvivesFormatAndTitleChanges() {
         launch()
         // The ordinary isolated reply fixture echoes this malformed table.

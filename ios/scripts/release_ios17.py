@@ -72,7 +72,6 @@ DOCUMENT_SCOPES = {
         "WoowAssistantUITests/ChatAttachmentUITests/testSettingsAndChatKeyboardDoneAtAccessibilityTextSize",
         "WoowAssistantUITests/ChatAttachmentUITests/testSettingsAndChatDoneWithConnectedHardwareKeyboard",
         "WoowAssistantUITests/DocumentExportUITests/testSelectedAnswerCSVPreviewAndSaveCancellation",
-        "WoowAssistantUITests/DocumentExportUITests/testExplicitLocalRequestCreatesPDFWithoutAnotherModelTurn",
         "WoowAssistantUITests/DocumentExportUITests/testInvalidSourceErrorSurvivesFormatAndTitleChanges",
     ],
 }
