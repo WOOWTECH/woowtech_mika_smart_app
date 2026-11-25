@@ -122,7 +122,7 @@ class VoiceInputStandaloneTests(unittest.TestCase):
                 info = plistlib.loads((ROOT / "Configuration" / f"Info-{config}.plist").read_bytes())
                 mic = info["NSMicrophoneUsageDescription"]
                 speech = info["NSSpeechRecognitionUsageDescription"]
-                self.assertIn("聊天", mic)
+                self.assertIn("用說的輸入訊息", mic)
                 self.assertIn("網站", mic)
                 self.assertIn("聊天", speech)
                 self.assertIn("裝置上", speech)
