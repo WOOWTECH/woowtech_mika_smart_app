@@ -232,7 +232,7 @@ final class MCPSession: ObservableObject {
     /// until the user turns one off, then the exact names.
     private func saveSelection() {
         let names = tools.map(\.name)
-        let next: [String]? = selectedToolNames == Set(fitting(names)) ? nil : names.filter(selectedToolNames.contains)
+        let next: [String]? = selectedToolNames == Set(fitting(names)) ? nil : names.filter { selectedToolNames.contains($0) }
         do {
             try repository?.save(allowedTools: next)
             allowedTools = next
@@ -242,7 +242,7 @@ final class MCPSession: ObservableObject {
     /// Returns whether a saved or default tool had to stay off.
     private func applySavedSelection(to tools: [MCPTool]) -> Bool {
         let names = tools.map(\.name)
-        let wanted = allowedTools.map { allowed in names.filter(Set(allowed).contains) } ?? names
+        let wanted = allowedTools.map { allowed in let kept = Set(allowed); return names.filter { kept.contains($0) } } ?? names
         let chosen = fitting(wanted)
         selectedToolNames = Set(chosen)
         return chosen.count < wanted.count
@@ -795,14 +795,14 @@ final class MCPSession: ObservableObject {
     /// The same per-resource limits MCPConversationRunner checks.
     private static func offerable(_ resource: MCPResource) -> Bool {
         !resource.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && resource.name.utf8.count <= 256
-            && !resource.name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            && !resource.name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
             && !resource.uri.isEmpty && resource.uri.utf8.count <= 4096 && (resource.mimeType?.utf8.count ?? 0) <= 256
     }
 
     /// The same per-tool limits MCPConversationRunner checks.
     private static func usable(_ tool: MCPTool) -> Bool {
         guard !tool.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, tool.name.utf8.count <= 256,
-              !tool.name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+              !tool.name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               (tool.description?.utf8.count ?? 0) <= 8192, case .object = tool.inputSchema,
               let schemaBytes = encodedSize(tool.inputSchema), schemaBytes <= 32 * 1024 else { return false }
         var pending: [(JSONValue, Int)] = [(tool.inputSchema, 0)]

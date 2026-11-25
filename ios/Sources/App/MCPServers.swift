@@ -55,7 +55,7 @@ final class MCPServers: ObservableObject {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         let fixture = arguments.contains("-UITestMode")
-            && ["-UITestMCPFixture", "-UITestMCPServers", "-UITestMCPLegacyServer"].contains(where: arguments.contains)
+            && ["-UITestMCPFixture", "-UITestMCPServers", "-UITestMCPLegacyServer"].contains(where: { arguments.contains($0) })
         if fixture {
             // The fixture never receives the access token or sign-in.
             network = true

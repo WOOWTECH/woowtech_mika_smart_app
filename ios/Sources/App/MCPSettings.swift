@@ -199,7 +199,7 @@ struct MCPSettingsStore: MCPEndpointStoring {
         let address = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let forbidden = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)
         guard !address.isEmpty, address.utf8.count <= 16_384,
-              !address.unicodeScalars.contains(where: forbidden.contains),
+              !address.unicodeScalars.contains(where: { forbidden.contains($0) }),
               let parts = URLComponents(string: address),
               parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
               parts.user == nil, parts.password == nil, parts.fragment == nil,
@@ -282,7 +282,7 @@ struct MCPSettingsStore: MCPEndpointStoring {
         #if DEBUG
         let testFlags = ["-UITestNamespace", "-UITestMode", "-LiveModelUITestNamespace", "-LiveModelUITest",
                          "-LiveMCPUITest", "-LiveMCPUITestCleanup", "-LiveMCPConversationUITest"]
-        if arguments.contains(where: testFlags.contains) {
+        if arguments.contains(where: { testFlags.contains($0) }) {
             if arguments.contains("-LiveModelUITest"), arguments.contains("-LiveMCPConversationUITest"),
                !arguments.contains("-LiveModelUITestCleanup"), !arguments.contains("-UITestMode"),
                !arguments.contains("-UITestNamespace"),
@@ -392,7 +392,7 @@ struct MCPServerDirectory {
     static func validateName(_ text: String, endpoint: String?, token: String?) throws -> String {
         let name = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= maximumNameLength,
-              !name.unicodeScalars.contains(where: CharacterSet.newlines.union(.controlCharacters).contains) else {
+              !name.unicodeScalars.contains(where: { [set = CharacterSet.newlines.union(.controlCharacters)] scalar in set.contains(scalar) }) else {
             throw MCPSettingsError.invalidName
         }
         let plain = name.lowercased()

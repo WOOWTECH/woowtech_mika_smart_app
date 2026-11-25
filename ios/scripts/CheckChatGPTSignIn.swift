@@ -275,7 +275,7 @@ struct DERReader {
         try check(a.state.count == 43 && a.nonce.count == 43 && a.verifier.count == 64,
                   "32 random bytes for the state and nonce, 48 for the verifier, like Play")
         let alphabet = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
-        try check([a.state, a.nonce, a.verifier, a.challenge].allSatisfy { $0.allSatisfy(alphabet.contains) },
+        try check([a.state, a.nonce, a.verifier, a.challenge].allSatisfy { value in value.allSatisfy { alphabet.contains($0) } },
                   "random values and the challenge are base64url without padding")
         try check(PKCE.base64URLDecode(PKCE.base64URL(Data([0xFB, 0xFF, 0x01]))) == Data([0xFB, 0xFF, 0x01]), "base64url round trip")
         let host = ChatGPTSignIn.newHostID()

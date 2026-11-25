@@ -688,7 +688,7 @@ public struct MCPConversationRunner: Sendable {
 
     private func validName(_ name: String) -> Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && name.utf8.count <= 256
-            && !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            && !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
     }
 
     private func json<T: Encodable>(_ value: T) throws -> String {

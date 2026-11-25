@@ -34,7 +34,7 @@ public struct ArchivedPDFAnswer: Codable, Equatable, Sendable {
                 pages: [Page], citations: [Citation]) throws {
         guard !filename.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               filename.utf8.count <= 512, !filename.contains("/"), !filename.contains("\\"),
-              !filename.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+              !filename.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               inputSHA256.count == 64, inputSHA256.allSatisfy({ "0123456789abcdef".contains($0) }),
               originalPageCount > 0, (1...200).contains(pages.count), (1...16).contains(citations.count)
         else { throw ConversationArchiveError.invalidData }

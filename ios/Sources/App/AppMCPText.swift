@@ -18,7 +18,7 @@ extension AppLocalizer {
     /// A sign-in server's error code as shown: short, and only the characters codes use.
     static func signInCode(_ code: String?) -> String {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
-        guard let code, !code.isEmpty, code.count <= 64, code.unicodeScalars.allSatisfy(allowed.contains) else { return "unknown" }
+        guard let code, !code.isEmpty, code.count <= 64, code.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return "unknown" }
         return code
     }
 }

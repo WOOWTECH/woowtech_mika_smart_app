@@ -17,8 +17,8 @@ public struct ConversationDestination: Codable, Equatable, Sendable {
               url.user == nil, url.password == nil, url.query == nil, url.fragment == nil,
               url.port.map({ (1...65535).contains($0) }) ?? true,
               !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !baseURL.unicodeScalars.contains(where: CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains),
-              !model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+              !baseURL.unicodeScalars.contains(where: { [set = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)] scalar in set.contains(scalar) }),
+              !model.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
         else { throw ConversationArchiveError.invalidData }
         self.baseURL = baseURL; self.model = model; self.credentialAccount = credentialAccount
     }
@@ -226,7 +226,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= maximumTitleCharacters,
               trimmed.utf8.count <= maximumTitleBytes,
-              !trimmed.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains)
+              !trimmed.unicodeScalars.contains(where: { [set = CharacterSet.controlCharacters.union(.newlines)] scalar in set.contains(scalar) })
         else { return nil }
         return trimmed
     }

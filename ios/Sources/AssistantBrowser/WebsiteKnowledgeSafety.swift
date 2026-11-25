@@ -123,7 +123,7 @@ enum WebsiteLearningSafety {
         for _ in 0..<3 { decodedPath = decodedPath.removingPercentEncoding ?? decodedPath }
         guard !sensitive(url.absoluteString), !sensitive(decodedPath),
               !matches(#"(?:^|/)(?:webhook|token|tokens|secret|secrets|password|reset-password|logout|signout|delete|destroy|unsubscribe|revoke|checkout|pay|submit)(?:/|$)|[a-f0-9]{32,}|[A-Za-z0-9_\-]{64,}"#, decodedPath),
-              !decodedPath.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
+              !decodedPath.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
             throw WebsiteLearningError.sensitiveContent
         }
         parts.scheme = scheme; parts.host = host

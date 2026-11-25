@@ -66,7 +66,7 @@ public struct RunReferenceContext: Equatable, Sendable {
         var identities = Set<RunReferenceIdentity>()
         for entry in entries {
             guard !entry.id.isEmpty, entry.id.utf8.count <= 256,
-                  !entry.id.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+                  !entry.id.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
                   !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RunReferenceError.invalidEntry }
             guard identities.insert(.init(kind: entry.kind, id: entry.id)).inserted else { throw RunReferenceError.duplicateEntry }
         }

@@ -45,13 +45,13 @@ struct ModelProviderFormInput: Equatable {
 
     var keyProblem: AppText? {
         let blocked = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)
-        return trimmedKey.unicodeScalars.contains(where: blocked.contains) ? .modelSettingsInvalidKey : nil
+        return trimmedKey.unicodeScalars.contains(where: { blocked.contains($0) }) ? .modelSettingsInvalidKey : nil
     }
 
     var trimmedModel: String { model.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var modelProblem: Bool {
-        trimmedModel.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        trimmedModel.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
     }
 
     /// Android defaultName: the preset at this address, otherwise the host.

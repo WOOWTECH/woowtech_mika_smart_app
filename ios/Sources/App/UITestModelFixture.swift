@@ -45,7 +45,7 @@ enum UITestModelFixture {
         let credentials: any ModelCredentialStoring = arguments.contains("-UITestKeychainWriteFailure")
             ? FailingWrites(base: keychain) : keychain
         let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials, providers: providers)
-        if ["-UITestMCPFixture", "-UITestMCPServers", "-UITestMCPLegacyServer", ChatWebTaskFixture.flag].contains(where: arguments.contains) {
+        if ["-UITestMCPFixture", "-UITestMCPServers", "-UITestMCPLegacyServer", ChatWebTaskFixture.flag].contains(where: { arguments.contains($0) }) {
             // A configured model the user already agreed to share content with.
             do {
                 _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key")

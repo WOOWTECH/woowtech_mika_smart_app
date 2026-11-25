@@ -17,7 +17,7 @@ struct MikaAboutInfo: Equatable {
         let value = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, value.utf8.count <= 64,
               !value.contains("$("), !value.contains("${"),
-              !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+              !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
         else { return nil }
         return value
     }

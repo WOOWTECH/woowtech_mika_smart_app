@@ -41,7 +41,7 @@ public enum ChatWebTaskPolicy {
     public static func evaluate(address: String, fixtureOrigin: URL? = nil) -> Decision {
         let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.utf8.count <= maximumURLBytes,
-              !trimmed.unicodeScalars.contains(where: CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains),
+              !trimmed.unicodeScalars.contains(where: { [set = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)] scalar in set.contains(scalar) }),
               let url = URL(string: trimmed) else { return .block(.invalid) }
         return evaluate(url, fixtureOrigin: fixtureOrigin)
     }

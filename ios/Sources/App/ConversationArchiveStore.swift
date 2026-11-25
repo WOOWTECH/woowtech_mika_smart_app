@@ -130,7 +130,7 @@ import Foundation
         #if DEBUG
         let flags = ["-UITestMode", "-LiveModelUITest", "-UITestNamespace", "-LiveModelUITestNamespace",
                      "-UITestResetStorage", "-LiveModelUITestCleanup"]
-        if flags.contains(where: arguments.contains) {
+        if flags.contains(where: { arguments.contains($0) }) {
             guard flags.allSatisfy({ flag in arguments.filter { $0 == flag }.count <= 1 }),
                   arguments.contains("-UITestMode") != arguments.contains("-LiveModelUITest")
             else { throw ConversationArchiveError.invalidData }

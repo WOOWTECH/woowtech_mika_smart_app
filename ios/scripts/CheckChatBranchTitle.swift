@@ -13,7 +13,7 @@ enum CheckChatBranchTitle {
         func archiveAccepts(_ title: String) -> Bool {
             title == title.trimmingCharacters(in: .whitespacesAndNewlines) && !title.isEmpty
                 && title.count <= 120 && title.utf8.count <= 512
-                && !title.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains)
+                && !title.unicodeScalars.contains(where: { [set = CharacterSet.controlCharacters.union(.newlines)] scalar in set.contains(scalar) })
         }
         func make(_ base: String, suffix: String = " · 分支", fallback: String = "新對話") -> String {
             let title = ChatBranchTitle.make(base: base, suffix: suffix, fallback: fallback)

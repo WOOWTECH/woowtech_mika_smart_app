@@ -14,7 +14,7 @@ struct LiveMCPSmoke {
         print("LOCAL macOS native client probe; this is NOT an iOS Simulator acceptance run")
         #endif
         guard let raw = ProcessInfo.processInfo.environment["WOOW_HA_MCP_TEST_URL"],
-              !raw.unicodeScalars.contains(where: CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains),
+              !raw.unicodeScalars.contains(where: { [set = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)] scalar in set.contains(scalar) }),
               !raw.contains("\\"),
               let parts = URLComponents(string: raw),
               parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
@@ -74,7 +74,7 @@ struct LiveMCPSmoke {
             }
             if let guide = resources.first(where: {
                 let label = ($0.name + " " + $0.uri).lowercased()
-                return ["guide", "best_practice", "best-practice", "skill"].contains(where: label.contains)
+                return ["guide", "best_practice", "best-practice", "skill"].contains(where: { label.contains($0) })
             }) {
                 let content = try await client.readResource(uri: guide.uri)
                 guard case .array(let blocks)? = content["contents"], !blocks.isEmpty else { throw CheckError.failed }

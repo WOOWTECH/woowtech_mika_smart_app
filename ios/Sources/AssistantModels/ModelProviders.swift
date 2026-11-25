@@ -91,7 +91,7 @@ public struct ModelProvider: Codable, Equatable, Identifiable, Sendable {
         guard ModelProviderAddress.isValid(baseURL),
               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               name.count <= 256, name.utf8.count <= 1024,
-              !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains),
+              !name.unicodeScalars.contains(where: { [set = CharacterSet.controlCharacters.union(.newlines)] scalar in set.contains(scalar) }),
               sessionHeader.map({ ModelSessionHeader.isAllowed(name: $0, value: "-") }) ?? true,
               (models?.count ?? 0) <= ModelProvidersDocument.maximumListedModels,
               models?.allSatisfy({ ModelProviderAddress.isModelName($0.id) && ($0.contextTokens ?? 1) > 0 }) ?? true,
@@ -629,7 +629,7 @@ public enum ModelProviderAddress {
     public static func isValid(_ url: URL) -> Bool {
         let raw = url.absoluteString
         guard raw.utf8.count <= 4096,
-              !raw.unicodeScalars.contains(where: CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains),
+              !raw.unicodeScalars.contains(where: { [set = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)] scalar in set.contains(scalar) }),
               let parts = URLComponents(string: raw), parts.scheme?.lowercased() == "https",
               let host = parts.host, !host.isEmpty, parts.url != nil,
               parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil,
@@ -664,6 +664,6 @@ public enum ModelProviderAddress {
     /// As the form saves it: trimmed, one line, bounded like a conversation's model.
     static func isModelName(_ name: String) -> Bool {
         !name.isEmpty && name.utf8.count <= 1024 && name.trimmingCharacters(in: .whitespacesAndNewlines) == name
-            && !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains)
+            && !name.unicodeScalars.contains(where: { [set = CharacterSet.controlCharacters.union(.newlines)] scalar in set.contains(scalar) })
     }
 }

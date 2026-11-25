@@ -34,7 +34,7 @@ enum MemorySafety {
 
     static func validate(content: String, keywords: [String], source: MemorySource) throws {
         guard !content.isEmpty, content.utf16.count <= 200,
-              !content.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
+              !content.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
             throw MemoryError.invalidContent
         }
         _ = try self.keywords(keywords)

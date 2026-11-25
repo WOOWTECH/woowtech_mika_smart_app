@@ -297,7 +297,7 @@ final class ModelSettingsRepository {
     static func validate(baseURL: String, model: String) throws -> ModelConfiguration {
         let url = try validatedAddress(baseURL)
         let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !model.isEmpty, !model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
+        guard !model.isEmpty, !model.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
             throw ModelSettingsError.missingModel
         }
         return ModelConfiguration(baseURL: url, model: model)
@@ -492,7 +492,7 @@ final class ModelSettingsRepository {
             guard providers != nil else { throw ModelSettingsError.missingModel }
             let url = try Self.validatedAddress(baseURL)
             let model = model?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let model, model.isEmpty || model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) {
+            if let model, model.isEmpty || model.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) {
                 throw ModelSettingsError.missingModel
             }
             let key = try Self.checkedKey(key)
