@@ -196,8 +196,9 @@ final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
 /// checks the code_verifier and the rest against it and rotates refresh tokens.
 final class FakeAuthorization: @unchecked Sendable {
     struct Options {
-        /// The 401's `resource_metadata` path; nil leaves it out.
+        /// The 401's `resource_metadata` path; nil leaves it out. `challengeAddress` names any address instead.
         var challengePath: String? = "/meta/protected"
+        var challengeAddress: String?
         var challengeScope: String? = "openid email offline_access"
         /// Where resource metadata answers, and paths that redirect to it instead.
         var protectedPaths: Set<String> = ["/meta/protected"]
@@ -212,6 +213,8 @@ final class FakeAuthorization: @unchecked Sendable {
         var metadataPaths = ["/.well-known/oauth-authorization-server/_clerk": true, "/_clerk/.well-known/openid-configuration": false]
         /// The issuer a metadata copy names, by path: nil this server at `issuerPath`.
         var issuers: [String: (FakeAuthorization) -> String] = [:]
+        /// Metadata endpoints named elsewhere, by key (token_endpoint, registration_endpoint, …).
+        var endpoints: [String: String] = [:]
         var challengeMethods: [String]? = ["S256"]
         var authMethods: [String]? = ["none"]
         var issParameter = false
@@ -285,6 +288,7 @@ final class FakeAuthorization: @unchecked Sendable {
                 if registers { metadata["registration_endpoint"] = base.value + "/register" }
                 if let methods = options.challengeMethods { metadata["code_challenge_methods_supported"] = methods }
                 if let methods = options.authMethods { metadata["token_endpoint_auth_methods_supported"] = methods }
+                for (key, address) in options.endpoints { metadata[key] = address }
                 return .json(200, Self.text(metadata))
             }
             return .json(404, #"{"error":"not_found"}"#)
@@ -297,7 +301,9 @@ final class FakeAuthorization: @unchecked Sendable {
         }
         guard let token = request.bearer, token == current.value, !options.refusesAll else {
             var parts: [String] = []
-            if let path = options.challengePath { parts.append(#"resource_metadata="\#(base.value + path)""#) }
+            if let address = options.challengeAddress ?? options.challengePath.map({ base.value + $0 }) {
+                parts.append(#"resource_metadata="\#(address)""#)
+            }
             if let scope = options.challengeScope { parts.append(#"scope="\#(scope)""#) }
             if request.bearer != nil { parts.append(#"error="invalid_token""#) }
             return FakeReply(status: 401, headers: ["WWW-Authenticate": parts.isEmpty ? "Bearer" : "Bearer " + parts.joined(separator: ", ")])
@@ -456,6 +462,8 @@ enum Browser {
     static let clock: Int64 = 1_800_000_000_000
     static let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
     static let higgsfield = #"Bearer resource_metadata="https://mcp.higgsfield.ai/.well-known/oauth-protected-resource/mcp", scope="openid email offline_access""#
+    /// The checks' opt-in: plain HTTP to the fake servers on 127.0.0.1, which the App's client refuses.
+    static let loopback = MCPOAuthHTTP(configuration: .ephemeral, allowsLoopbackHTTP: true)
 
     static func check(_ value: Bool, _ message: String) {
         checks += 1
@@ -472,6 +480,7 @@ enum Browser {
             try sessions()
             try storage()
             try await discovery()
+            try await httpsOnly()
             try await signIns()
             try await refreshes()
             try await retries()
@@ -515,14 +524,16 @@ enum Browser {
         check(MCPOAuth.canonicalResource(URL(string: "HTTPS://MCP.Example.com:8443/tenant/mcp/?key=secret")!)
                 == "https://mcp.example.com:8443/tenant/mcp", "canonical resource: lowercase, port kept, no trailing slash or query")
         check(MCPOAuth.canonicalResource(URL(string: "https://mcp.example.com/")!) == "https://mcp.example.com", "a root endpoint")
-        check(strings(MCPOAuth.resourceMetadataURLs(endpoint: endpoint, challenge: MCPBearerChallenge(#"Bearer resource_metadata="https://meta.example.com/prm""#)))
+        check(strings(MCPOAuth.resourceMetadataURLs(endpoint: endpoint, challenge: MCPBearerChallenge(#"Bearer resource_metadata="https://meta.example.com/prm""#),
+                                                    http: .shared))
                 == ["https://meta.example.com/prm", "https://mcp.example.com/.well-known/oauth-protected-resource/a/mcp",
                     "https://mcp.example.com/.well-known/oauth-protected-resource"],
               "resource metadata: the challenge's, then the endpoint's path, then the root; never the query")
-        check(strings(MCPOAuth.resourceMetadataURLs(endpoint: endpoint, challenge: MCPBearerChallenge(#"Bearer resource_metadata="http://meta.example.com/prm""#)))
+        check(strings(MCPOAuth.resourceMetadataURLs(endpoint: endpoint, challenge: MCPBearerChallenge(#"Bearer resource_metadata="http://meta.example.com/prm""#),
+                                                    http: loopback))
                 == ["https://mcp.example.com/.well-known/oauth-protected-resource/a/mcp",
                     "https://mcp.example.com/.well-known/oauth-protected-resource"], "a challenge address that isn't HTTPS is skipped")
-        check(strings(MCPOAuth.resourceMetadataURLs(endpoint: URL(string: "https://mcp.example.com/")!, challenge: nil))
+        check(strings(MCPOAuth.resourceMetadataURLs(endpoint: URL(string: "https://mcp.example.com/")!, challenge: nil, http: .shared))
                 == ["https://mcp.example.com/.well-known/oauth-protected-resource"], "a root endpoint asks the root once")
         check(strings(MCPOAuth.authorizationServerMetadataURLs(issuer: URL(string: "https://higgsfield.ai/_clerk")!))
                 == ["https://higgsfield.ai/.well-known/oauth-authorization-server/_clerk",
@@ -532,11 +543,18 @@ enum Browser {
         check(strings(MCPOAuth.authorizationServerMetadataURLs(issuer: URL(string: "https://auth.example.com/")!))
                 == ["https://auth.example.com/.well-known/oauth-authorization-server", "https://auth.example.com/.well-known/openid-configuration"],
               "an issuer without a path: both at the root")
-        check(MCPOAuth.allowed("https://a.test/x") != nil && MCPOAuth.allowed("http://127.0.0.1:9/x") != nil
-                && MCPOAuth.allowed("http://localhost/x") != nil, "HTTPS, and HTTP on the loopback address")
-        check([MCPOAuth.allowed("http://a.test/x"), MCPOAuth.allowed("https://u:p@a.test/x"), MCPOAuth.allowed("https://a.test/x#f"),
-               MCPOAuth.allowed("ftp://a.test/x"), MCPOAuth.allowed("not a url"), MCPOAuth.allowed(nil)].allSatisfy { $0 == nil },
-              "plain HTTP elsewhere, user info, fragments and other schemes are refused")
+        let loopbackHTTP = ["http://127.0.0.1:9/x", "http://localhost/x", "http://[::1]:9/x"]
+        check(MCPOAuth.allowed("https://a.test/x", loopbackHTTP: false) != nil
+                && loopbackHTTP.allSatisfy { MCPOAuth.allowed($0, loopbackHTTP: false) == nil },
+              "HTTPS only: plain HTTP to this device's loopback address is refused too")
+        check(loopbackHTTP.allSatisfy { MCPOAuth.allowed($0, loopbackHTTP: true) != nil }, "the checks' opt-in lets loopback HTTP through")
+        check([MCPOAuth.allowed("http://a.test/x", loopbackHTTP: true), MCPOAuth.allowed("https://u:p@a.test/x", loopbackHTTP: true),
+               MCPOAuth.allowed("https://a.test/x#f", loopbackHTTP: true), MCPOAuth.allowed("ftp://a.test/x", loopbackHTTP: true),
+               MCPOAuth.allowed("not a url", loopbackHTTP: true), MCPOAuth.allowed(nil, loopbackHTTP: true)].allSatisfy { $0 == nil },
+              "even then, plain HTTP elsewhere, user info, fragments and other schemes are refused")
+        check(!MCPOAuthHTTP.shared.allowsLoopbackHTTP && !MCPOAuthHTTP().allowsLoopbackHTTP
+                && !MCPOAuthHTTP(configuration: .ephemeral).allowsLoopbackHTTP && loopback.allowsLoopbackHTTP,
+              "the App's client, and any client without the opt-in, takes HTTPS only")
         let clerk = "https://higgsfield.ai/_clerk"
         check(MCPOAuth.sameIssuer(clerk, clerk) && MCPOAuth.sameIssuer(clerk + "/", clerk) && MCPOAuth.sameIssuer(clerk, clerk + "/"),
               "RFC 8414 §3.3: the same issuer, give or take one trailing slash")
@@ -694,7 +712,7 @@ enum Browser {
     // MARK: - Discovery against fake servers
 
     static func discovery() async throws {
-        let http = MCPOAuthHTTP.shared
+        let http = loopback
         func discover(_ configure: (inout FakeAuthorization.Options) -> Void) async throws -> (FakeAuthorization, Result<MCPOAuthServer, Error>) {
             let (fake, server) = try await FakeAuthorization.loopback(configure)
             defer { server.stop() }
@@ -802,11 +820,70 @@ enum Browser {
         let (_, elsewhere) = try await discover { $0.resource = "https://other.example.com/mcp" }
         check((try? elsewhere.get()) == nil && (elsewhere.failureReason == .insecure), "metadata about another server is not used")
         let (_, insecure) = try await discover { $0.authorizationServer = { _ in "http://auth.example.com/as" } }
-        check(insecure.failureReason == .insecure, "an authorization server that isn't HTTPS is refused")
+        check(insecure.failureReason == .setup, "an authorization server that isn't HTTPS is refused as unusable settings")
         let (_, noPKCE) = try await discover { $0.challengeMethods = ["plain"] }
         check(noPKCE.failureReason == .setup, "an authorization server without S256 is refused")
         let (_, nothing) = try await discover { $0.metadataPaths = [:] }
         check(nothing.failureReason == .setup, "no authorization server metadata")
+    }
+
+    // MARK: - HTTPS only, outside the checks' opt-in
+
+    /// A hostile MCP server on HTTPS whose metadata names plain HTTP on this device's loopback address,
+    /// where a working fake authorization server (`trap`) listens. The App's client refuses every such
+    /// address as unusable settings and sends the trap nothing; the checks' opt-in reaches the trap.
+    static func httpsOnly() async throws {
+        let (trap, trapServer) = try await FakeAuthorization.loopback()
+        defer { trapServer.stop() }
+        let host = "hostile.fixture.invalid"
+        let hostile = FakeAuthorization(base: "https://" + host)
+        FakeHTTPS.register(host) { hostile.handle($0) }
+        defer { FakeHTTPS.remove(host) }
+        let app = MCPOAuthHTTP(configuration: FakeHTTPS.configuration())
+        let endpoint = URL(string: hostile.endpoint)!
+        let local = "http://localhost:\(trapServer.port)"
+        trap.options.update { $0.resource = endpoint.absoluteString }
+        func refused(_ what: String, _ configure: (inout FakeAuthorization.Options) -> Void) async {
+            var options = FakeAuthorization.Options()
+            configure(&options)
+            hostile.options.value = options
+            let asked = trap.log.value.count
+            let result: Result<MCPOAuthServer, Error>
+            do { result = .success(try await MCPOAuth.discover(endpoint: endpoint, http: app)) } catch { result = .failure(error) }
+            check(result.failureReason == .setup && trap.log.value.count == asked,
+                  what + " on loopback HTTP is refused as unusable settings, and nothing is sent there")
+        }
+        await refused("resource metadata in the 401") {
+            $0.challengeAddress = trap.base.value + "/meta/protected"; $0.protectedPaths = []; $0.metadataPaths = [:]
+        }
+        await refused("an authorization server") { $0.authorizationServer = { _ in local + "/_clerk" } }
+        await refused("a token endpoint") { $0.endpoints = ["token_endpoint": local + "/_clerk/token"] }
+        await refused("a registration endpoint") { $0.endpoints = ["registration_endpoint": local + "/register"] }
+        await refused("an authorization endpoint") { $0.endpoints = ["authorization_endpoint": local + "/_clerk/authorize"] }
+        hostile.options.value = FakeAuthorization.Options()
+        check((try? await MCPOAuth.discover(endpoint: endpoint, http: app))?.issuer == hostile.issuer,
+              "the same server with HTTPS addresses is used")
+
+        // A saved sign-in whose token endpoint is on loopback HTTP is not refreshed there.
+        trap.clients.update { $0["client-1"] = "" }
+        trap.refreshTokens.value = ["rt-trap"]
+        let saved = MCPOAuthSession(clientId: "client-1", tokenEndpoint: trap.issuer + "/token", resource: trap.endpoint,
+                                    accessToken: "at-trap", refreshToken: "rt-trap", expiresAtMs: 0)
+        let asked = trap.log.value.count
+        if case .rejected(let terminal) = try await MCPOAuth.refresh(saved, http: app, nowMs: { clock }) {
+            check(terminal && trap.log.value.count == asked, "a token endpoint on loopback HTTP gets no refresh token")
+        } else { check(false, "a token endpoint on loopback HTTP is refused") }
+        check(await error { _ = try await MCPOAuth.discover(endpoint: URL(string: trap.endpoint)!, http: .shared) }
+                .flatMap { $0 as? MCPOAuthError }?.reason == .setup && trap.log.value.count == asked,
+              "the App's client sends nothing to a loopback HTTP server at all")
+
+        // The checks' opt-in reaches the same fakes.
+        trap.options.update { $0.resource = nil }
+        check((try? await MCPOAuth.discover(endpoint: URL(string: trap.endpoint)!, http: loopback))?.issuer == trap.issuer
+                && trap.log.value.count > asked, "with the checks' opt-in, the loopback fake works")
+        if case .refreshed = try await MCPOAuth.refresh(saved, http: loopback, nowMs: { clock }) {} else {
+            check(false, "with the checks' opt-in, the loopback token endpoint refreshes")
+        }
     }
 
     // MARK: - Whole sign-ins against fake servers
@@ -819,7 +896,7 @@ enum Browser {
         let browsing = Box<Task<String?, Never>?>(nil)
         do {
             let session = try await MCPOAuth.signIn(
-                endpoint: URL(string: fake.endpoint)!, userClient: userClient, listener: listener, http: .shared,
+                endpoint: URL(string: fake.endpoint)!, userClient: userClient, listener: listener, http: loopback,
                 openBrowser: { url in browsing.value = Task { await Browser.follow(url, state: state) } },
                 page: { failure in failure.map { "failed: \($0.reason.rawValue)" } ?? "signed in" },
                 timeout: timeout, finishTimeout: 5, nowMs: { clock })
@@ -923,7 +1000,7 @@ enum Browser {
         fake.refreshTokens.value = ["rt-seed"]
         let seed = MCPOAuthSession(clientId: "client-1", tokenEndpoint: fake.issuer + "/token", resource: fake.endpoint,
                                    accessToken: "at-old", refreshToken: "rt-seed", expiresAtMs: clock + 3_600_000)
-        guard case .refreshed(let next) = try await MCPOAuth.refresh(seed, http: .shared, nowMs: { clock }) else {
+        guard case .refreshed(let next) = try await MCPOAuth.refresh(seed, http: loopback, nowMs: { clock }) else {
             throw Failure(message: "a refresh works")
         }
         let form = fake.requests("/_clerk/token").last?.form ?? [:]
@@ -932,23 +1009,23 @@ enum Browser {
         check(next.accessToken == fake.current.value && next.refreshToken != "rt-seed" && fake.refreshTokens.value == [next.refreshToken]
                 && next.expiresAtMs == clock + 3_600_000 && next.clientId == "client-1",
               "the rotated refresh token replaces the old one")
-        if case .rejected(let terminal) = try await MCPOAuth.refresh(seed, http: .shared, nowMs: { clock }) {
+        if case .rejected(let terminal) = try await MCPOAuth.refresh(seed, http: loopback, nowMs: { clock }) {
             check(terminal, "the old refresh token is dead: invalid_grant is terminal")
         } else { check(false, "a used refresh token is refused") }
         fake.options.update { $0.rotates = false; $0.expiresIn = nil }
-        if case .refreshed(let kept) = try await MCPOAuth.refresh(next, http: .shared, nowMs: { clock }) {
+        if case .refreshed(let kept) = try await MCPOAuth.refresh(next, http: loopback, nowMs: { clock }) {
             check(kept.refreshToken == next.refreshToken && kept.expiresAtMs == MCPOAuth.noExpiry,
                   "an answer without a refresh token keeps the old one; without a lifetime the token has none")
         } else { check(false, "a refresh without rotation works") }
         fake.options.update { $0.refreshRefused = .json(400, #"{"error":"invalid_client"}"#) }
-        if case .rejected(let terminal) = try await MCPOAuth.refresh(next, http: .shared, nowMs: { clock }) {
+        if case .rejected(let terminal) = try await MCPOAuth.refresh(next, http: loopback, nowMs: { clock }) {
             check(!terminal, "invalid_client keeps the tokens")
         } else { check(false, "a refused client is a refusal") }
         fake.options.update { $0.refreshRefused = .json(503, "") }
-        if case .failed = try await MCPOAuth.refresh(next, http: .shared, nowMs: { clock }) {} else { check(false, "a 5xx is no answer") }
+        if case .failed = try await MCPOAuth.refresh(next, http: loopback, nowMs: { clock }) {} else { check(false, "a 5xx is no answer") }
         var elsewhere = next
         elsewhere.tokenEndpoint = "http://auth.example.com/token"
-        if case .rejected(let terminal) = try await MCPOAuth.refresh(elsewhere, http: .shared, nowMs: { clock }) {
+        if case .rejected(let terminal) = try await MCPOAuth.refresh(elsewhere, http: loopback, nowMs: { clock }) {
             check(terminal, "a token endpoint that isn't HTTPS gets nothing")
         } else { check(false, "an insecure token endpoint is refused") }
 
@@ -958,7 +1035,7 @@ enum Browser {
         let stored = Box<MCPOAuthSession?>(MCPOAuthSession(clientId: "client-1", tokenEndpoint: fake.issuer + "/token",
                                                            resource: fake.endpoint, accessToken: "at-gate", refreshToken: "rt-gate",
                                                            expiresAtMs: clock + 3_600_000))
-        let gate = MCPOAuth.tokenGate(http: .shared, load: { stored.value }, save: { _, after in stored.value = after }, nowMs: { clock })
+        let gate = MCPOAuth.tokenGate(http: loopback, load: { stored.value }, save: { _, after in stored.value = after }, nowMs: { clock })
         let before = fake.requests("/_clerk/token").count
         check(try await gate.accessToken(rejected: nil) == "at-gate" && fake.requests("/_clerk/token").count == before,
               "a token far from expiry is used as it is")
@@ -1004,7 +1081,7 @@ enum Browser {
         let stored = Box<MCPOAuthSession?>(MCPOAuthSession(clientId: "client-1", tokenEndpoint: fake.issuer + "/token",
                                                            resource: fake.endpoint, accessToken: "at-stale", refreshToken: "rt-1",
                                                            expiresAtMs: clock + 3_600_000))
-        let gate = MCPOAuth.tokenGate(http: .shared, load: { stored.value }, save: { _, after in stored.value = after }, nowMs: { clock })
+        let gate = MCPOAuth.tokenGate(http: loopback, load: { stored.value }, save: { _, after in stored.value = after }, nowMs: { clock })
         func client() -> MCPClient { MCPClient(endpoint: endpoint, configuration: FakeHTTPS.configuration(), credential: .oauth(gate)) }
         let refreshes = { fake.requests("/_clerk/token").count }
 

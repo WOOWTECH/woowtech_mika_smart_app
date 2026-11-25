@@ -16,8 +16,11 @@ import Foundation
 /// TODO: Client ID Metadata Documents (the 2025-11-25 spec's other way to name a client without
 /// registering) need a client document hosted on the web; they are not supported yet.
 ///
-/// Only HTTPS is used, or HTTP on this device's loopback address (the checks' fake servers).
-/// Nothing here logs; an error carries a server's error code at most, never a token, code or secret.
+/// Every discovery and OAuth address must be HTTPS. Plain HTTP on this device's loopback address is
+/// only for the checks' fake servers: an MCPOAuthHTTP made with the internal `allowsLoopbackHTTP`
+/// opt-in reaches them, and the App's (`.shared`) never does. The App's own 127.0.0.1 callback
+/// (LoopbackCallbackServer) is not fetched by this client. Nothing here logs; an error carries a
+/// server's error code at most, never a token, code or secret.
 /// Settings › MCP 伺服器 › 登入 runs it (MCPSession); scripts/CheckMCPOAuth.swift checks it offline.
 public enum MCPOAuth {
     /// The name consent pages show, as for ChatGPT.
@@ -39,9 +42,10 @@ public enum MCPOAuth {
 
 /// Why a sign-in did not finish; the server's page words each one.
 public enum MCPOAuthFailure: String, Sendable {
-    /// The server's sign-in settings are missing or unusable (no metadata, no endpoints, no PKCE).
+    /// The server's sign-in settings are missing or unusable (no metadata, no endpoints, no PKCE,
+    /// an address that is not HTTPS).
     case setup
-    /// An address the settings named is not HTTPS, or names another server than this one.
+    /// The resource metadata is about another server than this one.
     case insecure
     /// The authorization server registers no apps, and the user entered no client.
     case noRegistration
@@ -109,29 +113,30 @@ extension MCPOAuth {
     /// authorization server's (`sameIssuer`); a document naming another issuer is passed over.
     public static func discover(endpoint: URL, http: MCPOAuthHTTP) async throws -> MCPOAuthServer {
         let challenge = try await probe(endpoint, http: http)
-        let protected = try await firstMetadata(resourceMetadataURLs(endpoint: endpoint, challenge: challenge), http: http)
+        let protected = try await firstMetadata(resourceMetadataURLs(endpoint: endpoint, challenge: challenge, http: http), http: http)
         var resource = canonicalResource(endpoint)
         var issuer = origin(endpoint)?.absoluteString
         if let protected {
             // RFC 9728 §3.3: metadata about another server is not used.
             if let named = protected["resource"] as? String {
-                guard let url = allowed(named), covers(url, endpoint) else { throw MCPOAuthError(.insecure, detail: "resource") }
+                guard let url = http.allows(named) else { throw MCPOAuthError(.setup, detail: "resource not https") }
+                guard covers(url, endpoint) else { throw MCPOAuthError(.insecure, detail: "resource") }
                 resource = named
             }
             guard let first = (protected["authorization_servers"] as? [Any])?.first as? String else {
                 throw MCPOAuthError(.setup, detail: "no authorization_servers")
             }
-            guard allowed(first) != nil else { throw MCPOAuthError(.insecure, detail: "authorization server") }
+            guard http.allows(first) != nil else { throw MCPOAuthError(.setup, detail: "authorization server not https") }
             issuer = first.trimmingCharacters(in: .whitespaces)
         }
-        guard let issuer, let issuerURL = allowed(issuer),
+        guard let issuer, let issuerURL = http.allows(issuer),
               let metadata = try await firstMetadata(authorizationServerMetadataURLs(issuer: issuerURL), http: http,
                                                      where: { sameIssuer($0["issuer"] as? String, issuer) }) else {
             throw MCPOAuthError(.setup, detail: "no authorization server metadata for its issuer")
         }
         func address(_ key: String) throws -> URL? {
             guard let text = metadata[key] as? String else { return nil }
-            guard let url = allowed(text) else { throw MCPOAuthError(.insecure, detail: key) }
+            guard let url = http.allows(text) else { throw MCPOAuthError(.setup, detail: key + " not https") }
             return url
         }
         guard let authorization = try address("authorization_endpoint"), let token = try address("token_endpoint") else {
@@ -177,9 +182,9 @@ extension MCPOAuth {
     }
 
     /// RFC 9728 §3.1: the challenge's address, then the well-known address with the endpoint's path,
-    /// then the one at the root. An address that is not HTTPS is skipped.
-    static func resourceMetadataURLs(endpoint: URL, challenge: MCPBearerChallenge?) -> [URL] {
-        let candidates = [allowed(challenge?.resourceMetadata), wellKnown("oauth-protected-resource", before: endpoint),
+    /// then the one at the root. A challenge address that is not HTTPS is skipped.
+    static func resourceMetadataURLs(endpoint: URL, challenge: MCPBearerChallenge?, http: MCPOAuthHTTP) -> [URL] {
+        let candidates = [http.allows(challenge?.resourceMetadata), wellKnown("oauth-protected-resource", before: endpoint),
                           wellKnown("oauth-protected-resource", before: endpoint, path: false)]
         return unique(candidates.compactMap { $0 })
     }
@@ -226,12 +231,13 @@ extension MCPOAuth {
 // MARK: - Addresses
 
 extension MCPOAuth {
-    /// HTTPS, or HTTP on this device's loopback address; no user info or fragment.
-    public static func allowed(_ text: String?) -> URL? {
+    /// HTTPS without user info or a fragment. `loopbackHTTP` also lets plain HTTP to this device's
+    /// loopback address through; only the checks' MCPOAuthHTTP asks for it (`allowsLoopbackHTTP`).
+    static func allowed(_ text: String?, loopbackHTTP: Bool) -> URL? {
         guard let text = text?.trimmingCharacters(in: .whitespaces), let parts = URLComponents(string: text),
               let scheme = parts.scheme?.lowercased(), let host = parts.host?.lowercased(), !host.isEmpty,
               parts.user == nil, parts.password == nil, parts.fragment == nil, let url = parts.url else { return nil }
-        guard scheme == "https" || (scheme == "http" && loopbackHosts.contains(host)) else { return nil }
+        guard scheme == "https" || (loopbackHTTP && scheme == "http" && loopbackHosts.contains(host)) else { return nil }
         return url
     }
 
@@ -537,7 +543,7 @@ extension MCPOAuth {
     /// left out is kept. A dead refresh token is terminal; anything else the server refuses keeps it.
     public static func refresh(_ session: MCPOAuthSession, http: MCPOAuthHTTP,
                                nowMs: @Sendable () -> Int64) async throws -> ModelAccountRefreshResult<MCPOAuthSession> {
-        guard let endpoint = allowed(session.tokenEndpoint) else { return .rejected(terminal: true) }
+        guard let endpoint = http.allows(session.tokenEndpoint) else { return .rejected(terminal: true) }
         let answer: MCPOAuthAnswer
         do { answer = try await http.send(refreshRequest(session, endpoint: endpoint)) }
         catch {
@@ -678,18 +684,24 @@ public struct MCPOAuthAnswer: Sendable {
     public let body: Data
 }
 
-/// The sign-in's requests (Android McpOAuth's client: 20 seconds, no redirects). Redirects are
-/// refused: metadata counts only as a 200 answer (RFC 8414 §3.2, RFC 9728 §3.2), and a code,
-/// secret or token never follows one to another host. At most 1 MiB of an answer is read; no
-/// cookie, cache or credential is kept.
+/// The sign-in's requests (Android McpOAuth's client: 20 seconds, no redirects). Only HTTPS
+/// addresses are requested. Redirects are refused: metadata counts only as a 200 answer (RFC 8414
+/// §3.2, RFC 9728 §3.2), and a code, secret or token never follows one to another host. At most
+/// 1 MiB of an answer is read; no cookie, cache or credential is kept.
 public final class MCPOAuthHTTP: @unchecked Sendable {
+    /// The App's: HTTPS only.
     public static let shared = MCPOAuthHTTP()
     static let maximumBodyBytes = 1024 * 1024
     private let session: URLSession
+    /// Plain HTTP to this device's loopback address as well, for the checks' fake servers. Only
+    /// the internal initializer sets it, so the App can't; it is not tied to DEBUG, because the
+    /// checks run in Release too.
+    let allowsLoopbackHTTP: Bool
 
     public convenience init() { self.init(configuration: .ephemeral) }
 
-    init(configuration: URLSessionConfiguration) {
+    init(configuration: URLSessionConfiguration, allowsLoopbackHTTP: Bool = false) {
+        self.allowsLoopbackHTTP = allowsLoopbackHTTP
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 30
         configuration.urlCache = nil
@@ -701,8 +713,13 @@ public final class MCPOAuthHTTP: @unchecked Sendable {
 
     deinit { session.finishTasksAndInvalidate() }
 
-    /// Only cancellation and a missing answer throw.
+    /// An address this client may request (MCPOAuth.allowed).
+    func allows(_ text: String?) -> URL? { MCPOAuth.allowed(text, loopbackHTTP: allowsLoopbackHTTP) }
+
+    /// Only cancellation, a missing answer and an address that is not allowed throw; nothing is
+    /// sent to an address that is not HTTPS.
     func send(_ request: URLRequest) async throws -> MCPOAuthAnswer {
+        guard allows(request.url?.absoluteString) != nil else { throw MCPError.invalidEndpoint }
         var request = request
         request.httpShouldHandleCookies = false
         request.cachePolicy = .reloadIgnoringLocalCacheData
