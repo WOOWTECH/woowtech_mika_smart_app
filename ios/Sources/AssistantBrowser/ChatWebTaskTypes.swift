@@ -288,7 +288,8 @@ public enum ChatWebCommand: Equatable, Sendable {
 
 /// What the user is asked to do on the task's page (Android hand_to_user).
 public struct ChatWebHandover: Equatable, Sendable {
-    public enum Reason: String, Equatable, Sendable { case login, captcha, accessBlocked = "access_blocked", payment, decision, other }
+    /// download: the page started a download, which a task never does; the host hands it over itself.
+    public enum Reason: String, Equatable, Sendable { case login, captcha, accessBlocked = "access_blocked", payment, download, decision, other }
     public enum Outcome: String, Equatable, Sendable {
         /// 處理好了: the task goes on and checks the page first.
         case handedBack = "handed_back"
@@ -365,6 +366,9 @@ public enum ChatWebExecutionError: Error, Equatable, Sendable {
     /// The page refused a tap, typing or a choice (stale snapshot, covered
     /// control, unknown option); nothing was done.
     case actionRefused(String)
+    /// The page started a download. A task never downloads: the runner hands
+    /// the page to the person, who can download it there.
+    case downloadNeedsUser
 
     public var code: String {
         switch self {
@@ -376,6 +380,7 @@ public enum ChatWebExecutionError: Error, Equatable, Sendable {
         case .readTimedOut: return "read_timeout"
         case .interrupted: return "interrupted"
         case .actionRefused(let reason): return reason
+        case .downloadNeedsUser: return "download_needs_user"
         }
     }
 }

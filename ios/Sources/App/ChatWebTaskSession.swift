@@ -18,6 +18,8 @@ struct ChatWebTaskEnvironment {
     var onSignInObserved: ((URL, BrowserSignInState) -> Void)?
     /// Debug fixtures only: no 4–12 s waits between pages of one site.
     var skipsPacing = false
+    /// The browser's downloads, for a page the person took over.
+    var downloads: BrowserDownloadManager?
 }
 
 /// One running web task from chat: the tab, the runner, and what the task
@@ -58,6 +60,7 @@ struct ChatWebTaskEnvironment {
          environment: ChatWebTaskEnvironment) {
         tab = ChatWebTaskTab(dataStore: environment.dataStore, fixtureOrigin: environment.fixtureOrigin)
         tab.onSignInObserved = environment.onSignInObserved
+        tab.downloads = environment.downloads
         let skips = environment.skipsPacing
         runner = ChatWebTaskRunner(client: client, executor: tab, configuration: configuration, apiKey: apiKey,
                                    settings: .init(searchTemplate: environment.searchTemplate, fixtureOrigin: environment.fixtureOrigin),

@@ -24,6 +24,8 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     var onCreateWindow: ((WKWebViewConfiguration, URLRequest) -> WKWebView?)?
     var onCloseWindow: (() -> Void)?
     var canPresentUI: () -> Bool = { true }
+    /// The app's downloads; the person's own taps on a page download, after they allow it.
+    var downloads: BrowserDownloadManager?
     // Workspace supplies only manual preferences. Automated navigation keeps
     // WebKit's existing recommended policy, independent of this hostname set.
     var manualSiteMode: (String?) -> BrowserManualSiteMode = { _ in .mobile }
@@ -106,6 +108,8 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private var automationDocumentOrigin: String?
     private var manualDocumentURL: URL?
     private var manualDocumentNavigation: WKNavigation?
+    /// A download the person started on a page research or an action had read.
+    private var explicitManualDownloadPending = false
     @Published private(set) var learningStatus: String?
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
@@ -718,6 +722,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
 
     func cancelInteraction() {
         navigationIntent.invalidate()
+        explicitManualDownloadPending = false
         interactionRunID = nil; interactionWork?.cancel(); interactionWork = nil
         storedDOMExecutor?.cancel(); isInteracting = false; postAllowance = nil
         invalidateControls()
@@ -754,6 +759,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         }
         automationOwnsDocument = true
         manualDocumentURL = nil; manualDocumentNavigation = nil
+        explicitManualDownloadPending = false
         navigationIntent.invalidate()
     }
     private func invalidateControls() {
@@ -853,9 +859,14 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             navigationIntent.beginManual(url)
         }
         if navigationAction.shouldPerformDownload {
-            // Like the Play build, the browser doesn't download files.
-            decisionHandler(.cancel)
-            if !automated { error = Self.noDownloadMessage }
+            // Only the person's own tap downloads, after they allow it in the
+            // question (BrowserDownloadManager); research, actions and replays never do.
+            let authorized = (!automationOwnsDocument || manualRequest) && !automated && downloads != nil
+                && navigationAction.targetFrame?.isMainFrame != false
+                && navigationIntent.authorizeDownload(url, source: .action(navigationAction))
+            if authorized { explicitManualDownloadPending = manualRequest }
+            decisionHandler(authorized ? .download : .cancel)
+            if !authorized && !automated { error = Self.noDownloadMessage }
             return
         }
         decisionHandler(.allow)
@@ -919,10 +930,14 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             if !isRunning, navigationResponse.isForMainFrame { failManualLoad(.responseRejected) }
             return
         }
-        if Self.isAttachment(navigationResponse.response) || !navigationResponse.canShowMIMEType {
-            // Like the Play build, the browser doesn't download files.
-            decisionHandler(.cancel)
-            if !isRunning {
+        // Content-Disposition: attachment, or a type WebKit cannot show, is a download.
+        if BrowserDownloadRules.isAttachment(navigationResponse.response) || !navigationResponse.canShowMIMEType {
+            let authorized = (!automationOwnsDocument || manualResponse) && !isRunning && !isInteracting && downloads != nil
+                && navigationResponse.isForMainFrame
+                && navigationIntent.authorizeDownload(url, source: .response(navigationResponse))
+            if authorized { explicitManualDownloadPending = manualResponse }
+            decisionHandler(authorized ? .download : .cancel)
+            if !authorized, !isRunning {
                 if navigationResponse.isForMainFrame { error = Self.noDownloadMessage }
                 failManualLoad(.responseRejected)
             }
@@ -931,13 +946,27 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         decisionHandler(.allow)
     }
 
-    /// Play's browser_no_download text.
-    static let noDownloadMessage = "瀏覽器裡暫時不能下載檔案。"
-    private static func isAttachment(_ response: URLResponse) -> Bool {
-        guard let http = response as? HTTPURLResponse,
-              let disposition = http.value(forHTTPHeaderField: "Content-Disposition") else { return false }
-        return disposition.split(separator: ";", maxSplits: 1).first?
-            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "attachment"
+    /// A download that did not come from the person's own tap on the page.
+    static let noDownloadMessage = "這個下載不是你在頁面上點選開始的，所以沒有下載。"
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        acceptDownload(download, source: navigationAction.request.url, issuer: .action(navigationAction))
+    }
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        acceptDownload(download, source: navigationResponse.response.url, issuer: .response(navigationResponse))
+    }
+    /// Only the permit this navigation's own policy decision gave, while the
+    /// person still browses: a late or unrelated callback never downloads.
+    private func acceptDownload(_ download: WKDownload, source: URL?, issuer: BrowserNavigationIntent.DownloadSource) {
+        let matchedPermit = navigationIntent.consumeDownload(source, source: issuer)
+        let approved = matchedPermit && (!automationOwnsDocument || explicitManualDownloadPending) && !isRunning && !isInteracting
+        if matchedPermit { explicitManualDownloadPending = false }
+        guard approved, let downloads else { download.cancel(nil); return }
+        downloads.accept(download, from: source)
+        // The page stays as it was; the navigation that became a download is not a failed load.
+        requestedNavigationPending = false; trackedNavigation = nil
+        manualDocumentURL = nil; manualDocumentNavigation = nil
+        error = nil
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -1119,6 +1148,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private func preparePageNavigation() {
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         manualDocumentURL = nil; manualDocumentNavigation = nil
+        explicitManualDownloadPending = false
         invalidatePageObservation()
         trackedNavigation = nil; requestedNavigationPending = true
         if !isRunning { resetLoadTrace(); traceLoad(.requested) }

@@ -16,6 +16,7 @@ struct ContentView: View {
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
     @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
+    @State private var showsDownloads = false
     @StateObject private var session = ChatSession()
     @StateObject private var mcpServers = MCPServers()
     @StateObject private var browserWorkspace = BrowserWorkspace()
@@ -60,6 +61,8 @@ struct ContentView: View {
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
         .firstLaunchOnboarding(session: session, languages: languages, accent: palette.accent)
+        .modifier(BrowserDownloadPresentations(manager: browserWorkspace.downloads, chat: session,
+                                               showsList: $showsDownloads, localizer: localizer, attach: attachDownload))
         .taskNotifications(chat: session, store: notifications) { destination in
             showsDrawer = false
             browserReturnSection = .chat
@@ -93,6 +96,7 @@ struct ContentView: View {
                 environment.onSignInObserved = { [weak browserWorkspace] url, state in
                     browserWorkspace?.observeSignIn(url, state)
                 }
+                environment.downloads = browserWorkspace.downloads
                 #if DEBUG
                 if let fixture = ChatWebTaskFixture.shared {
                     environment.fixtureOrigin = fixture.originURL
@@ -135,6 +139,29 @@ struct ContentView: View {
             if destination == .chat { menuHasVoiceOverFocus = true }
             else { backHasVoiceOverFocus = true }
         }
+    }
+
+    /// 附加到對話: the download goes into the chat's tray as a picked file
+    /// does, from a temporary copy, and the chat comes to the front.
+    private func attachDownload(_ url: URL) async -> Bool {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ChatAttachmentImports/" + UUID().uuidString, isDirectory: true)
+        let copy = folder.appendingPathComponent(url.lastPathComponent)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: url, to: copy)
+        } catch {
+            try? FileManager.default.removeItem(at: folder)
+            return false
+        }
+        let before = Set(session.pendingAttachments.map(\.id))
+        await session.addAttachments([ChatPickedFile(temporaryURL: copy, suggestedName: url.lastPathComponent,
+                                                     contentType: nil, dedupeKey: nil)])
+        guard session.pendingAttachments.contains(where: { !before.contains($0.id) }) else { return false }
+        showsDrawer = false
+        browserReturnSection = .chat
+        selection = .chat
+        return true
     }
 
     private var shell: some View {
@@ -300,7 +327,8 @@ struct ContentView: View {
                 case .memory:
                     memoryDataView(resetNavigation: false)
                 case .browser:
-                    BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
+                    BrowserView(browser: browser, chat: session, workspace: browserWorkspace,
+                                openDownloads: { showsDownloads = true })
                 }
             }
     }

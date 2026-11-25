@@ -39,6 +39,7 @@ struct ChatWebTaskText {
         case .captcha: return localizer.text(.chatWebReasonCaptcha)
         case .accessBlocked: return localizer.text(.chatWebReasonAccessBlocked)
         case .payment: return localizer.text(.chatWebReasonPayment)
+        case .download: return localizer.text(.chatWebReasonDownload)
         case .decision: return localizer.text(.chatWebReasonDecision)
         case .other: return localizer.text(.chatWebReasonOther)
         }
@@ -231,7 +232,10 @@ struct ChatWebTaskCard: View {
             Text(verbatim: localizer.text(.chatWebHandoverTitle(reason: text.reason(handover.reason))))
                 .font(.subheadline.weight(.semibold)).foregroundStyle(colors.ink)
                 .accessibilityIdentifier("chat.web.handover.title")
-            Text(verbatim: handover.message).font(.callout).foregroundStyle(colors.ink)
+            // The host's own hand-over for a download has no model message: it says what to do.
+            Text(verbatim: handover.reason == .download && handover.message.isEmpty
+                 ? localizer.text(.chatWebDownloadHandover) : handover.message)
+                .font(.callout).foregroundStyle(colors.ink)
             ForEach(Array([handover.item.map { localizer.text(.chatWebPaymentItem(item: $0)) },
                            handover.amount.map { localizer.text(.chatWebPaymentAmount(amount: $0)) },
                            handover.address.map { localizer.text(.chatWebPaymentAddress(address: $0)) }].compactMap { $0 }.enumerated()),
