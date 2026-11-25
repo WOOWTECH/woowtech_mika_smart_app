@@ -1934,18 +1934,14 @@ final class ChatSession: ObservableObject {
 
     /// The person saved, shared or removed a file, or it is gone: the card
     /// says so and the app's copy is deleted, after a share a little later
-    /// while the receiving app may still be reading it.
+    /// while the receiving app may still be reading it. That deletion is noted
+    /// on disk, so the card never comes back after a restart.
     func finishCreatedFile(_ file: ChatCreatedFile, as state: ChatCreatedFile.State) {
         guard state != .ready, let reply = createdFiles.first(where: { $0.value.contains { $0.id == file.id } })?.key,
               let index = createdFiles[reply]?.firstIndex(where: { $0.id == file.id }),
               createdFiles[reply]?[index].state == .ready else { return }
         createdFiles[reply]?[index].state = state
-        let store = createdFileStore
-        guard state == .shared else { store.remove(file); return }
-        Task {
-            try? await Task.sleep(nanoseconds: UInt64(ChatCreatedFileLimits.deleteAfterShare * 1_000_000_000))
-            store.remove(file)
-        }
+        createdFileStore.remove(file, after: state == .shared ? ChatCreatedFileLimits.deleteAfterShare : 0)
     }
 
     /// Checked before a preview, save or share: the app may have deleted the file after a day.

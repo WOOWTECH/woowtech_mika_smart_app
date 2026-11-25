@@ -728,7 +728,7 @@
 "chat.file.remove" = "移除檔案";
 "chat.file.previewHint" = "預覽檔案";
 "chat.file.saved" = "已存到檔案，App 裡的副本已刪除";
-"chat.file.shared" = "已分享，App 裡的副本已刪除";
+"chat.file.shared" = "已分享，App 裡的副本稍後會刪除";
 "chat.file.removed" = "已移除，App 裡的副本已刪除";
 "chat.file.missing" = "這個檔案已經不在了，可以請助理重新建立";
 "chat.file.kind.pdf" = "PDF 文件";
@@ -1032,7 +1032,7 @@
 "download.arrivingUnknown" = "已下載 %1$@";
 "download.finished" = "下載完成，只存在這個 App 裡";
 "download.saved" = "已存到檔案，App 裡的副本已刪除";
-"download.shared" = "已分享，App 裡的副本已刪除";
+"download.shared" = "已分享，App 裡的副本稍後會刪除";
 "download.attached" = "已附加到對話，App 裡的下載已刪除";
 "download.cancelled" = "已停止下載";
 "download.stop" = "停止下載";

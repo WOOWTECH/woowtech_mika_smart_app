@@ -7063,8 +7063,8 @@
       "key": "chat.file.shared",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已分享，App 裡的副本已刪除",
-        "en": "Shared; the app’s copy was deleted"
+        "zh-Hant": "已分享，App 裡的副本稍後會刪除",
+        "en": "Shared; the app’s copy will be deleted shortly"
       }
     },
     {
@@ -10058,8 +10058,8 @@
       "key": "download.shared",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已分享，App 裡的副本已刪除",
-        "en": "Shared; the app’s copy was deleted"
+        "zh-Hant": "已分享，App 裡的副本稍後會刪除",
+        "en": "Shared; the app’s copy will be deleted shortly"
       }
     },
     {
