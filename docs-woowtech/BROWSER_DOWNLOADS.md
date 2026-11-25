@@ -50,8 +50,8 @@ owner 2026-11-25 決定：下一版（291 之後）內建瀏覽器恢復下載�
 ## 清理
 
 - 存到檔案、附加到對話、移除：立即刪除 App 裡的副本。
-- 分享完成：30 秒後刪除（接收端可能還在讀取）。
-- App 啟動時（建立瀏覽器工作區時）：刪除所有 `Partial`（上次沒下載完的，WebKit 無法續傳）；刪除 `Files` 裡最後變動超過 24 小時的項目；其餘完成檔重新列在清單上，仍可存、分享、附加或移除。
+- 分享完成：30 秒後刪除（接收端或 AirDrop 可能還在讀取），清單顯示「已分享，App 裡的副本稍後會刪除」。刪除時間先寫進該項目資料夾的 `.delete-after`；App 在這 30 秒內被系統結束的話，下次啟動就刪除，不再列回清單。讀不懂的 `.delete-after` 視為已到期。
+- App 啟動時（建立瀏覽器工作區時）：刪除所有 `Partial`（上次沒下載完的，WebKit 無法續傳）；刪除已過刪除時間的分享項目（不看 24 小時）；刪除其餘最後變動超過 24 小時的項目；分享過但還沒到時間的不列出、到時間刪除；其餘完成檔重新列在清單上，仍可存、分享、附加或移除。
 - 清除網站資料時，先停止所有等待回答與下載中的下載。
 - 只處理以大寫 UUID 命名的項目資料夾；不跟隨符號連結，其他名稱不動（`PendingFileFolder`）。
 - 2026-11-14 之前版本放在 `Application Support/BrowserDownloads` 的舊下載，啟動時照舊刪除。
@@ -73,7 +73,7 @@ owner 2026-11-25 決定：下一版（291 之後）內建瀏覽器恢復下載�
 
 本機已執行（2026-11-25，`/usr/bin/lockf -k /tmp/woow-swiftc.lock`）：
 
-- `check_browser_downloads.py`：Debug／Release 各 **62** 項全過（限制、提問與兩分鐘、檔名、Content-Disposition、ENOSPC、清理、重啟後清單、建立檔案的儲存上限），另 iOS 17 typecheck。
+- `check_browser_downloads.py`：Debug／Release 各 **79** 項全過（限制、提問與兩分鐘、檔名、Content-Disposition、ENOSPC、清理、重啟後清單、建立檔案的儲存上限；分享後記下刪除時間、App 在計時前結束而下次啟動刪除、30 秒內重啟不再列出、正常計時刪除、沒分享的仍照 24 小時），另 iOS 17 typecheck。
 - `check_browser_site_modes_app.py`：真 WebKit，Debug／Release 各 118 項、loopback 12 項全過；手動點 `download` 連結現在得到 `.download` 決策且沒有錯誤訊息（探針在網路前攔下，不會真的下載）；研究／動作中的下載仍為 `.cancel`。
 - `check_chat_web_task_core.py` Debug／Release 268／268、`check_browser_search_app.py` 170 項、`check_browser_manual_lan.sh` 622 項全過；App target 對 iOS 17 SDK typecheck 通過。
 

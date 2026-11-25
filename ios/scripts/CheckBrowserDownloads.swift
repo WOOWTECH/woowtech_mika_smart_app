@@ -4,7 +4,9 @@ import Foundation
 /// The rules behind browser downloads and created files, without a page or
 /// a network: the question's answer and its time, the size limits, file
 /// names, Content-Disposition, cleanup by age, what a restart lists again,
-/// and the created-file store. Real files in a temporary folder.
+/// the created-file store, and the deletion a share notes on disk. Real files
+/// in a temporary folder; a "restart" is a new folder, store or manager on the
+/// same files with a later clock, while this run's own timers never fire.
 @main
 enum CheckBrowserDownloads {
     static var assertions = 0
@@ -21,7 +23,7 @@ enum CheckBrowserDownloads {
 
     static let mebibyte: Int64 = 1_048_576
 
-    @MainActor static func main() throws {
+    @MainActor static func main() async throws {
         let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("woow-downloads-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: scratch) }
         limits()
@@ -30,6 +32,7 @@ enum CheckBrowserDownloads {
         try folders(scratch.appendingPathComponent("folder"))
         try restart(scratch.appendingPathComponent("downloads"))
         try createdFiles(scratch.appendingPathComponent("created"))
+        try await sharedDeletion(scratch.appendingPathComponent("shared"))
         print("{\"assertions\":\(assertions)}")
     }
 
@@ -176,6 +179,84 @@ enum CheckBrowserDownloads {
         expect(again.items.isEmpty && files.items().isEmpty, "移除 deletes a finished file")
         again.cancelAll()
         expect(again.items.isEmpty, "nothing to stop")
+    }
+
+    /// A share deletes the app's copy a moment later. The moment is noted on
+    /// disk, so a run that ends first still deletes the file at the next start
+    /// and never shows it again; a file never shared keeps the day rule.
+    @MainActor static func sharedDeletion(_ root: URL) async throws {
+        let now = Date()
+        func exists(_ folder: PendingFileFolder, _ id: UUID) -> Bool {
+            FileManager.default.fileExists(atPath: folder.root.appendingPathComponent(id.uuidString).path)
+        }
+        func age(_ folder: PendingFileFolder, _ id: UUID, by seconds: TimeInterval) throws {
+            try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-seconds)],
+                                                  ofItemAtPath: folder.root.appendingPathComponent(id.uuidString).path)
+        }
+
+        // The folder: shared, then the app ends before the timer fires.
+        let folder = PendingFileFolder(root: root.appendingPathComponent("folder"))
+        let shared = UUID(), early = UUID(), timed = UUID(), fresh = UUID(), stale = UUID(), kept = UUID(), broken = UUID()
+        for id in [shared, early, timed, fresh, stale, kept, broken] { _ = try folder.write(Data(count: 3), named: "f.pdf", id: id) }
+        folder.remove(shared, after: 30, now: now)
+        expect(exists(folder, shared) && folder.deletionDate(shared).map { abs($0.timeIntervalSince(now) - 30) < 0.01 } == true,
+               "a share notes its deletion on disk and keeps the file for the receiver")
+        expect(folder.items().first { $0.id == shared }?.deleteAt != nil, "the note is part of the item")
+        let restarted = PendingFileFolder(root: folder.root)
+        expect(restarted.purge(now: now.addingTimeInterval(5)).isEmpty && exists(restarted, shared),
+               "a restart inside the moment keeps the file for now")
+        expect(restarted.purge(now: now.addingTimeInterval(31)) == [shared] && !exists(restarted, shared),
+               "the next start after the moment deletes it, though the timer never fired")
+        // The noted deletion wins over the day rule and over an item in use.
+        folder.remove(early, after: 30, now: now.addingTimeInterval(-60))
+        folder.remove(kept, after: 30, now: now.addingTimeInterval(-60))
+        expect(Set(restarted.purge(now: now, keeping: [kept])) == [early, kept], "a due deletion goes, whatever the age or use")
+        try Data("not a time".utf8).write(to: folder.root.appendingPathComponent(broken.uuidString).appendingPathComponent(".delete-after"))
+        expect(folder.deletionDate(broken) == .distantPast && restarted.purge(now: now) == [broken], "an unreadable note is due at once")
+        // The normal path: this run's timer deletes it.
+        folder.remove(timed, after: 0.3)
+        expect(exists(folder, timed), "still there for the receiver")
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        expect(!exists(folder, timed), "the timer deleted it")
+        // Never shared: the day rule as before.
+        try age(folder, fresh, by: PendingFileFolder.retention - 3_600)
+        try age(folder, stale, by: PendingFileFolder.retention + 3_600)
+        expect(restarted.purge(now: now) == [stale] && exists(folder, fresh), "an unshared file still waits a day")
+        folder.remove(fresh, after: 0)
+        expect(!exists(folder, fresh) && folder.deletionDate(fresh) == nil, "no delay deletes at once")
+
+        // A created file's card never comes back once it was shared.
+        let created = ChatCreatedFileStore(folder: PendingFileFolder(root: root.appendingPathComponent("created")))
+        let reply = UUID()
+        let sharedFile = try created.save(Data("%PDF".utf8), name: "報告.pdf", format: "pdf")
+        let keptFile = try created.save(Data("%PDF".utf8), name: "保留.pdf", format: "pdf")
+        created.attach(sharedFile, to: reply); created.attach(keptFile, to: reply)
+        created.remove(sharedFile, after: 30)
+        var cards = ChatCreatedFileStore(folder: created.folder).load(now: now.addingTimeInterval(5))
+        expect(cards[reply]?.map(\.name) == ["保留.pdf"], "a restart inside the moment shows no card for the shared file")
+        expect(created.exists(sharedFile), "…and keeps it only until its moment")
+        // The stores take the real clock when the share completes, so "after the moment" is well past it.
+        cards = ChatCreatedFileStore(folder: created.folder).load(now: now.addingTimeInterval(120))
+        expect(cards[reply]?.map(\.name) == ["保留.pdf"] && !created.exists(sharedFile) && created.exists(keptFile),
+               "the next start after the moment deletes the shared file; the other card stays")
+
+        // A shared download is never listed again.
+        let downloads = root.appendingPathComponent("downloads")
+        let files = PendingFileFolder(root: downloads.appendingPathComponent("Files"))
+        let sharedDownload = UUID(), timedDownload = UUID(), otherDownload = UUID()
+        for id in [sharedDownload, timedDownload, otherDownload] { _ = try files.write(Data(count: 5), named: "d.zip", id: id) }
+        let manager = BrowserDownloadManager(root: downloads, now: now, allowsURL: { _ in true })
+        manager.delivered(sharedDownload, as: .shared, deleteAfter: 30)
+        expect(manager.items.first { $0.id == sharedDownload }?.phase == .delivered(.shared) && exists(files, sharedDownload),
+               "shared: kept for the receiver, noted on disk")
+        let early2 = BrowserDownloadManager(root: downloads, now: now.addingTimeInterval(5), allowsURL: { _ in true })
+        expect(Set(early2.items.map(\.id)) == [timedDownload, otherDownload], "a restart inside the moment does not list it")
+        let later = BrowserDownloadManager(root: downloads, now: now.addingTimeInterval(120), allowsURL: { _ in true })
+        expect(!exists(files, sharedDownload) && Set(later.items.map(\.id)) == [timedDownload, otherDownload],
+               "the next start after the moment deletes it")
+        later.delivered(timedDownload, as: .shared, deleteAfter: 0.3)
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        expect(!exists(files, timedDownload) && exists(files, otherDownload), "the timer deleted the shared download only")
     }
 
     static func createdFiles(_ root: URL) throws {

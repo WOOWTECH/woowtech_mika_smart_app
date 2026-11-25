@@ -34,8 +34,9 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
     }
 
     /// `root` holds Partial (arriving) and Files (finished). At start, what an
-    /// earlier run left arriving is deleted (WebKit cannot resume it), finished
-    /// files older than a day are deleted, and the rest are listed again.
+    /// earlier run left arriving is deleted (WebKit cannot resume it), and so
+    /// are finished files older than a day and shared files whose moment has
+    /// passed; the rest are listed again, never a file already shared.
     public init(root: URL, limits: BrowserDownloadLimits = .init(), now: Date = Date(),
                 allowsURL: @escaping (URL) -> Bool = BrowserManualNavigationPolicy.allows) {
         partial = PendingFileFolder(root: root.appendingPathComponent("Partial", isDirectory: true))
@@ -45,7 +46,12 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
         super.init()
         partial.purge(olderThan: -1, now: now)
         files.purge(now: now)
-        items = files.items().sorted { $0.modified > $1.modified }.prefix(limits.maximumListed).compactMap { item in
+        let finished = files.items().filter { item in
+            guard item.deleteAt != nil else { return true }
+            self.files.deleteWhenDue(item.id, now: now)
+            return false
+        }
+        items = finished.sorted { $0.modified > $1.modified }.prefix(limits.maximumListed).compactMap { item in
             guard let file = self.files.files(in: item.folder).first,
                   let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize else {
                 self.files.remove(item.id)
@@ -118,17 +124,14 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
     }
 
     /// Saved, shared or attached: the app's copy is deleted, after a share a
-    /// little later while the receiving app may still read it.
+    /// little later while the receiving app may still read it. That deletion
+    /// is noted on disk, so a restart before then deletes the file and never
+    /// lists it again.
     public func delivered(_ id: UUID, as delivery: BrowserDownloadItem.Delivery, deleteAfter delay: TimeInterval = 0) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].phase == .finished else { return }
         items[index].phase = .delivered(delivery)
         items[index].fileURL = nil
-        let files = self.files
-        guard delay > 0 else { files.remove(id); return }
-        Task {
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            files.remove(id)
-        }
+        files.remove(id, after: delay)
     }
 
     /// Takes the download off the list; a finished file is deleted with it.

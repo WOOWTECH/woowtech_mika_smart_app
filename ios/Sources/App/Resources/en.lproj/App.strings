@@ -704,7 +704,7 @@
 "chat.file.remove" = "Remove file";
 "chat.file.previewHint" = "Previews the file";
 "chat.file.saved" = "Saved to Files; the app’s copy was deleted";
-"chat.file.shared" = "Shared; the app’s copy was deleted";
+"chat.file.shared" = "Shared; the app’s copy will be deleted shortly";
 "chat.file.removed" = "Removed; the app’s copy was deleted";
 "chat.file.missing" = "This file is no longer here. Ask the assistant to make it again.";
 "chat.file.kind.pdf" = "PDF document";
@@ -1008,7 +1008,7 @@
 "download.arrivingUnknown" = "%1$@ downloaded";
 "download.finished" = "Downloaded, in this app only";
 "download.saved" = "Saved to Files; the app’s copy was deleted";
-"download.shared" = "Shared; the app’s copy was deleted";
+"download.shared" = "Shared; the app’s copy will be deleted shortly";
 "download.attached" = "Attached to the chat; the download was deleted from the app";
 "download.cancelled" = "Download stopped";
 "download.stop" = "Stop download";

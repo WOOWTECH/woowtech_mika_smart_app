@@ -53,7 +53,8 @@ enum ChatCreatedFileLimits {
 /// file and, once its reply is in the conversation, a note naming that reply,
 /// so the card comes back when the conversation is opened again after the app
 /// restarts. A file without a reply is a request that never finished; it is
-/// deleted at the next start, and every file a day after it was made.
+/// deleted at the next start, and every file a day after it was made. A
+/// shared file's deletion is noted too: it never comes back as a card.
 final class ChatCreatedFileStore: @unchecked Sendable {
     static let replyNote = ".reply"
     let folder: PendingFileFolder
@@ -67,6 +68,8 @@ final class ChatCreatedFileStore: @unchecked Sendable {
         folder.purge(now: now)
         var cards: [UUID: [ChatCreatedFile]] = [:]
         for item in folder.items().sorted(by: { $0.modified < $1.modified }) {
+            // Shared before the app ended: no card, and deleted once its moment has passed.
+            if item.deleteAt != nil { folder.deleteWhenDue(item.id, now: now); continue }
             let note = item.folder.appendingPathComponent(Self.replyNote)
             guard let text = try? String(contentsOf: note, encoding: .utf8), let reply = UUID(uuidString: text),
                   let file = folder.files(in: item.folder).first, let created = Self.card(item.id, file) else {
@@ -94,7 +97,8 @@ final class ChatCreatedFileStore: @unchecked Sendable {
         try? Data(reply.uuidString.utf8).write(to: note, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
-    func remove(_ file: ChatCreatedFile) { folder.remove(file.id) }
+    /// At once, or `delay` seconds later with the time noted on disk (PendingFileFolder.remove(_:after:)).
+    func remove(_ file: ChatCreatedFile, after delay: TimeInterval = 0) { folder.remove(file.id, after: delay) }
 
     func exists(_ file: ChatCreatedFile) -> Bool { FileManager.default.isReadableFile(atPath: file.url.path) }
 
