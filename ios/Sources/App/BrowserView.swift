@@ -10,10 +10,14 @@ struct BrowserView: View {
     @ObservedObject var browser: BrowserSession
     @ObservedObject var chat: ChatSession
     @ObservedObject var workspace: BrowserWorkspace
+    /// The root's downloads list (BrowserDownloadPresentations).
+    var openDownloads: () -> Void = {}
     @State private var showResearch = false
     @State private var showInteractions = false
     @State private var showSearchSettings = false
     @State private var showMore = false
+    /// 下載項目 in 更多 opens the list once that sheet has closed.
+    @State private var opensDownloads = false
     @State private var startQuery = ""
     /// Play's page bar: the address shows the site until tapped, then the full URL.
     @State private var editingAddress = false
@@ -148,7 +152,9 @@ struct BrowserView: View {
         }
         .sheet(isPresented: $workspace.presentsSignIns) { WebsiteSignInsView(workspace: workspace) }
         .sheet(isPresented: $showSearchSettings) { BrowserSearchSettingsView(workspace: workspace) }
-        .sheet(isPresented: $showMore) { moreSheet }
+        .sheet(isPresented: $showMore, onDismiss: {
+            if opensDownloads { opensDownloads = false; openDownloads() }
+        }) { moreSheet }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -461,6 +467,8 @@ struct BrowserView: View {
                                 .accessibilityIdentifier("browser.more.addFavorite")
                         }
                     }
+                    Button(localizer.text(.downloadTitle)) { opensDownloads = true; showMore = false }
+                        .accessibilityIdentifier("browser.more.downloads")
                     if browser.manualSiteModeHost != nil {
                         let desktop = workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
                         Button(localizer.text(desktop ? .browserChromeSwitchMobile : .browserChromeSwitchDesktop)) {

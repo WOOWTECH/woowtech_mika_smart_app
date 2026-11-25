@@ -529,7 +529,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     /// mention is not a capability: tools this device lacks are noted on read.
     static let skillToolNames: Set<String> = PlaySkillToolNames.known
         .union(BrowserSession.toolNames).union(ChatWebCommand.toolNames).union(ChatSkillCommand.toolNames)
-        .union(["memory_search", "memory_save", "memory_edit", "profile_edit"])
+        .union(["memory_search", "memory_save", "memory_edit", "profile_edit", "file_create"])
 
     /// A new request replaces the previous reply's skill notes.
     func clearSkillNotes() { skillNotes = [] }

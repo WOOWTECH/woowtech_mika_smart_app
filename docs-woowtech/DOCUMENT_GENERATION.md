@@ -6,9 +6,9 @@
 
 從已完成的助理回答建立 HTML、PDF、CSV，預覽後透過系統介面儲存或分享。使用者選定的原始回答會先複製成快照，後續對話更新不會改變這次文件。長按回答的文件入口不使用複製功能的去格式純文字，以保留表格結構。
 
-另提供保守的完整句子辨識，例如 `export the previous answer as PDF`、`把剛才的分析整理成 PDF`。只有明確指向前一則回答、沒有等待中的附件或引用時才開啟本機文件操作頁；不直接儲存或分享，也不把一般 PDF 問題攔截成命令。不支援任意自然語言產檔代理或新內容生成。其餘需求仍可先讓模型產生回答，再由使用者選定匯出。
+另提供保守的完整句子辨識，例如 `export the previous answer as PDF`、`把剛才的分析整理成 PDF`。只有明確指向前一則回答、沒有等待中的附件或引用時才開啟本機文件操作頁；不直接儲存或分享，也不把一般 PDF 問題攔截成命令。不支援任意自然語言產檔代理或新內容生成。其餘需求仍可先讓模型產生回答，再由使用者選定匯出。**2026-11-25 起此句子辨識已移除**，改由模型的 file_create 處理任何說法的產檔要求；長按回答的匯出不變，見[下方](#2026-11-25-助理建立檔案file_create)。
 
-本輪不包含 Excel/Word、網站發布、雲端產檔、跨 App 控制、文件歷史庫或自動傳送。原有 iPhone 舊對話卡死、MCP 工具錯誤及玻璃輸入區實機驗收仍為獨立未完成項。
+本輪不包含 Excel/Word、網站發布、雲端產檔、跨 App 控制、文件歷史庫或自動傳送。（Word、Excel、PowerPoint、ZIP 由 2026-11-25 的 file_create 補上，仍不含網站發布、雲端產檔與自動傳送。）原有 iPhone 舊對話卡死、MCP 工具錯誤及玻璃輸入區實機驗收仍為獨立未完成項。
 
 iPad 後續的版面修補、受控卡死重現、267 安裝來源、實機結果與剩餘限制，另見 [iPad 版面與視覺回歸](IPAD_VISUAL_VALIDATION.md)。iPad 結果不取代原 iPhone A31 對話或跨平台商用驗收。
 
@@ -180,3 +180,57 @@ Android同步修正兩個來源可證的問題：來源解析錯誤在切換格�
 Android原有 **64MiB／32檔** logical cache與獨立`CacheFull`說明維持，與iOS的100MiB額度不同；取消仍重拋`CancellationException`，本批未引入iOS的初始化架構。**290只執行JVM單元測試與品牌編譯，沒有執行instrumentation或真機測試**；不能據此宣稱實際FileViewer畫面、SAF／外部分享接收、實體磁碟ENOSPC或完整UI驗收通過。
 
 診斷追加：native291／292的單一PDF案例各1/1 PASS，警告仍出現，但擷取分別未建立target／附加失敗；293僅為隔離Simulator附加及安全卸離檢查。294實際附加成功，卻在PDF之前的chat.draft AX讀取逾時，0/1、exit1；只捕獲WebKit啟動及XCTAutomationSupport predicate兩個無關fault，已成功detach。此批診斷沒有取得目標警告的stack、沒有根據它修改runtime；完整失敗與界線見外部 `pdf-preview-warning-candidate/diagnostic-disposition.json`。不得把294併成40/40，亦不把原40案正常測試改寫為失敗。
+
+## 2026-11-25 助理建立檔案（file_create）
+
+owner 2026-11-25 決定：助理要能**建立** PDF、ZIP、Word（.docx）、Excel（.xlsx）、PowerPoint（.pptx）。實作在分支 `feature/ios-next-files-20261125`（基於送審中的 291 `103c596c`），**不在 291**。全部在裝置上原生產生，不移植 Android 在 App 內執行程式的 Linux 沙盒。瀏覽器下載同日恢復，規格見[瀏覽器下載](BROWSER_DOWNLOADS.md)。
+
+### 格式與內容
+
+| 格式 | 模型提供 | 產生方式 |
+| --- | --- | --- |
+| PDF | `markdown` | 沿用匯出的 `DocumentReport` 解析與 `DocumentPDFRenderer`；建立的 PDF 另畫斜體與程式碼字型（`Marks.boldItalicCode`），匯出仍只畫粗體，不改變既有匯出結果 |
+| Word | `markdown` | `WordDocumentWriter`：標題、H1–H6（Word 內建樣式名，進導覽窗格）、段落與換行、粗體／斜體／程式碼、項目清單與每張各自從 1 起算的編號清單、表格（粗體標頭、跨頁重複、格線）、程式碼區塊；A4 |
+| Excel | `sheets`：每張 `name` 與 `rows` | `SpreadsheetWriter`：數字寫成數字、文字寫成共用字串（`=1+1` 也是文字，不會成為公式）、`null` 為空格；第一列粗體並凍結；欄寬依內容；工作表名稱依 Excel 規則清理、去重 |
+| PowerPoint | `slides`：每頁 `title` 與 `bullets` | `PresentationWriter`：固定的母片、「標題及內容」版面與佈景主題，16:9；字多的投影片自動縮小字級（Quick Look 不會像 PowerPoint 自動縮小） |
+| ZIP | `entries`：每個 `name` 加 `text`，或 `file`（本對話先前建立的檔名） | `DocumentZipWriter`：本機標頭、中央目錄、CRC-32、Compression framework 的 raw deflate，壓不小就以 stored 存；UTF-8 檔名旗標；三種 Office 格式共用此寫入器 |
+
+不放圖片與連結；多層清單、合併儲存格、公式、圖表不在本版。Mac 上的 Quick Look 對照後改了三處：每張編號清單各自一個定義（Quick Look 不讀重新起算的覆寫）、表格直接帶框線（Quick Look 不畫樣式的框線）、true／false 寫成文字 TRUE／FALSE（Quick Look 不顯示 Excel 布林格）。
+
+### 工具與觸發
+
+- 指令：`{"action":"file_create","arguments":{"format":…,"file_name":…,"title":可省略,…各格式內容}}`。說明文字在 `DocumentCreationPrompts`，要求使用者要檔案時一律用 file_create，不要把內容貼進回答；只有 ok 的結果才算建立；沒按存到檔案或分享前不能說已存或已寄出。
+- 一般對話、記憶對話與 MCP 步驟都提供 file_create，跟技能工具同一套 JSON 指令機制（不是供應商原生 function calling）：技能工具步驟（`ChatSkillToolRun`）新增 App 自己的 host tool（`ChatHostTool`），Play 的技能工具名稱不變；`UserProfileChatFlow` 把 `file_create` 交給同一步驟；MCP 步驟的 host tools 加入 file_create。以 file_create 開頭的請求即使開著 MCP 也在技能工具步驟執行（MCP 步驟對單一指令有 4096 個 JSON 值、單一字串 128 KiB 的上限）。
+- 參數錯誤以 `{"ok":false,"error":…,"message":…}` 回給模型修正，不會把原始 JSON 當成回答顯示給使用者。
+- 固定句子辨識（`DocumentExportRequest`）、其單元測試與對應 UI 測試已移除；長按回答的「產生文件」照舊。
+
+### 限制
+
+| 項目 | 值 |
+| --- | --- |
+| 一個指令 | 256 KiB（與對話其他指令相同） |
+| 檔案大小 | 16 MiB（與匯出相同）；PDF 最多 256 頁 |
+| 檔名 | 1–120 字，清理後最多 80 個 Unicode 純量、240 UTF-8 位元組，去除路徑與保留字，副檔名依格式 |
+| 標題 | 一行，最多 200 字 |
+| Excel | 16 張工作表、每張 5,000 列、每列 64 格、全活頁簿 50,000 格、每格 32,767 字 |
+| PowerPoint | 50 頁、每頁 12 點、每段 500 字 |
+| ZIP | 32 個項目、壓縮前合計 64 MiB；同名自動加「(2)」 |
+| 每個請求 | 最多 8 個檔案 |
+| App 裡的建立檔案合計 | 100 MiB |
+
+### 使用者確認
+
+- 檔案先寫進 `Library/Caches/CreatedFiles/<UUID>/`，不備份、權限 0700、首次解鎖前受保護。回覆完成後，回覆下方出現檔案卡：Quick Look 縮圖、檔名、種類與大小，點卡片以 Quick Look 預覽。
+- 只有按「存到檔案」（系統檔案面板，選好位置才算）或「分享」（系統分享面板，回報完成才算）檔案才離開 App；取消則不變。沒有任何自動儲存或傳送。
+- 存到檔案或移除（×）後立即刪除 App 裡的副本，分享完成後 30 秒刪除；卡片改顯示「已存到檔案／已分享／已移除，App 裡的副本已刪除」。
+- 卡片記錄所屬回覆，App 重新啟動後打開同一對話仍看得到；沒等到回覆的請求所建檔案在下次啟動刪除，所有建立檔案在建立一天後的下次啟動刪除；已被刪除的檔案點下去會顯示「這個檔案已經不在了」。
+
+### 驗證與尚待確認
+
+本機已執行（2026-11-25，`/usr/bin/lockf -k /tmp/woow-swiftc.lock`）：
+
+- `check_document_creation.py`：以 Mac Catalyst 編譯 AssistantDocuments 與 App 的 `DocumentPDFRenderer.swift`（UIKit 在本機實際執行），Debug／Release 各 **100** 項 Swift 檢查、8 個樣本檔；`validate_created_files.py` 以 uv 執行 zipfile（逐項 CRC、檔名、stored／deflated）、ElementTree（每個 XML 部件格式正確）、python-docx、openpyxl、python-pptx、pypdf 開檔，各 **848** 項全過；另 iOS 17 typecheck 與 Swift 6 typecheck。樣本含中文、XML 特殊字元、CRLF、空內容、未配對記號與各上限。
+- macOS Quick Look 實際產生四種格式縮圖並目視檢查（編號重起、表格框線、TRUE／FALSE、整頁投影片縮字後在頁內）。
+- 既有檢查：`check_chat_skill_tools.py` 101、`check_profile_chat_app.py` Debug 978／Release 914、`check_task_notifications.py`、`check_ai_safety_and_reports.py`（12 個請求點）、`check_chat_attachment_reader.py`、`check_model_attachments.py` 全過；App target 對 iOS 17 SDK typecheck 通過。
+
+沒有執行 xcodebuild、模擬器或真機，也沒有用真模型。完整建置後要確認：真模型在各種說法下會用 file_create（含記憶對話與開著 MCP）；卡片、縮圖、Quick Look、存到檔案與分享的完成／取消；30 秒刪除對分享接收端是否足夠；重啟後卡片回來；iPad 與大字體；Word、Excel、PowerPoint、Numbers、Pages、Keynote 實際開啟（本機只以 Python 函式庫與 Quick Look 驗證）。

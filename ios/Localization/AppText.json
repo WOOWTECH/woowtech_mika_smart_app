@@ -6789,6 +6789,132 @@
       }
     },
     {
+      "case": "chatFileCreating",
+      "key": "chat.file.creating",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在建立檔案…",
+        "en": "Creating the file…"
+      }
+    },
+    {
+      "case": "chatFileSave",
+      "key": "chat.file.save",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "存到檔案",
+        "en": "Save to Files"
+      }
+    },
+    {
+      "case": "chatFileShare",
+      "key": "chat.file.share",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "分享",
+        "en": "Share"
+      }
+    },
+    {
+      "case": "chatFileRemove",
+      "key": "chat.file.remove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除檔案",
+        "en": "Remove file"
+      }
+    },
+    {
+      "case": "chatFilePreviewHint",
+      "key": "chat.file.previewHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "預覽檔案",
+        "en": "Previews the file"
+      }
+    },
+    {
+      "case": "chatFileSaved",
+      "key": "chat.file.saved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已存到檔案，App 裡的副本已刪除",
+        "en": "Saved to Files; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "chatFileShared",
+      "key": "chat.file.shared",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已分享，App 裡的副本已刪除",
+        "en": "Shared; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "chatFileRemoved",
+      "key": "chat.file.removed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已移除，App 裡的副本已刪除",
+        "en": "Removed; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "chatFileMissing",
+      "key": "chat.file.missing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個檔案已經不在了，可以請助理重新建立",
+        "en": "This file is no longer here. Ask the assistant to make it again."
+      }
+    },
+    {
+      "case": "chatFileKindPDF",
+      "key": "chat.file.kind.pdf",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "PDF 文件",
+        "en": "PDF document"
+      }
+    },
+    {
+      "case": "chatFileKindWord",
+      "key": "chat.file.kind.word",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "Word 文件",
+        "en": "Word document"
+      }
+    },
+    {
+      "case": "chatFileKindExcel",
+      "key": "chat.file.kind.excel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "Excel 試算表",
+        "en": "Excel workbook"
+      }
+    },
+    {
+      "case": "chatFileKindPowerPoint",
+      "key": "chat.file.kind.powerPoint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "PowerPoint 簡報",
+        "en": "PowerPoint presentation"
+      }
+    },
+    {
+      "case": "chatFileKindZIP",
+      "key": "chat.file.kind.zip",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "ZIP 壓縮檔",
+        "en": "ZIP archive"
+      }
+    },
+    {
       "case": "chatMessageCopy",
       "key": "chat.message.copy",
       "parameters": [],
@@ -8301,6 +8427,24 @@
       }
     },
     {
+      "case": "chatWebReasonDownload",
+      "key": "chat.web.reason.download",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載檔案",
+        "en": "Download a file"
+      }
+    },
+    {
+      "case": "chatWebDownloadHandover",
+      "key": "chat.web.downloadHandover",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個頁面要下載檔案，任務不會自己下載。請點「我來處理」，在頁面上自己下載；你確認後，檔案會出現在下載項目裡。",
+        "en": "This page wants to download a file, and the task never downloads by itself. Tap “I’ll handle it” and download it on the page; once you allow it, the file appears in Downloads."
+      }
+    },
+    {
       "case": "chatWebSkip",
       "key": "chat.web.skip",
       "parameters": [],
@@ -9554,8 +9698,315 @@
       "key": "stored.browser.noDownload",
       "parameters": [],
       "translations": {
-        "zh-Hant": "瀏覽器裡暫時不能下載檔案。",
-        "en": "The browser can’t download files yet."
+        "zh-Hant": "這個下載不是你在頁面上點選開始的，所以沒有下載。",
+        "en": "This download wasn’t started by your tap on the page, so nothing was downloaded."
+      }
+    },
+    {
+      "case": "downloadAskTitle",
+      "key": "download.ask.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "要下載這個檔案嗎？",
+        "en": "Download this file?"
+      }
+    },
+    {
+      "case": "downloadAskMessage",
+      "key": "download.ask.message",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "size",
+          "type": "String"
+        },
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "「%1$@」\n大小：%2$@\n來源：%3$@\n下載後只存在這個 App 裡，可以再存到檔案、分享或附加到對話。",
+        "en": "“%1$@”\nSize: %2$@\nFrom: %3$@\nIt stays in this app until you save it to Files, share it or attach it to the chat."
+      }
+    },
+    {
+      "case": "downloadAskDownload",
+      "key": "download.ask.download",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載",
+        "en": "Download"
+      }
+    },
+    {
+      "case": "downloadSizeUnknown",
+      "key": "download.sizeUnknown",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不明",
+        "en": "Unknown"
+      }
+    },
+    {
+      "case": "downloadTitle",
+      "key": "download.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載項目",
+        "en": "Downloads"
+      }
+    },
+    {
+      "case": "downloadEmpty",
+      "key": "download.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有下載項目",
+        "en": "No downloads yet"
+      }
+    },
+    {
+      "case": "downloadStarting",
+      "key": "download.starting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "準備下載",
+        "en": "Preparing"
+      }
+    },
+    {
+      "case": "downloadAsking",
+      "key": "download.asking",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等你確認",
+        "en": "Waiting for your answer"
+      }
+    },
+    {
+      "case": "downloadArriving",
+      "key": "download.arriving",
+      "parameters": [
+        {
+          "name": "received",
+          "type": "String"
+        },
+        {
+          "name": "total",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已下載 %1$@／%2$@",
+        "en": "%1$@ of %2$@"
+      }
+    },
+    {
+      "case": "downloadArrivingUnknown",
+      "key": "download.arrivingUnknown",
+      "parameters": [
+        {
+          "name": "received",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已下載 %1$@",
+        "en": "%1$@ downloaded"
+      }
+    },
+    {
+      "case": "downloadFinished",
+      "key": "download.finished",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載完成，只存在這個 App 裡",
+        "en": "Downloaded, in this app only"
+      }
+    },
+    {
+      "case": "downloadSaved",
+      "key": "download.saved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已存到檔案，App 裡的副本已刪除",
+        "en": "Saved to Files; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "downloadShared",
+      "key": "download.shared",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已分享，App 裡的副本已刪除",
+        "en": "Shared; the app’s copy was deleted"
+      }
+    },
+    {
+      "case": "downloadAttached",
+      "key": "download.attached",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已附加到對話，App 裡的下載已刪除",
+        "en": "Attached to the chat; the download was deleted from the app"
+      }
+    },
+    {
+      "case": "downloadCancelled",
+      "key": "download.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停止下載",
+        "en": "Download stopped"
+      }
+    },
+    {
+      "case": "downloadStop",
+      "key": "download.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止下載",
+        "en": "Stop download"
+      }
+    },
+    {
+      "case": "downloadAttach",
+      "key": "download.attach",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "附加到對話",
+        "en": "Attach to chat"
+      }
+    },
+    {
+      "case": "downloadRemove",
+      "key": "download.remove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除",
+        "en": "Remove"
+      }
+    },
+    {
+      "case": "downloadFailedTooLarge",
+      "key": "download.failed.tooLarge",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有下載：檔案超過 200 MB",
+        "en": "Not downloaded: the file is over 200 MB"
+      }
+    },
+    {
+      "case": "downloadFailedStorageFull",
+      "key": "download.failed.storageFull",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有下載：App 裡的下載已達 500 MB，請先存到檔案、分享或移除幾個",
+        "en": "Not downloaded: downloads in the app already reach 500 MB. Save, share or remove some first."
+      }
+    },
+    {
+      "case": "downloadFailedTooMany",
+      "key": "download.failed.tooMany",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有下載：一次最多下載 3 個檔案",
+        "en": "Not downloaded: up to 3 downloads at a time"
+      }
+    },
+    {
+      "case": "downloadFailedNetwork",
+      "key": "download.failed.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載沒有完成，請檢查網路後在網頁上重新下載",
+        "en": "The download didn’t finish. Check your connection and download it again from the page."
+      }
+    },
+    {
+      "case": "downloadFailedDeviceFull",
+      "key": "download.failed.deviceFull",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載沒有完成：裝置儲存空間不足",
+        "en": "The download didn’t finish: there isn’t enough storage on this device"
+      }
+    },
+    {
+      "case": "downloadFailedUnsafe",
+      "key": "download.failed.unsafe",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有下載：檔案的網址不在瀏覽器能開的公開網站範圍內",
+        "en": "Not downloaded: the file’s address is outside the public sites the browser opens"
+      }
+    },
+    {
+      "case": "downloadFailedExpired",
+      "key": "download.failed.expired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有下載：兩分鐘內沒有確認",
+        "en": "Not downloaded: no answer within two minutes"
+      }
+    },
+    {
+      "case": "downloadFailedUnavailable",
+      "key": "download.failed.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有下載：App 的下載資料夾目前不能使用",
+        "en": "Not downloaded: the app’s download folder can’t be used right now"
+      }
+    },
+    {
+      "case": "downloadLimits",
+      "key": "download.limits",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "單一檔案最多 200 MB，App 裡的下載合計最多 500 MB。下載只存在這個 App 裡，存到檔案、分享、附加到對話或移除後，就從 App 刪除；放著沒處理的，超過 24 小時會在下次開啟 App 時刪除。",
+        "en": "Each file can be up to 200 MB, and downloads in the app up to 500 MB in all. A download stays only in this app and is deleted from it once you save it to Files, share it, attach it to the chat or remove it; one left alone is deleted the next time the app opens after 24 hours."
+      }
+    },
+    {
+      "case": "downloadNoticeFinished",
+      "key": "download.notice.finished",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已下載「%1$@」",
+        "en": "Downloaded “%1$@”"
+      }
+    },
+    {
+      "case": "downloadNoticeFailed",
+      "key": "download.notice.failed",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "「%1$@」沒有下載",
+        "en": "“%1$@” wasn’t downloaded"
+      }
+    },
+    {
+      "case": "downloadNoticeOpen",
+      "key": "download.notice.open",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "查看",
+        "en": "View"
       }
     },
     {

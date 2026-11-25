@@ -269,6 +269,15 @@ final class ChatSession: ObservableObject {
     @Published var attachmentNotice: ChatAttachmentNotice?
     let attachmentStore: ChatAttachmentStore
     private var attachmentImport: Task<Void, Never>?
+    /// The App's file_create, set by the root view; without it chat offers no files.
+    var fileTool: ChatFileTool?
+    /// Files the assistant made, as cards under the reply that made them.
+    @Published private(set) var createdFiles: [UUID: [ChatCreatedFile]] = [:]
+    /// A file is being made for the request on its way (the chat's step line).
+    @Published private(set) var creatingFile = false
+    /// Files made in the request on its way; its reply gets their cards.
+    private var requestCreatedFiles: [ChatCreatedFile] = []
+    let createdFileStore: ChatCreatedFileStore
     @Published private(set) var savedSettings: SavedModelSettings?
     @Published private(set) var hasStoredKey = false
     @Published private(set) var isSubmitting = false
@@ -372,6 +381,7 @@ final class ChatSession: ObservableObject {
         learning = LearningStore()
         archive = ConversationArchiveStore()
         attachmentStore = ChatAttachmentStore.live()
+        createdFileStore = ChatCreatedFileStore.live()
         var bootstrapFailure: String?
         #if DEBUG
         precondition(!(arguments.contains("-UITestMode") && arguments.contains("-LiveModelUITest")), "Choose one UI test mode")
@@ -403,6 +413,7 @@ final class ChatSession: ObservableObject {
         isUITestMode = false
         #endif
         loadSettings()
+        createdFiles = createdFileStore.load()
         if let bootstrapFailure { settingsError = "Live UI 測試設定未完成。\(bootstrapFailure)" }
     }
 
@@ -410,12 +421,15 @@ final class ChatSession: ObservableObject {
     /// lifecycles with isolated storage; production uses the initializer above.
     init(learning: LearningStore, repository: ModelSettingsRepository, client: any ChatModelClient,
          archive: ConversationArchiveStore? = nil, attachmentStore: ChatAttachmentStore? = nil,
+         createdFileStore: ChatCreatedFileStore? = nil,
          assistantQuoteText: @escaping @MainActor (String) -> String = ChatSession.plainAssistantQuote) {
         self.learning = learning
         self.archive = archive
         // Hosted tests get a throwaway folder, never the user's attachments.
         self.attachmentStore = attachmentStore ?? ChatAttachmentStore(root: FileManager.default.temporaryDirectory
             .appendingPathComponent("ChatAttachments-" + UUID().uuidString, isDirectory: true))
+        self.createdFileStore = createdFileStore ?? ChatCreatedFileStore(folder: PendingFileFolder(root: FileManager.default
+            .temporaryDirectory.appendingPathComponent("CreatedFiles-" + UUID().uuidString, isDirectory: true)))
         self.repository = repository
         self.client = client
         self.assistantQuoteText = assistantQuoteText
@@ -1354,6 +1368,7 @@ final class ChatSession: ObservableObject {
         if let turn = pendingTurn, turn.requestID == id, entries.last?.id == turn.user.id {
             archiveTurn(turn, assistant: assistant)
             entries.append(assistant)
+            attachCreatedFiles(to: assistant.id)
         }
         replyPreview = nil
         finish(id: id)
@@ -1499,11 +1514,12 @@ final class ChatSession: ObservableObject {
                                holdsCommand: Bool = false) async throws -> ChatPathReply {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        // One system message: the skill tools offer, the web task offer and the
-        // MCP catalog when there are any, then Play's identity line and safety
-        // rules (AISafetyRules).
+        // One system message: the skill tools offer, file_create, the web task
+        // offer and the MCP catalog when there are any, then Play's identity line
+        // and safety rules (AISafetyRules).
+        let files = skillIndex != nil ? fileTool : nil
         let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true, mcpOffered: mcpOffer != nil) },
-                                        web: webOffer, mcp: mcpOffer)
+                                        files: files?.offer, web: webOffer, mcp: mcpOffer)
         let messages = [AISafetyRules.systemMessage(instructions: offer)] + input
         // A reply that is exactly one skill tool command starts the skill tools
         // step; one that is exactly a web entry command starts a web task; one
@@ -1511,6 +1527,13 @@ final class ChatSession: ObservableObject {
         func finished(_ text: String) async throws -> ChatPathReply {
             if mcpOffer != nil, let command = MCPConversationEntry.command(in: text) {
                 return .mcp(MCPConversationEntry(command: command), memory: nil)
+            }
+            // A file is made in the skill tools step, MCP or not: it needs nothing
+            // from a server, and its command can be larger than the MCP step takes.
+            if files?.accepts(text) == true {
+                return .answer(try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
+                                                       generation: generation, configuration: configuration, key: key,
+                                                       client: client, requestID: id))
             }
             guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return .plain(text, allowsWeb: webOffer != nil) }
             // With MCP tools offered the skill tools run inside the MCP step.
@@ -1645,10 +1668,10 @@ final class ChatSession: ObservableObject {
 
     // MARK: Web tasks from chat
 
-    /// The plain chat's one offer: the skill tools first, then the web task
-    /// commands, then the MCP catalog.
-    static func plainChatOffer(skills: String?, web: String?, mcp: String? = nil) -> String? {
-        let offers = [skills, web, mcp].compactMap { $0 }
+    /// The plain chat's one offer: the skill tools first, then file_create, the
+    /// web task commands and the MCP catalog.
+    static func plainChatOffer(skills: String?, files: String? = nil, web: String?, mcp: String? = nil) -> String? {
+        let offers = [skills, files, web, mcp].compactMap { $0 }
         return offers.isEmpty ? nil : offers.joined(separator: "\n")
     }
 
@@ -1692,9 +1715,11 @@ final class ChatSession: ObservableObject {
                                      client: any ChatModelClient, requestID: UUID,
                                      skillIndex: String?? = nil, web: UserProfileChatSkillEntry? = nil,
                                      mcp: String? = nil) async throws -> ChatPathReply {
-        let skillEntry = skillIndex.map {
-            UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false, mcpOffered: mcp != nil),
-                                      accepts: { ChatSkillCommand.parseEntry($0) != nil })
+        let files = fileTool
+        let skillEntry = skillIndex.map { index in
+            UserProfileChatSkillEntry(instructions: [ChatSkillPrompts.entry(index: index, plainChat: false, mcpOffered: mcp != nil),
+                                                     files?.offer].compactMap { $0 }.joined(separator: "\n"),
+                                      accepts: { ChatSkillCommand.parseEntry($0) != nil || files?.accepts($0) == true })
         }
         let mcpEntry = mcp.map {
             UserProfileChatSkillEntry(instructions: $0, accepts: { MCPConversationEntry.command(in: $0) != nil })
@@ -1745,8 +1770,11 @@ final class ChatSession: ObservableObject {
             switch step {
             case .answer(let answer): return .answer(answer)
             case .skillEntry(let json):
-                // With MCP tools offered the skill tools run inside the MCP step.
-                if mcp != nil { return .mcp(continuingInMCP(command: ChatSkillCommand.unfenced(json)), memory: memoryRun) }
+                // With MCP tools offered the skill tools run inside the MCP step; a file
+                // is made in the skill tools step (completePlain).
+                if mcp != nil, files?.accepts(json) != true {
+                    return .mcp(continuingInMCP(command: ChatSkillCommand.unfenced(json)), memory: memoryRun)
+                }
                 flow.cancel()
                 return .answer(try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
                                                        generation: generation, configuration: configuration, key: key, client: client, requestID: requestID))
@@ -1807,9 +1835,9 @@ final class ChatSession: ObservableObject {
 
     /// Tool names a saved skill may mention: this chat's tools, like Play's run
     /// tool list (the skill tools and the web task commands), plus the browser
-    /// research tools existing iOS skills use.
+    /// research tools existing iOS skills use and the App's file_create.
     static func chatSkillToolNames(memoryOn: Bool) -> Set<String> {
-        ChatSkillCommand.toolNames.union(BrowserSession.toolNames).union(ChatWebCommand.toolNames)
+        ChatSkillCommand.toolNames.union(BrowserSession.toolNames).union(ChatWebCommand.toolNames).union([ChatFileTool.name])
             .union(memoryOn ? ["memory_search", "memory_save", "memory_edit", "profile_edit"] : [])
     }
 
@@ -1818,7 +1846,7 @@ final class ChatSession: ObservableObject {
         let toolNames = Self.chatSkillToolNames(memoryOn: memoryOn)
         return ChatSkillToolRun(conversation: conversation,
             catalog: { [weak self] in self?.chatSkillCatalog() ?? ChatSkillCatalog(bundled: nil, skills: SkillsState()) },
-            utterances: [utterance],
+            utterances: [utterance], hostTools: [fileHostTool(requestID: id)].compactMap { $0 },
             save: { [weak self] markdown, version in
                 guard let self, self.requestID == id else { throw CancellationError() }
                 // The model's own save, like Play's: it keeps this request going.
@@ -1837,7 +1865,8 @@ final class ChatSession: ObservableObject {
     private func runSkillTools(entryRaw: String, conversation: [ModelMessage], utterance: String, memoryOn: Bool,
                                generation: UUID, configuration: ModelConfiguration, key: String,
                                client: any ChatModelClient, requestID id: UUID) async throws -> String {
-        guard let entry = ChatSkillCommand.parseEntry(entryRaw) else { throw ChatSkillRunError.invalidCommand }
+        let entry = ChatSkillCommand.parseEntry(entryRaw)
+        guard entry != nil || fileTool?.accepts(entryRaw) == true else { throw ChatSkillRunError.invalidCommand }
         // Like Play there is no fixed chat deadline once tools run; the step keeps
         // its own call and time limits.
         deadline?.cancel(); deadline = nil
@@ -1847,10 +1876,82 @@ final class ChatSession: ObservableObject {
         defer {
             pendingSkillLearning = ChatSkillLearningInput(requestID: id, used: run.usedSkills, completedTools: run.completedTools)
         }
-        return try await run.run(entry: entry, entryRaw: entryRaw, client: client, configuration: configuration, apiKey: key,
-                                 validateState: { [weak self] in
+        let validate: () throws -> Void = { [weak self] in
             guard let self, self.requestID == id else { throw CancellationError() }
-        })
+        }
+        // A file_create entry: the App's host tool in the same step.
+        guard let entry else {
+            return try await run.run(hostEntry: entryRaw, client: client, configuration: configuration, apiKey: key,
+                                     validateState: validate)
+        }
+        return try await run.run(entry: entry, entryRaw: entryRaw, client: client, configuration: configuration, apiKey: key,
+                                 validateState: validate)
+    }
+
+    // MARK: Files the assistant makes (file_create)
+
+    /// The App's file_create for this request's skill tools or MCP step.
+    private func fileHostTool(requestID id: UUID) -> ChatHostTool? {
+        guard let fileTool else { return nil }
+        return ChatHostTool(name: ChatFileTool.name, instructions: fileTool.inStep, accepts: fileTool.accepts,
+                            run: { [weak self] raw in await self?.createFile(raw, requestID: id) ?? fileTool.limitResult })
+    }
+
+    /// Makes one file. Its card waits for the request's reply; the model reads
+    /// the result, or why nothing was made.
+    private func createFile(_ raw: String, requestID id: UUID) async -> String {
+        guard let fileTool else { return "" }
+        guard requestID == id, requestCreatedFiles.count < ChatCreatedFileLimits.maximumPerRequest else { return fileTool.limitResult }
+        creatingFile = true
+        defer { if requestID == id { creatingFile = false } }
+        switch await fileTool.make(raw, conversationFiles(), interfaceLanguage().rawValue) {
+        case .failed(let result):
+            return result
+        case .created(let file, let result):
+            // Stopped meanwhile: no reply will show this card.
+            guard requestID == id else { createdFileStore.remove(file); return result }
+            requestCreatedFiles.append(file)
+            return result
+        }
+    }
+
+    /// This conversation's files still in the app, by name (the latest of a name), for a ZIP.
+    private func conversationFiles() -> [String: URL] {
+        var files: [String: URL] = [:]
+        for entry in entries {
+            for file in createdFiles[entry.id] ?? [] where file.state == .ready { files[file.name] = file.url }
+        }
+        for file in requestCreatedFiles { files[file.name] = file.url }
+        return files
+    }
+
+    private func attachCreatedFiles(to reply: UUID) {
+        guard !requestCreatedFiles.isEmpty else { return }
+        for file in requestCreatedFiles { createdFileStore.attach(file, to: reply) }
+        createdFiles[reply, default: []] += requestCreatedFiles
+        requestCreatedFiles = []
+    }
+
+    /// The person saved, shared or removed a file, or it is gone: the card
+    /// says so and the app's copy is deleted, after a share a little later
+    /// while the receiving app may still be reading it.
+    func finishCreatedFile(_ file: ChatCreatedFile, as state: ChatCreatedFile.State) {
+        guard state != .ready, let reply = createdFiles.first(where: { $0.value.contains { $0.id == file.id } })?.key,
+              let index = createdFiles[reply]?.firstIndex(where: { $0.id == file.id }),
+              createdFiles[reply]?[index].state == .ready else { return }
+        createdFiles[reply]?[index].state = state
+        let store = createdFileStore
+        guard state == .shared else { store.remove(file); return }
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(ChatCreatedFileLimits.deleteAfterShare * 1_000_000_000))
+            store.remove(file)
+        }
+    }
+
+    /// Checked before a preview, save or share: the app may have deleted the file after a day.
+    func createdFileIsAvailable(_ file: ChatCreatedFile) -> Bool {
+        guard createdFileStore.exists(file) else { finishCreatedFile(file, as: .missing); return false }
+        return true
     }
 
     /// An explicit 請記住 whose command was refused or could not be read is kept from the user's
@@ -1952,9 +2053,17 @@ final class ChatSession: ObservableObject {
         }
         let skills = makeSkillToolRun(conversation: [], utterance: utterance, memoryOn: allowsLearning,
                                       generation: generation, requestID: requestID)
-        let hostTools = MCPConversationHostTools(instructions: ChatSkillPrompts.insideMCP(index: chatSkillCatalog().index()),
-            actions: ChatSkillCommand.toolNames, accepts: { ChatSkillCommand.parseEntry($0) != nil },
-            run: { raw in try await MainActor.run { skills.perform(try ChatSkillCommand.parse(raw)) } })
+        // The skill tools and file_create run between MCP calls.
+        let files = fileHostTool(requestID: requestID)
+        let hostTools = MCPConversationHostTools(
+            instructions: [ChatSkillPrompts.insideMCP(index: chatSkillCatalog().index()), files?.instructions]
+                .compactMap { $0 }.joined(separator: "\n"),
+            actions: ChatSkillCommand.toolNames.union(files.map { [$0.name] } ?? []),
+            accepts: { ChatSkillCommand.parseEntry($0) != nil || files?.accepts($0) == true },
+            run: { raw in
+                if let files, files.accepts(raw) { return await skills.performHost(files, raw) }
+                return try await MainActor.run { skills.perform(try ChatSkillCommand.parse(raw)) }
+            })
         defer {
             // The outcome judge sees every tool that returned success in this request.
             pendingSkillLearning = ChatSkillLearningInput(requestID: requestID, used: skills.usedSkills,
@@ -2112,6 +2221,10 @@ final class ChatSession: ObservableObject {
         mcpReached = false
         mcpRequestCatalog = nil
         skillStep = nil
+        // Files of a request whose reply never reached the conversation have no card.
+        for file in requestCreatedFiles { createdFileStore.remove(file) }
+        requestCreatedFiles = []
+        creatingFile = false
         request = nil
         deadline?.cancel()
         deadline = nil

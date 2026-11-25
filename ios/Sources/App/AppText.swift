@@ -713,6 +713,20 @@ enum AppText: Equatable {
     case chatAttachVisionFailedAgain
     case chatAttachVisionFailedNoPictures
     case chatAttachUnreadable
+    case chatFileCreating
+    case chatFileSave
+    case chatFileShare
+    case chatFileRemove
+    case chatFilePreviewHint
+    case chatFileSaved
+    case chatFileShared
+    case chatFileRemoved
+    case chatFileMissing
+    case chatFileKindPDF
+    case chatFileKindWord
+    case chatFileKindExcel
+    case chatFileKindPowerPoint
+    case chatFileKindZIP
     case chatMessageCopy
     case chatMessageCopied
     case chatMessageQuote
@@ -858,6 +872,8 @@ enum AppText: Equatable {
     case chatWebReasonPayment
     case chatWebReasonDecision
     case chatWebReasonOther
+    case chatWebReasonDownload
+    case chatWebDownloadHandover
     case chatWebSkip
     case chatWebTakeOver
     case chatWebCancelTask
@@ -995,6 +1011,36 @@ enum AppText: Equatable {
     case storedBrowserSitePreferenceSaved
     case storedBrowserOutsideScope
     case storedBrowserNoDownload
+    case downloadAskTitle
+    case downloadAskMessage(name: String, size: String, site: String)
+    case downloadAskDownload
+    case downloadSizeUnknown
+    case downloadTitle
+    case downloadEmpty
+    case downloadStarting
+    case downloadAsking
+    case downloadArriving(received: String, total: String)
+    case downloadArrivingUnknown(received: String)
+    case downloadFinished
+    case downloadSaved
+    case downloadShared
+    case downloadAttached
+    case downloadCancelled
+    case downloadStop
+    case downloadAttach
+    case downloadRemove
+    case downloadFailedTooLarge
+    case downloadFailedStorageFull
+    case downloadFailedTooMany
+    case downloadFailedNetwork
+    case downloadFailedDeviceFull
+    case downloadFailedUnsafe
+    case downloadFailedExpired
+    case downloadFailedUnavailable
+    case downloadLimits
+    case downloadNoticeFinished(name: String)
+    case downloadNoticeFailed(name: String)
+    case downloadNoticeOpen
     case storedBrowserLoadedManual
     case storedBrowserLoaded
     case storedBrowserLoadFailed
@@ -1819,6 +1865,20 @@ enum AppText: Equatable {
         case .chatAttachVisionFailedAgain: return "chat.attach.visionFailed.again"
         case .chatAttachVisionFailedNoPictures: return "chat.attach.visionFailed.noPictures"
         case .chatAttachUnreadable: return "chat.attach.unreadable"
+        case .chatFileCreating: return "chat.file.creating"
+        case .chatFileSave: return "chat.file.save"
+        case .chatFileShare: return "chat.file.share"
+        case .chatFileRemove: return "chat.file.remove"
+        case .chatFilePreviewHint: return "chat.file.previewHint"
+        case .chatFileSaved: return "chat.file.saved"
+        case .chatFileShared: return "chat.file.shared"
+        case .chatFileRemoved: return "chat.file.removed"
+        case .chatFileMissing: return "chat.file.missing"
+        case .chatFileKindPDF: return "chat.file.kind.pdf"
+        case .chatFileKindWord: return "chat.file.kind.word"
+        case .chatFileKindExcel: return "chat.file.kind.excel"
+        case .chatFileKindPowerPoint: return "chat.file.kind.powerPoint"
+        case .chatFileKindZIP: return "chat.file.kind.zip"
         case .chatMessageCopy: return "chat.message.copy"
         case .chatMessageCopied: return "chat.message.copied"
         case .chatMessageQuote: return "chat.message.quote"
@@ -1964,6 +2024,8 @@ enum AppText: Equatable {
         case .chatWebReasonPayment: return "chat.web.reason.payment"
         case .chatWebReasonDecision: return "chat.web.reason.decision"
         case .chatWebReasonOther: return "chat.web.reason.other"
+        case .chatWebReasonDownload: return "chat.web.reason.download"
+        case .chatWebDownloadHandover: return "chat.web.downloadHandover"
         case .chatWebSkip: return "chat.web.skip"
         case .chatWebTakeOver: return "chat.web.takeOver"
         case .chatWebCancelTask: return "chat.web.cancelTask"
@@ -2101,6 +2163,36 @@ enum AppText: Equatable {
         case .storedBrowserSitePreferenceSaved: return "stored.browser.sitePreferenceSaved"
         case .storedBrowserOutsideScope: return "stored.browser.outsideScope"
         case .storedBrowserNoDownload: return "stored.browser.noDownload"
+        case .downloadAskTitle: return "download.ask.title"
+        case .downloadAskMessage: return "download.ask.message"
+        case .downloadAskDownload: return "download.ask.download"
+        case .downloadSizeUnknown: return "download.sizeUnknown"
+        case .downloadTitle: return "download.title"
+        case .downloadEmpty: return "download.empty"
+        case .downloadStarting: return "download.starting"
+        case .downloadAsking: return "download.asking"
+        case .downloadArriving: return "download.arriving"
+        case .downloadArrivingUnknown: return "download.arrivingUnknown"
+        case .downloadFinished: return "download.finished"
+        case .downloadSaved: return "download.saved"
+        case .downloadShared: return "download.shared"
+        case .downloadAttached: return "download.attached"
+        case .downloadCancelled: return "download.cancelled"
+        case .downloadStop: return "download.stop"
+        case .downloadAttach: return "download.attach"
+        case .downloadRemove: return "download.remove"
+        case .downloadFailedTooLarge: return "download.failed.tooLarge"
+        case .downloadFailedStorageFull: return "download.failed.storageFull"
+        case .downloadFailedTooMany: return "download.failed.tooMany"
+        case .downloadFailedNetwork: return "download.failed.network"
+        case .downloadFailedDeviceFull: return "download.failed.deviceFull"
+        case .downloadFailedUnsafe: return "download.failed.unsafe"
+        case .downloadFailedExpired: return "download.failed.expired"
+        case .downloadFailedUnavailable: return "download.failed.unavailable"
+        case .downloadLimits: return "download.limits"
+        case .downloadNoticeFinished: return "download.notice.finished"
+        case .downloadNoticeFailed: return "download.notice.failed"
+        case .downloadNoticeOpen: return "download.notice.open"
         case .storedBrowserLoadedManual: return "stored.browser.loadedManual"
         case .storedBrowserLoaded: return "stored.browser.loaded"
         case .storedBrowserLoadFailed: return "stored.browser.loadFailed"
@@ -2319,6 +2411,11 @@ enum AppText: Equatable {
         case .chatWebPaymentAmount(let amount): return [amount]
         case .chatWebPaymentAddress(let address): return [address]
         case .chatWebStepHandover(let site): return [site]
+        case .downloadAskMessage(let name, let size, let site): return [name, size, site]
+        case .downloadArriving(let received, let total): return [received, total]
+        case .downloadArrivingUnknown(let received): return [received]
+        case .downloadNoticeFinished(let name): return [name]
+        case .downloadNoticeFailed(let name): return [name]
         case .storedChatContextWindow(let retained, let omitted): return [Int64(retained), Int64(omitted)]
         case .storedChatMemorySavedReplyTimeout(let seconds): return [Int64(seconds)]
         case .storedChatWaitTimeout(let seconds): return [Int64(seconds)]
@@ -3052,6 +3149,20 @@ enum AppText: Equatable {
         case .chatAttachVisionFailedAgain: return "請再試一次，或到設定的模型頁換一個看圖模型。"
         case .chatAttachVisionFailedNoPictures: return "它可能不收圖片，或服務商那裡沒有這個模型。請到設定的模型頁換一個能看圖的模型。"
         case .chatAttachUnreadable: return "這些附件讀不到內容，沒有加入："
+        case .chatFileCreating: return "正在建立檔案…"
+        case .chatFileSave: return "存到檔案"
+        case .chatFileShare: return "分享"
+        case .chatFileRemove: return "移除檔案"
+        case .chatFilePreviewHint: return "預覽檔案"
+        case .chatFileSaved: return "已存到檔案，App 裡的副本已刪除"
+        case .chatFileShared: return "已分享，App 裡的副本已刪除"
+        case .chatFileRemoved: return "已移除，App 裡的副本已刪除"
+        case .chatFileMissing: return "這個檔案已經不在了，可以請助理重新建立"
+        case .chatFileKindPDF: return "PDF 文件"
+        case .chatFileKindWord: return "Word 文件"
+        case .chatFileKindExcel: return "Excel 試算表"
+        case .chatFileKindPowerPoint: return "PowerPoint 簡報"
+        case .chatFileKindZIP: return "ZIP 壓縮檔"
         case .chatMessageCopy: return "複製"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"
@@ -3197,6 +3308,8 @@ enum AppText: Equatable {
         case .chatWebReasonPayment: return "付款"
         case .chatWebReasonDecision: return "需要你決定"
         case .chatWebReasonOther: return "其他"
+        case .chatWebReasonDownload: return "下載檔案"
+        case .chatWebDownloadHandover: return "這個頁面要下載檔案，任務不會自己下載。請點「我來處理」，在頁面上自己下載；你確認後，檔案會出現在下載項目裡。"
         case .chatWebSkip: return "跳過"
         case .chatWebTakeOver: return "我來處理"
         case .chatWebCancelTask: return "取消任務"
@@ -3333,7 +3446,37 @@ enum AppText: Equatable {
         case .storedBrowserRequestUnfinished: return "請求未完成；沒有自動重試或核准其他動作。"
         case .storedBrowserSitePreferenceSaved: return "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。"
         case .storedBrowserOutsideScope: return "此導覽不在目前允許的公開網站範圍內。"
-        case .storedBrowserNoDownload: return "瀏覽器裡暫時不能下載檔案。"
+        case .storedBrowserNoDownload: return "這個下載不是你在頁面上點選開始的，所以沒有下載。"
+        case .downloadAskTitle: return "要下載這個檔案嗎？"
+        case .downloadAskMessage: return "「%1$@」\n大小：%2$@\n來源：%3$@\n下載後只存在這個 App 裡，可以再存到檔案、分享或附加到對話。"
+        case .downloadAskDownload: return "下載"
+        case .downloadSizeUnknown: return "不明"
+        case .downloadTitle: return "下載項目"
+        case .downloadEmpty: return "還沒有下載項目"
+        case .downloadStarting: return "準備下載"
+        case .downloadAsking: return "等你確認"
+        case .downloadArriving: return "已下載 %1$@／%2$@"
+        case .downloadArrivingUnknown: return "已下載 %1$@"
+        case .downloadFinished: return "下載完成，只存在這個 App 裡"
+        case .downloadSaved: return "已存到檔案，App 裡的副本已刪除"
+        case .downloadShared: return "已分享，App 裡的副本已刪除"
+        case .downloadAttached: return "已附加到對話，App 裡的下載已刪除"
+        case .downloadCancelled: return "已停止下載"
+        case .downloadStop: return "停止下載"
+        case .downloadAttach: return "附加到對話"
+        case .downloadRemove: return "移除"
+        case .downloadFailedTooLarge: return "沒有下載：檔案超過 200 MB"
+        case .downloadFailedStorageFull: return "沒有下載：App 裡的下載已達 500 MB，請先存到檔案、分享或移除幾個"
+        case .downloadFailedTooMany: return "沒有下載：一次最多下載 3 個檔案"
+        case .downloadFailedNetwork: return "下載沒有完成，請檢查網路後在網頁上重新下載"
+        case .downloadFailedDeviceFull: return "下載沒有完成：裝置儲存空間不足"
+        case .downloadFailedUnsafe: return "沒有下載：檔案的網址不在瀏覽器能開的公開網站範圍內"
+        case .downloadFailedExpired: return "沒有下載：兩分鐘內沒有確認"
+        case .downloadFailedUnavailable: return "沒有下載：App 的下載資料夾目前不能使用"
+        case .downloadLimits: return "單一檔案最多 200 MB，App 裡的下載合計最多 500 MB。下載只存在這個 App 裡，存到檔案、分享、附加到對話或移除後，就從 App 刪除；放著沒處理的，超過 24 小時會在下次開啟 App 時刪除。"
+        case .downloadNoticeFinished: return "已下載「%1$@」"
+        case .downloadNoticeFailed: return "「%1$@」沒有下載"
+        case .downloadNoticeOpen: return "查看"
         case .storedBrowserLoadedManual: return "頁面已載入；此頁面僅供手動瀏覽"
         case .storedBrowserLoaded: return "頁面已載入"
         case .storedBrowserLoadFailed: return "網站載入失敗，請檢查網址或網路。"

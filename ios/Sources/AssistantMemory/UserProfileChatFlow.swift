@@ -340,7 +340,8 @@ public struct UserProfileChatSkillEntry: Sendable {
         guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any],
               let action = object["action"] as? String else { throw UserProfileChatError.invalidCommand }
         switch action {
-        case "skill_search", "skill_read", "skill_save":
+        // The App's file_create runs in the skill tools step too (ChatHostTool).
+        case "skill_search", "skill_read", "skill_save", "file_create":
             guard let skillEntry, skillEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
             return .skillEntry(json: text)
         case "web_navigate", "web_read_page":

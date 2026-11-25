@@ -25,9 +25,9 @@ COVERED = {
     # Ordinary chat: the skill tools and web task offers when there are any, then the rules.
     'Sources/App/ChatSession.swift': [
         'let messages = [AISafetyRules.systemMessage(instructions: offer)] + input'],
-    # The skill tools step of an ordinary chat.
+    # The skill tools step of an ordinary chat, with the App's host tools (file_create).
     'Sources/AssistantSkills/ChatSkillTools.swift': [
-        'let system = ModelMessage(role: "system", content: AISafetyRules.appended(to: ChatSkillPrompts.run(index: catalog().index())))'],
+        'let system = ModelMessage(role: "system", content: AISafetyRules.appended(to: ChatSkillPrompts.run(index: catalog().index(), hostTools: hostTools.map(\\.instructions))))'],
     # Ordinary chat with memory and profile tools (and the skill tools offer after them).
     'Sources/AssistantMemory/UserProfileChatFlow.swift': ['public static let instructions = AISafetyRules.appended(to: """'],
     'Sources/AssistantMCP/MCPConversationRunner.swift': ['system = AISafetyRules.appended(to: system)'],

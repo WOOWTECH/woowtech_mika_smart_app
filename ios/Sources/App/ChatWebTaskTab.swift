@@ -7,9 +7,12 @@ import AssistantBrowser
 /// sites the user signed in to in the app stay signed in (owner decision,
 /// 2026-11-13). Every main-frame navigation, redirects included, follows
 /// ChatWebTaskPolicy and must be a GET, except a form the task itself just
-/// sent under the money rule; no downloads, pop-ups, camera, microphone or
-/// page dialogs. WebKit runs normally only while the view is in a window, so
-/// the chat keeps it in its small preview.
+/// sent under the money rule; no pop-ups, camera, microphone or page dialogs.
+/// The task never downloads: a page that starts a download goes to the person
+/// (ChatWebExecutionError.downloadNeedsUser), who can download it while they
+/// have the page, after allowing it like any browser download. WebKit runs
+/// normally only while the view is in a window, so the chat keeps it in its
+/// small preview.
 @MainActor final class ChatWebTaskTab: NSObject, ChatWebTaskExecuting, WKNavigationDelegate, WKUIDelegate {
     let webView: WKWebView
     private let fixtureOrigin: URL?
@@ -26,6 +29,8 @@ import AssistantBrowser
     private var submissionAllowedUntil: Date?
     /// While the user has the page (我來處理), their own forms may load too.
     var userControlled = false
+    /// The browser's downloads, for the person's own taps while they have the page.
+    var downloads: BrowserDownloadManager?
     private var navigationStarted = false
     /// The last message a page tried to show in a dialog; dialogs close at once.
     private(set) var lastDialog: String?
@@ -331,7 +336,10 @@ import AssistantBrowser
             decisionHandler(["https", "http", "about", "data", "blob"].contains(scheme) ? .allow : .cancel); return
         }
         if scheme == "about" { decisionHandler(.allow); return }
-        if navigationAction.shouldPerformDownload { stop(.navigationFailed("download")); decisionHandler(.cancel); return }
+        if navigationAction.shouldPerformDownload {
+            if userControlled, downloads != nil { decisionHandler(.download); return }
+            stop(.downloadNeedsUser); decisionHandler(.cancel); return
+        }
         let method = (navigationAction.request.httpMethod ?? "GET").uppercased()
         guard method == "GET" || (method == "POST" && (userControlled || (submissionAllowedUntil.map { Date() < $0 } ?? false))) else {
             stop(.navigationFailed("not_get")); decisionHandler(.cancel); return
@@ -347,8 +355,24 @@ import AssistantBrowser
                  decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
         guard navigationResponse.isForMainFrame else { decisionHandler(.allow); return }
         httpStatus = (navigationResponse.response as? HTTPURLResponse)?.statusCode
-        guard navigationResponse.canShowMIMEType else { stop(.navigationFailed("download")); decisionHandler(.cancel); return }
+        if userControlled, downloads != nil,
+           BrowserDownloadRules.isAttachment(navigationResponse.response) || !navigationResponse.canShowMIMEType {
+            decisionHandler(.download); return
+        }
+        guard navigationResponse.canShowMIMEType else { stop(.downloadNeedsUser); decisionHandler(.cancel); return }
         decisionHandler(.allow)
+    }
+
+    /// Only while the person has the page; anything else is cancelled.
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        acceptDownload(download, from: navigationAction.request.url)
+    }
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        acceptDownload(download, from: navigationResponse.response.url)
+    }
+    private func acceptDownload(_ download: WKDownload, from url: URL?) {
+        guard userControlled, let downloads else { download.cancel(nil); return }
+        downloads.accept(download, from: url)
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {

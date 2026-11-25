@@ -263,8 +263,9 @@ private final class SiteModeKeys: LearningKeyStore {
         let beforeDownload = probe.actions.count
         _ = try await browser.webView.evaluateJavaScript("document.getElementById('download').click(); true")
         try await wait("manual download policy", { probe.actions.count > beforeDownload })
-        try check(probe.actions.last?.policy == .cancel && browser.error == BrowserSession.noDownloadMessage,
-                  "like the Play build, a manual download is refused with its notice")
+        // The probe stops it before any network, so no question or file follows.
+        try check(probe.actions.last?.policy == .download && browser.error == nil,
+                  "a manual download goes to the download question (owner decision 2026-11-25)")
         let previous = probe.actions.count
         _ = try await browser.webView.evaluateJavaScript("document.getElementById('post').requestSubmit(); true")
         try await wait("actual manual POST action", { probe.actions.count > previous })

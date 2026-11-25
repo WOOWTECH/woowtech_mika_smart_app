@@ -30,6 +30,8 @@ final class BrowserWorkspace: ObservableObject {
     private var websiteRecordRevision = UUID()
     private var vault: EncryptedLearningFile?
     let websiteDataStore: WKWebsiteDataStore
+    /// Every tab's downloads, and a web task page's while the person has it.
+    let downloads: BrowserDownloadManager
     #if DEBUG
     private var uploadFixtureStarted = false
     private var loginFixtureStarted = false
@@ -58,9 +60,13 @@ final class BrowserWorkspace: ObservableObject {
         #endif
         if let injectedDataStore { dataStore = injectedDataStore }
         websiteDataStore = dataStore
-        // Earlier versions kept browser downloads here; like the Play build the
-        // browser no longer downloads files, so remove what an upgrade left.
+        // Before 2026-11-14 downloads were kept in Application Support; that
+        // folder is not used any more, so remove what an upgrade left.
         Self.removeLegacyDownloads()
+        // A test namespace gets its own folder, never the person's downloads.
+        downloads = scope == "personal" && !invalidTestScope ? .live()
+            : BrowserDownloadManager(root: FileManager.default.temporaryDirectory
+                .appendingPathComponent("Downloads-" + scope + "-" + UUID().uuidString, isDirectory: true))
         selected = BrowserSession(dataStore: dataStore)
         do {
             guard !invalidTestScope else { throw BrowserLibraryError.invalidState }
@@ -89,6 +95,8 @@ final class BrowserWorkspace: ObservableObject {
     /// Does not open the personal profile or Keychain.
     init(dataStore: WKWebsiteDataStore, vault: EncryptedLearningFile) {
         websiteDataStore = dataStore
+        downloads = BrowserDownloadManager(root: FileManager.default.temporaryDirectory
+            .appendingPathComponent("Downloads-" + UUID().uuidString, isDirectory: true))
         selected = BrowserSession(dataStore: dataStore)
         do {
             let loaded = try vault.load(BrowserLibraryState.self) ?? BrowserLibraryState()
@@ -200,6 +208,7 @@ final class BrowserWorkspace: ObservableObject {
     private func makeSession(id: UUID, configuration: WKWebViewConfiguration? = nil) -> BrowserSession {
         if let session = sessions[id] { return session }
         let session = BrowserSession(dataStore: websiteDataStore, configuration: configuration)
+        session.downloads = downloads
         session.manualSiteMode = { [weak self] host in self?.library.userSiteModes.mode(for: host) ?? .mobile }
         session.manualSearchSettings = { [weak self] in self?.library.searchSettings ?? .init() }
         session.canPresentUI = { [weak self] in self?.library.selectedID == id && self?.isClearingWebsiteData == false }
@@ -374,6 +383,7 @@ final class BrowserWorkspace: ObservableObject {
                         "persistent": websiteDataStore.isPersistent ? 1 : 0])
         #endif
         isClearingWebsiteData = true
+        downloads.cancelAll()
         let oldSessions = Array(sessions.values)
         for session in oldSessions { session.cancel() }
         Task { [weak self] in
