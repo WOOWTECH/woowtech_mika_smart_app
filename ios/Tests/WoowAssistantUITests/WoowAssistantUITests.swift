@@ -1051,6 +1051,10 @@ final class WoowAssistantUITests: XCTestCase {
         revealMCP(app.buttons["mcp.clearDraft"], in: app, upward: false)
         XCTAssertFalse(app.buttons["mcp.clearDraft"].isEnabled)
         // Like the Play build's optional access token: checked, saved, never shown.
+        // It is one of the ways a server signs in (驗證方式), next to OAuth 登入.
+        let auth = app.segmentedControls["mcp.auth"]
+        revealMCP(auth, in: app, upward: false)
+        auth.buttons["固定權杖"].tap()
         let token = app.secureTextFields["mcp.token"]
         revealMCP(token, in: app, upward: false)
         enter("two words", into: token, submit: false)

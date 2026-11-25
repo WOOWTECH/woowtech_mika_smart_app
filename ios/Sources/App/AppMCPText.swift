@@ -11,6 +11,14 @@ extension AppLocalizer {
         case .missingLiveTestEndpoint: return .mcpMissingLiveEndpoint
         case .invalidName: return .mcpInvalidServerName
         case .tooManyServers: return .mcpTooManyServers
+        case .invalidClient: return .mcpInvalidClient
         }
+    }
+
+    /// A sign-in server's error code as shown: short, and only the characters codes use.
+    static func signInCode(_ code: String?) -> String {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+        guard let code, !code.isEmpty, code.count <= 64, code.unicodeScalars.allSatisfy(allowed.contains) else { return "unknown" }
+        return code
     }
 }

@@ -235,6 +235,30 @@ enum AppText: Equatable {
     case mcpInvalidServerName
     case mcpTooManyServers
     case mcpNameSeparator
+    case mcpInvalidClient
+    case mcpAuth
+    case mcpAuthNone
+    case mcpAuthToken
+    case mcpAuthOAuth
+    case mcpAuthOAuthHelp
+    case mcpSignIn
+    case mcpSignOut
+    case mcpSigningIn
+    case mcpCancelSignIn
+    case mcpSignedIn
+    case mcpNotSignedIn
+    case mcpSignInRequired
+    case mcpSignInRequiredError
+    case mcpOAuthRequired
+    case mcpSignedInNotice
+    case mcpSignedOutNotice
+    case mcpUserClient
+    case mcpClientID
+    case mcpClientSecret
+    case mcpUserClientHelp
+    case mcpUserClientStored
+    case mcpSignInFailSetup
+    case mcpSignInFailNoRegistration
     case searchTitle
     case searchCustom
     case searchTemplate
@@ -1341,6 +1365,30 @@ enum AppText: Equatable {
         case .mcpInvalidServerName: return "mcp.invalid.server.name"
         case .mcpTooManyServers: return "mcp.too.many.servers"
         case .mcpNameSeparator: return "mcp.name.separator"
+        case .mcpInvalidClient: return "mcp.invalid.client"
+        case .mcpAuth: return "mcp.auth"
+        case .mcpAuthNone: return "mcp.auth.none"
+        case .mcpAuthToken: return "mcp.auth.token"
+        case .mcpAuthOAuth: return "mcp.auth.oauth"
+        case .mcpAuthOAuthHelp: return "mcp.auth.oauth.help"
+        case .mcpSignIn: return "mcp.sign.in"
+        case .mcpSignOut: return "mcp.sign.out"
+        case .mcpSigningIn: return "mcp.signing.in"
+        case .mcpCancelSignIn: return "mcp.cancel.sign.in"
+        case .mcpSignedIn: return "mcp.signed.in"
+        case .mcpNotSignedIn: return "mcp.not.signed.in"
+        case .mcpSignInRequired: return "mcp.sign.in.required"
+        case .mcpSignInRequiredError: return "mcp.sign.in.required.error"
+        case .mcpOAuthRequired: return "mcp.oauth.required"
+        case .mcpSignedInNotice: return "mcp.signed.in.notice"
+        case .mcpSignedOutNotice: return "mcp.signed.out.notice"
+        case .mcpUserClient: return "mcp.user.client"
+        case .mcpClientID: return "mcp.client.id"
+        case .mcpClientSecret: return "mcp.client.secret"
+        case .mcpUserClientHelp: return "mcp.user.client.help"
+        case .mcpUserClientStored: return "mcp.user.client.stored"
+        case .mcpSignInFailSetup: return "mcp.sign.in.fail.setup"
+        case .mcpSignInFailNoRegistration: return "mcp.sign.in.fail.no.registration"
         case .searchTitle: return "search.title"
         case .searchCustom: return "search.custom"
         case .searchTemplate: return "search.template"
@@ -2574,6 +2622,30 @@ enum AppText: Equatable {
         case .mcpInvalidServerName: return "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。"
         case .mcpTooManyServers: return "最多可以儲存 16 個 MCP 伺服器。"
         case .mcpNameSeparator: return "、"
+        case .mcpInvalidClient: return "用戶端 ID 和密鑰要是一行英數字與符號，最長 1 KB。"
+        case .mcpAuth: return "驗證方式"
+        case .mcpAuthNone: return "不需要"
+        case .mcpAuthToken: return "固定權杖"
+        case .mcpAuthOAuth: return "OAuth 登入"
+        case .mcpAuthOAuthHelp: return "按「登入」會開啟伺服器的登入頁，登入後回到 App。權杖會自動更新，只保存在這台裝置的 Keychain。"
+        case .mcpSignIn: return "登入"
+        case .mcpSignOut: return "登出"
+        case .mcpSigningIn: return "等待瀏覽器登入…"
+        case .mcpCancelSignIn: return "取消登入"
+        case .mcpSignedIn: return "已登入"
+        case .mcpNotSignedIn: return "尚未登入"
+        case .mcpSignInRequired: return "需要重新登入"
+        case .mcpSignInRequiredError: return "這個伺服器的登入已失效或被拒絕，請按「登入」重新登入。"
+        case .mcpOAuthRequired: return "這個伺服器要求用 OAuth 登入：把「驗證方式」改成「OAuth 登入」並儲存，再按「登入」。"
+        case .mcpSignedInNotice: return "登入成功。可以按「連線並探索目錄」檢查工具。"
+        case .mcpSignedOutNotice: return "已登出：這台裝置上這個伺服器的權杖已清除。要連授權一起撤銷，請到該服務的帳號設定。"
+        case .mcpUserClient: return "進階：自行註冊的用戶端"
+        case .mcpClientID: return "用戶端 ID（Client ID）"
+        case .mcpClientSecret: return "用戶端密鑰（選填）"
+        case .mcpUserClientHelp: return "伺服器不讓 App 自動註冊時才需要：先在它的授權伺服器註冊一個用戶端，重新導向網址填 http://127.0.0.1/auth/callback（要接受任何連接埠），再把 Client ID 填在這裡，儲存後登入。留空就自動註冊。"
+        case .mcpUserClientStored: return "已儲存自行註冊的用戶端；不顯示內容。"
+        case .mcpSignInFailSetup: return "找不到這個伺服器的登入設定，或設定不完整，無法用 OAuth 登入。"
+        case .mcpSignInFailNoRegistration: return "這個伺服器不讓 App 自動註冊。請先在它的授權伺服器註冊用戶端，再到「進階」填入 Client ID 後重新登入。"
         case .searchTitle: return "搜尋引擎"
         case .searchCustom: return "新增自訂引擎"
         case .searchTemplate: return "https://example.com/search?q=%%s"

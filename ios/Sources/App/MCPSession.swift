@@ -1,4 +1,5 @@
 import AssistantMCP
+import AssistantModels
 import Combine
 import Foundation
 
@@ -21,6 +22,44 @@ enum MCPChatAvailability: Error, Equatable {
     case notConfigured, noTools, unreachable
 }
 
+/// How a server's requests are authorized, like Android's server dialog (auth
+/// token or oauth): nothing, a fixed access token, or an OAuth sign-in.
+enum MCPAuthMode: String, CaseIterable {
+    case none, token, oauth
+}
+
+/// Shows an OAuth sign-in page: ASWebAuthenticationSession in the App
+/// (MCPSignInPage). `closed` runs when the person closes the page first.
+@MainActor protocol MCPSignInBrowsing: AnyObject, Sendable {
+    func open(_ url: URL, closed: @escaping @MainActor () -> Void)
+    func close()
+}
+
+/// A server's OAuth sign-in in its Keychain item, for the token gate too, which
+/// reads and writes it off the main actor (the Keychain is safe from any thread).
+struct MCPOAuthItem: @unchecked Sendable {
+    let repository: any MCPEndpointStoring
+
+    func load() throws -> MCPOAuthSession? {
+        guard let data = try repository.loadOAuth() else { return nil }
+        guard let session = try? JSONDecoder().decode(MCPOAuthSession.self, from: data) else {
+            throw MCPSettingsError.unavailableKeychain
+        }
+        return session
+    }
+
+    /// nil removes the sign-in, and with it the choice of OAuth.
+    func save(_ session: MCPOAuthSession?) throws {
+        try repository.save(oauth: session.map { try JSONEncoder().encode($0) })
+    }
+
+    /// A refresh's result, unless the user signed in or out meanwhile.
+    func save(before: MCPOAuthSession, after: MCPOAuthSession) throws {
+        guard try load() == before else { return }
+        try save(after)
+    }
+}
+
 /// The catalog shape MCPConversationRunner encodes for the model.
 private struct MCPOfferedCatalog: Encodable {
     let tools: [MCPTool]
@@ -36,6 +75,9 @@ final class MCPSession: ObservableObject {
         /// The app went to the background: work stopped, the catalog and tool
         /// choice stay, and the connection comes back when the app is active.
         case suspended
+        /// The OAuth sign-in ran out, or the server still refused it after a
+        /// refresh: the user signs in again.
+        case signInRequired
     }
 
     @Published var endpointDraft = ""
@@ -43,6 +85,18 @@ final class MCPSession: ObservableObject {
     @Published var tokenDraft = ""
     @Published private(set) var hasStoredEndpoint = false
     @Published private(set) var hasStoredToken = false
+    /// How the server's requests are authorized; the page's choice until saved.
+    @Published var authDraft = MCPAuthMode.none
+    @Published private(set) var authMode = MCPAuthMode.none
+    /// OAuth: this device's sign-in for the server. No token is ever published.
+    @Published private(set) var signInStatus = MCPOAuthSession.Status.signedOut
+    /// A client the user registered with the server's authorization server.
+    @Published private(set) var hasUserClient = false
+    @Published var clientIDDraft = ""
+    @Published var clientSecretDraft = ""
+    @Published private(set) var isSigningIn = false
+    /// The last sign-in found no registration endpoint: the page asks for a client.
+    @Published private(set) var needsUserClient = false
     @Published private(set) var phase: Phase = .notConfigured
     @Published private(set) var protocolVersion: String?
     @Published private(set) var toolNames: [String] = []
@@ -63,8 +117,15 @@ final class MCPSession: ObservableObject {
     let allowsNetwork: Bool
     private let repository: (any MCPEndpointStoring)?
     private let clientFactory: @Sendable (URL) -> any MCPDiscovering
-    /// Production clients carry the saved access token; injected factories don't.
-    private let tokenClientFactory: (@Sendable (URL, String?) -> any MCPDiscovering)?
+    /// Production clients carry the saved access token or sign-in; injected factories don't.
+    private let tokenClientFactory: (@Sendable (URL, MCPCredential?) -> any MCPDiscovering)?
+    /// OAuth: the server's tokens for every connection, one refresh at a time.
+    private let oauthTokens: ModelAccountTokenGate<MCPOAuthSession>?
+    private let oauthHTTP: MCPOAuthHTTP
+    private var signInTask: Task<Void, Never>?
+    private var signInID: UUID?
+    private var listener: LoopbackCallbackServer?
+    private var browser: (any MCPSignInBrowsing)?
     private var client: (any MCPDiscovering)?
     private var request: Task<Bool, Never>?
     private var deadline: Task<Void, Never>?
@@ -77,13 +138,19 @@ final class MCPSession: ObservableObject {
     /// nothing runs on a connection that is not the one it was offered.
     private(set) var connectionEpoch = 0
 
-    /// A saved server; production clients carry its access token.
+    /// A saved server; production clients carry its access token or sign-in.
+    /// `oauthHTTP` is for checks; the App signs in and refreshes over `.shared`.
     init(repository: any MCPEndpointStoring, allowsNetwork: Bool,
-         tokenClientFactory: @escaping @Sendable (URL, String?) -> any MCPDiscovering) {
+         tokenClientFactory: @escaping @Sendable (URL, MCPCredential?) -> any MCPDiscovering,
+         oauthHTTP: MCPOAuthHTTP = .shared) {
         self.repository = repository
         self.allowsNetwork = allowsNetwork
         clientFactory = { tokenClientFactory($0, nil) }
         self.tokenClientFactory = tokenClientFactory
+        self.oauthHTTP = oauthHTTP
+        let item = MCPOAuthItem(repository: repository)
+        oauthTokens = MCPOAuth.tokenGate(http: oauthHTTP, load: { try item.load() },
+                                         save: { try item.save(before: $0, after: $1) })
         loadSavedState(from: repository)
         // Never load the credentials into a published property or start networking here.
     }
@@ -94,6 +161,8 @@ final class MCPSession: ObservableObject {
         self.allowsNetwork = allowsNetwork
         self.clientFactory = clientFactory
         tokenClientFactory = nil
+        oauthTokens = nil
+        oauthHTTP = .shared
         loadSavedState(from: repository)
     }
 
@@ -101,9 +170,10 @@ final class MCPSession: ObservableObject {
         do {
             hasStoredEndpoint = try repository.load() != nil
             if hasStoredEndpoint {
-                hasStoredToken = try repository.hasToken()
+                try loadAuth(from: repository)
                 allowedTools = try repository.loadAllowedTools()
             }
+            authDraft = authMode
             phase = hasStoredEndpoint ? .saved : .notConfigured
         } catch {
             errorText = Self.settingsMessage(error)
@@ -111,7 +181,17 @@ final class MCPSession: ObservableObject {
         }
     }
 
-    deinit { request?.cancel(); deadline?.cancel() }
+    /// The server's way of signing in, read again from its items: an OAuth
+    /// item means OAuth, else a token means a fixed token.
+    private func loadAuth(from repository: any MCPEndpointStoring) throws {
+        hasStoredToken = try repository.hasToken()
+        let oauth = try MCPOAuthItem(repository: repository).load()
+        authMode = oauth != nil ? .oauth : hasStoredToken ? .token : .none
+        signInStatus = oauth?.status ?? .signedOut
+        hasUserClient = oauth?.userClient == true
+    }
+
+    deinit { request?.cancel(); deadline?.cancel(); signInTask?.cancel(); listener?.close() }
 
     var isBusy: Bool { phase == .connecting || phase == .discovering }
     var canUseInConversation: Bool { phase == .connected && (!selectedToolNames.isEmpty || !resources.isEmpty) }
@@ -206,10 +286,12 @@ final class MCPSession: ObservableObject {
     func closeForRemoval() {
         stopWork()
         clearCatalog()
+        if isSigningIn { signInTask?.cancel(); endSignIn() }
         endpointDraft = ""
         tokenDraft = ""
+        clearClientDrafts()
         hasStoredEndpoint = false
-        hasStoredToken = false
+        clearAuth()
         allowedTools = nil
         resumeWhenActive = false
         errorText = nil
@@ -240,22 +322,34 @@ final class MCPSession: ObservableObject {
 
     var canSave: Bool {
         let endpoint = !endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let token = !tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return repository != nil && !isBusy && (endpoint || (token && hasStoredEndpoint))
+        let token = authDraft == .token && !tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let client = authDraft == .oauth && !clientIDDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // A fixed token is chosen with the token itself.
+        let auth = authDraft != authMode && (authDraft != .token || token)
+        return repository != nil && !isBusy && !isSigningIn && (endpoint || ((token || client || auth) && hasStoredEndpoint))
     }
     private var canStartConnection: Bool {
         repository != nil && hasStoredEndpoint && !isBusy && phase != .connected && allowsNetwork
     }
     var canConnect: Bool {
-        canStartConnection
-            && endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        canStartConnection && !hasDrafts && authDraft == authMode && !isSigningIn
+            && (authMode != .oauth || signInStatus == .signedIn)
+    }
+    /// What is typed on the server's page and not saved yet.
+    var hasDrafts: Bool {
+        [endpointDraft, tokenDraft, clientIDDraft, clientSecretDraft]
+            .contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+    /// 登入 saves the page's changes first, like Android's 登入 in the server dialog.
+    var canSignIn: Bool {
+        repository != nil && hasStoredEndpoint && authDraft == .oauth && !isBusy && !isSigningIn && allowsNetwork
+            && (authMode == .oauth || canSave)
     }
     var statusText: String { AppLocalizer(language: .traditionalChinese).text(statusMessage) }
     var statusMessage: AppText {
         switch phase {
         case .notConfigured: return .mcpNotConfigured
-        case .saved: return .mcpSavedStatus
+        case .saved: return authMode == .oauth && signInStatus != .signedIn ? signInMessage : .mcpSavedStatus
         case .connecting: return .mcpConnecting
         case .discovering: return .mcpDiscovering
         case .connected: return .mcpConnected
@@ -263,51 +357,84 @@ final class MCPSession: ObservableObject {
         case .cancelled: return .mcpCancelled
         case .failed: return .mcpFailedStatus
         case .suspended: return .mcpSuspended
+        case .signInRequired: return signInMessage
         }
     }
 
-    /// Saves a new endpoint and/or access token. Both are checked before
-    /// either is written. A different endpoint is a different server: its old
-    /// token and tool choice are dropped so they never reach the new host.
+    /// 尚未登入 before the first sign-in and after signing out; 需要重新登入 once one ran out.
+    var signInMessage: AppText {
+        if phase == .signInRequired && signInStatus != .signedOut { return .mcpSignInRequired }
+        switch signInStatus {
+        case .signedIn: return .mcpSignedIn
+        case .signedOut: return .mcpNotSignedIn
+        case .expired: return .mcpSignInRequired
+        }
+    }
+
+    /// Saves a new endpoint, the way of signing in (with a token, or a client
+    /// for OAuth) or both. Everything is checked before anything is written. A
+    /// different endpoint is a different server: its old token, sign-in and tool
+    /// choice are dropped so they never reach the new host.
     func saveEndpoint() {
-        guard !isBusy, let repository else { return }
+        guard !isBusy, !isSigningIn, let repository else { return }
         errorText = nil
         noticeText = nil
         let endpointText = endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tokenText = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tokenText = authDraft == .token ? tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        let clientText = authDraft == .oauth ? clientIDDraft.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        let item = MCPOAuthItem(repository: repository)
         do {
             let url = endpointText.isEmpty ? nil : try MCPSettingsStore.validate(endpointText)
             let token = tokenText.isEmpty ? nil : try MCPSettingsStore.validateToken(tokenText)
+            let client = clientText.isEmpty ? nil
+                : MCPOAuthSession.withUserClient(id: try MCPSettingsStore.validateClient(clientText),
+                                                 secret: try MCPSettingsStore.validateClient(clientSecretDraft, optional: true))
             guard url != nil || hasStoredEndpoint else { throw MCPSettingsError.invalidEndpoint }
+            if authDraft == .token, authMode != .token, token == nil { throw MCPSettingsError.invalidToken }
             if let url {
-                // Drop the old server's token and choice first, so a failed
-                // write can never leave them with the new host.
+                // Drop the old server's token, sign-in and choice first, so a
+                // failed write can never leave them with the new host.
                 if (try? repository.load())?.absoluteString != url.absoluteString {
                     try repository.save(token: nil)
+                    if try item.load() != nil { try item.save(MCPOAuthSession()) }
                     try repository.save(allowedTools: nil)
                     allowedTools = nil
                 }
                 try repository.save(endpoint: endpointText)
             }
-            if let token { try repository.save(token: token) }
+            switch authDraft {
+            case .none:
+                try repository.save(token: nil)
+                try item.save(nil)
+            case .token:
+                try item.save(nil)
+                if let token { try repository.save(token: token) }
+            case .oauth:
+                try repository.save(token: nil)
+                // Another client starts the sign-in over.
+                if let client { try item.save(client) } else if try item.load() == nil { try item.save(MCPOAuthSession()) }
+            }
             stopWork()
             clearCatalog()
             endpointDraft = ""
             tokenDraft = ""
+            clearClientDrafts()
             hasStoredEndpoint = true
-            hasStoredToken = (try? repository.hasToken()) ?? false
+            try loadAuth(from: repository)
+            authDraft = authMode
             phase = .saved
             resumeWhenActive = false
             noticeText = .mcpSavedNotice
         } catch {
             let tokenSaved = (try? repository.hasToken()) ?? false
             hasStoredToken = hasStoredEndpoint && tokenSaved
+            if hasStoredEndpoint { try? loadAuth(from: repository) }
             errorText = Self.settingsMessage(error)
         }
     }
 
     func removeEndpoint() {
-        guard !isBusy, let repository else { return }
+        guard !isBusy, !isSigningIn, let repository else { return }
         errorText = nil
         noticeText = nil
         do {
@@ -316,13 +443,138 @@ final class MCPSession: ObservableObject {
             clearCatalog()
             endpointDraft = ""
             tokenDraft = ""
+            clearClientDrafts()
             hasStoredEndpoint = false
-            hasStoredToken = false
+            clearAuth()
             allowedTools = nil
             resumeWhenActive = false
             phase = .notConfigured
             noticeText = .mcpRemovedNotice
         } catch { errorText = Self.settingsMessage(error) }
+    }
+
+    private func clearAuth() {
+        hasStoredToken = false
+        authMode = .none
+        authDraft = .none
+        signInStatus = .signedOut
+        hasUserClient = false
+        needsUserClient = false
+    }
+
+    private func clearClientDrafts() {
+        clientIDDraft = ""
+        clientSecretDraft = ""
+    }
+
+    // MARK: OAuth sign-in
+
+    /// 登入 (Android McpServerStore.authorize): the page's changes are saved
+    /// first; then the server's sign-in page opens in `browser` and comes back to
+    /// a loopback listener (MCPOAuth.signIn). The tokens go only into the server's
+    /// Keychain item, never into a published property or a log. `page` is what
+    /// the browser shows at the end: nil signed in, or why not.
+    func signIn(browser: any MCPSignInBrowsing, page: @escaping @Sendable (AppText?) -> String) {
+        guard canSignIn, let repository else { return }
+        if canSave {
+            saveEndpoint()
+            guard errorText == nil else { return }
+        }
+        let item = MCPOAuthItem(repository: repository)
+        guard authMode == .oauth, let endpoint = try? repository.load(), let stored = try? item.load() else { return }
+        let userClient = stored.userClient ? MCPOAuthRegistration(id: stored.clientId, secret: stored.clientSecret) : nil
+        errorText = nil
+        noticeText = nil
+        needsUserClient = false
+        isSigningIn = true
+        let id = UUID()
+        signInID = id
+        self.browser = browser
+        signInTask = Task { [weak self] in
+            do {
+                let listener = try await LoopbackCallbackServer.open()
+                defer { listener.close() }
+                guard let self, self.signInID == id else { return }
+                self.listener = listener
+                let session = try await MCPOAuth.signIn(
+                    endpoint: endpoint, userClient: userClient, listener: listener, http: self.oauthHTTP,
+                    openBrowser: { url in await browser.open(url) { [weak self] in self?.cancelSignIn() } },
+                    page: { failure in page(failure.map { MCPSession.signInFailure($0) }) })
+                self.finishSignIn(id, session, in: item)
+            } catch {
+                self?.failSignIn(id, error)
+            }
+        }
+    }
+
+    /// 取消登入, or the sign-in page was closed: nothing is saved.
+    func cancelSignIn() {
+        guard isSigningIn else { return }
+        signInTask?.cancel()
+        endSignIn()
+        errorText = nil
+        noticeText = .accountFailDenied
+    }
+
+    /// 登出: the tokens go from this device; a client the user entered stays.
+    /// Like Android, the authorization server is not asked to revoke them.
+    func signOut() {
+        guard authMode == .oauth, !isBusy, !isSigningIn, let repository else { return }
+        errorText = nil
+        noticeText = nil
+        let item = MCPOAuthItem(repository: repository)
+        do {
+            try item.save((try item.load() ?? MCPOAuthSession()).signedOutByUser())
+            // No connection may keep using the tokens.
+            stopWork()
+            clearCatalog()
+            try loadAuth(from: repository)
+            phase = hasStoredEndpoint ? .saved : .notConfigured
+            noticeText = .mcpSignedOutNotice
+        } catch { errorText = Self.settingsMessage(error) }
+    }
+
+    private func finishSignIn(_ id: UUID, _ session: MCPOAuthSession, in item: MCPOAuthItem) {
+        guard signInID == id, let repository else { return }
+        endSignIn()
+        do {
+            try item.save(session)
+            try loadAuth(from: repository)
+            if phase == .signInRequired || phase == .failed { phase = .saved }
+            noticeText = .mcpSignedInNotice
+        } catch { errorText = Self.settingsMessage(error) }
+    }
+
+    private func failSignIn(_ id: UUID, _ error: Error) {
+        guard signInID == id else { return }
+        endSignIn()
+        guard !(error is CancellationError) else { return }
+        needsUserClient = (error as? MCPOAuthError)?.reason == .noRegistration
+        errorText = Self.signInFailure(error)
+    }
+
+    private func endSignIn() {
+        signInID = nil
+        signInTask = nil
+        listener?.close()
+        listener = nil
+        browser?.close()
+        browser = nil
+        isSigningIn = false
+    }
+
+    /// Why a sign-in did not finish; only a server's error code is named.
+    nonisolated static func signInFailure(_ error: Error) -> AppText {
+        guard let error = error as? MCPOAuthError else { return .accountFailNetwork }
+        switch error.reason {
+        case .setup: return .mcpSignInFailSetup
+        case .insecure: return .accountFailIssuer
+        case .noRegistration: return .mcpSignInFailNoRegistration
+        case .denied where error.code == "access_denied": return .accountFailDenied
+        case .registration, .denied, .mismatch, .exchange: return .accountFailRejected(code: AppLocalizer.signInCode(error.code))
+        case .timedOut: return .accountFailTimedOut
+        case .network: return .accountFailNetwork
+        }
     }
 
     func connect() {
@@ -338,6 +590,7 @@ final class MCPSession: ObservableObject {
         if !keepCatalog { clearCatalog() }
         let endpoint: URL
         let token: String?
+        let credential: MCPCredential?
         do {
             guard let stored = try repository.load() else {
                 hasStoredEndpoint = false
@@ -345,14 +598,21 @@ final class MCPSession: ObservableObject {
                 return nil
             }
             endpoint = stored
-            token = try repository.loadToken()
             allowedTools = try repository.loadAllowedTools()
+            if let oauth = try MCPOAuthItem(repository: repository).load() {
+                // The gate reads the newest tokens for every request; this one only guards the catalog.
+                token = oauth.accessToken.isEmpty ? nil : oauth.accessToken
+                credential = oauthTokens.map(MCPCredential.oauth)
+            } else {
+                token = try repository.loadToken()
+                credential = token.map(MCPCredential.bearer)
+            }
         } catch {
             phase = .failed
             errorText = Self.settingsMessage(error)
             return nil
         }
-        let connection = tokenClientFactory.map { $0(endpoint, token) } ?? clientFactory(endpoint)
+        let connection = tokenClientFactory.map { $0(endpoint, credential) } ?? clientFactory(endpoint)
         let id = UUID()
         requestID = id
         connectionEpoch += 1
@@ -397,6 +657,19 @@ final class MCPSession: ObservableObject {
                 // Nothing used this half-open connection yet, so open chats are not invalidated.
                 self.stopWork(notify: false)
                 self.clearCatalog()
+                if (error as? MCPError) == .signInRequired {
+                    // Not a connection failure: the server's page says to sign in (again).
+                    if let repository = self.repository { try? self.loadAuth(from: repository) }
+                    if self.authMode == .oauth {
+                        self.phase = .signInRequired
+                        self.errorText = .mcpSignInRequiredError
+                    } else {
+                        // The server wants an OAuth sign-in, not this token or none.
+                        self.phase = .failed
+                        self.errorText = .mcpOAuthRequired
+                    }
+                    return false
+                }
                 self.phase = .failed
                 // Never interpolate server errors, names, resource URIs, endpoint URLs or tokens.
                 self.errorText = .mcpConnectionError
@@ -450,6 +723,8 @@ final class MCPSession: ObservableObject {
     func appWillLeaveForeground() {
         endpointDraft = ""
         tokenDraft = ""
+        clearClientDrafts()
+        // A sign-in goes on: the person may be fetching a code in another app.
         guard phase == .connected || isBusy else { return }
         resumeWhenActive = true
         stopWork()
@@ -459,6 +734,9 @@ final class MCPSession: ObservableObject {
     }
 
     func appDidBecomeActive() {
+        // iOS may take a suspended App's listening socket away; the authorize
+        // request named this port, so listen on it again (as for ChatGPT).
+        if let listener, !listener.isListening { Task { try? await listener.reopen() } }
         guard resumeWhenActive else { return }
         resumeWhenActive = false
         guard phase == .suspended else { return }

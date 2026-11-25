@@ -4,7 +4,7 @@ import Security
 enum MCPSettingsError: Error, LocalizedError {
     case keychainStatus(OSStatus)
     case invalidEndpoint, invalidToken, unavailableKeychain, invalidTestNamespace, missingLiveTestEndpoint
-    case invalidName, tooManyServers
+    case invalidName, tooManyServers, invalidClient
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +24,8 @@ enum MCPSettingsError: Error, LocalizedError {
             return "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。"
         case .tooManyServers:
             return "最多可以儲存 16 個 MCP 伺服器。"
+        case .invalidClient:
+            return "用戶端 ID 和密鑰要是一行英數字與符號，最長 1 KB。"
         }
     }
 }
@@ -180,6 +182,17 @@ struct MCPSettingsStore: MCPEndpointStoring {
         guard !token.isEmpty, token.utf8.count <= maximumTokenBytes,
               token.utf8.allSatisfy({ (0x21...0x7e).contains($0) }) else { throw MCPSettingsError.invalidToken }
         return token
+    }
+
+    /// A client the user registered for OAuth (RFC 6749 §2.2: printable ASCII):
+    /// one line of at most 1 KB. An empty secret is a public client.
+    static let maximumClientBytes = 1024
+    static func validateClient(_ text: String, optional: Bool = false) throws -> String {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.isEmpty, optional { return value }
+        guard !value.isEmpty, value.utf8.count <= maximumClientBytes,
+              value.utf8.allSatisfy({ (0x20...0x7e).contains($0) }) else { throw MCPSettingsError.invalidClient }
+        return value
     }
 
     static func validate(_ text: String) throws -> URL {

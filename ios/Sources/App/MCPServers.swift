@@ -20,8 +20,8 @@ struct MCPChatCatalog {
 }
 
 /// Settings › MCP 伺服器: the saved servers, like Android's McpServerStore. Each
-/// server's endpoint, access token and tool choice stay in the Keychain
-/// (MCPServerDirectory); every chat may use the enabled ones.
+/// server's endpoint, access token or OAuth sign-in, and tool choice stay in the
+/// Keychain (MCPServerDirectory); every chat may use the enabled ones.
 @MainActor
 final class MCPServers: ObservableObject {
     struct Server: Identifiable {
@@ -51,22 +51,22 @@ final class MCPServers: ObservableObject {
         do { directory = try MCPSettingsStore.makeDefault() }
         catch { directory = nil; failure = Self.settingsMessage(error) }
         let network: Bool
-        let factory: @Sendable (URL, String?) -> any MCPDiscovering
+        let factory: @Sendable (URL, MCPCredential?) -> any MCPDiscovering
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         let fixture = arguments.contains("-UITestMode")
             && ["-UITestMCPFixture", "-UITestMCPServers", "-UITestMCPLegacyServer"].contains(where: arguments.contains)
         if fixture {
-            // The fixture never receives the access token.
+            // The fixture never receives the access token or sign-in.
             network = true
             factory = { endpoint, _ in UITestMCPFixture(endpoint: endpoint) }
         } else {
             network = MCPSettingsStore.networkAllowed()
-            factory = { MCPClient(endpoint: $0, token: $1) }
+            factory = { MCPClient(endpoint: $0, credential: $1) }
         }
         #else
         network = MCPSettingsStore.networkAllowed()
-        factory = { MCPClient(endpoint: $0, token: $1) }
+        factory = { MCPClient(endpoint: $0, credential: $1) }
         #endif
         allowsNetwork = network
         self.directory = directory
@@ -119,15 +119,22 @@ final class MCPServers: ObservableObject {
     }
 
     /// Saves a new server from the add form. Its endpoint and token are checked
-    /// before anything is written; no connection request is sent. The form
-    /// keeps what is typed itself, so nothing typed is published here.
-    @discardableResult func add(name: String, endpoint: String, token: String) -> UUID? {
+    /// before anything is written; no connection request is sent, and an OAuth
+    /// server is signed in on its page. Without `auth`, a typed token chooses a
+    /// fixed token. The form keeps what is typed itself, so nothing typed is
+    /// published here.
+    @discardableResult func add(name: String, endpoint: String, auth: MCPAuthMode? = nil, token: String) -> UUID? {
         guard let directory else { return nil }
         errorText = nil; noticeText = nil
-        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        let typed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        let auth = auth ?? (typed.isEmpty ? .none : .token)
+        let token = auth == .token ? typed : ""
         do {
+            // A fixed token is chosen with the token itself.
+            if auth == .token, token.isEmpty { throw MCPSettingsError.invalidToken }
+            let oauth = auth == .oauth ? try JSONEncoder().encode(MCPOAuthSession()) : nil
             let record = try directory.add(name: name, endpoint: endpoint, token: token.isEmpty ? nil : token,
-                                           to: servers.map(\.record))
+                                           oauth: oauth, to: servers.map(\.record))
             let server = Server(record: record, session: makeSession(directory.store(for: record)))
             wire(server)
             servers.append(server)
@@ -174,7 +181,7 @@ final class MCPServers: ObservableObject {
 
     /// Removes only this server's Keychain items, then its entry.
     func delete(id: UUID) {
-        guard let directory, let server = server(id: id), !server.session.isBusy else { return }
+        guard let directory, let server = server(id: id), !server.session.isBusy, !server.session.isSigningIn else { return }
         errorText = nil; noticeText = nil
         do {
             _ = try directory.remove(server.record, from: servers.map(\.record))

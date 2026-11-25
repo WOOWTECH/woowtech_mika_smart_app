@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Settings › MCP 伺服器, like Android's McpServersScreen: the saved servers
 /// with their status, add, test all, and one server's page with its endpoint,
-/// token, tool choice, test and delete. The pages change in place, so the
-/// section's own back control stays on screen.
+/// way of signing in (a token or OAuth 登入), tool choice, test and delete. The
+/// pages change in place, so the section's own back control stays on screen.
 @MainActor
 struct MCPToolsView: View {
     @Environment(\.appLocalizer) private var localizer
@@ -124,10 +124,10 @@ private struct MCPServerRow: View {
     }
 }
 
-/// A new server: name, endpoint and optional token. Saving sends no request.
-/// What is typed stays in this form only (like a server page's drafts in its
-/// MCPSession), so typing redraws nothing above it; it is cleared when the
-/// form or the app is left.
+/// A new server: name, endpoint and how it signs in (nothing, a token, or
+/// OAuth 登入 on its page). Saving sends no request. What is typed stays in this
+/// form only (like a server page's drafts in its MCPSession), so typing redraws
+/// nothing above it; it is cleared when the form or the app is left.
 private struct MCPServerAddForm: View {
     @Environment(\.appLocalizer) private var localizer
     @Environment(\.colorScheme) private var colorScheme
@@ -137,6 +137,7 @@ private struct MCPServerAddForm: View {
     let opened: (UUID) -> Void
     @State private var name = ""
     @State private var endpoint = ""
+    @State private var auth = MCPAuthMode.none
     @State private var token = ""
     @FocusState private var focused: Field?
     enum Field { case name, endpoint, token }
@@ -144,6 +145,7 @@ private struct MCPServerAddForm: View {
     private var canSave: Bool {
         servers.canAddServer && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (auth != .token || !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
     private func clear() { name = ""; endpoint = ""; token = "" }
 
@@ -173,20 +175,27 @@ private struct MCPServerAddForm: View {
                     Text(localizer.text(.mcpEndpointHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    SecureField(localizer.text(.mcpToken), text: $token)
-                        .mcpSecretEntry()
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .privacySensitive()
-                        .focused($focused, equals: .token)
-                        .submitLabel(.done)
-                        .onSubmit { focused = nil }
-                        .accessibilityLabel(localizer.text(.mcpTokenAX))
-                        .accessibilityIdentifier("mcp.add.token")
+                    MCPAuthPicker(selection: $auth, identifier: "mcp.add.auth")
+                    if auth == .token {
+                        SecureField(localizer.text(.mcpToken), text: $token)
+                            .mcpSecretEntry()
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .privacySensitive()
+                            .focused($focused, equals: .token)
+                            .submitLabel(.done)
+                            .onSubmit { focused = nil }
+                            .accessibilityLabel(localizer.text(.mcpTokenAX))
+                            .accessibilityIdentifier("mcp.add.token")
+                    } else if auth == .oauth {
+                        Text(localizer.text(.mcpAuthOAuthHelp))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     HStack(spacing: 12) {
                         Button(localizer.text(.mcpSave)) {
                             focused = nil
-                            if let id = servers.add(name: name, endpoint: endpoint, token: token) { clear(); opened(id) }
+                            if let id = servers.add(name: name, endpoint: endpoint, auth: auth, token: token) { clear(); opened(id) }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(!canSave)
@@ -219,8 +228,9 @@ private struct MCPServerAddForm: View {
     }
 }
 
-/// One server: name, whether chats use it, endpoint and token, its test
-/// (connect and discover), its tools, and delete.
+/// One server: name, whether chats use it, endpoint and how it signs in (a
+/// token, or OAuth 登入 and 登出), its test (connect and discover), its tools,
+/// and delete.
 private struct MCPServerDetail: View {
     @Environment(\.appLocalizer) private var localizer
     @Environment(\.colorScheme) private var colorScheme
@@ -231,8 +241,9 @@ private struct MCPServerDetail: View {
     let back: () -> Void
     @State private var nameDraft = ""
     @State private var confirmDelete = false
+    @State private var showsClient = false
     @FocusState private var focused: Field?
-    enum Field { case name, endpoint, token, search }
+    enum Field { case name, endpoint, token, clientID, clientSecret, search }
 
     private var current: MCPServerRecord { servers.server(id: record.id)?.record ?? record }
     private var nameChanged: Bool {
@@ -253,11 +264,11 @@ private struct MCPServerDetail: View {
                         .focused($focused, equals: .name)
                         .submitLabel(.done)
                         .onSubmit { focused = nil }
-                        .disabled(session.isBusy)
+                        .disabled(session.isBusy || session.isSigningIn)
                         .accessibilityIdentifier("mcp.serverName")
                     Toggle(localizer.text(.mcpServerEnabled), isOn: Binding(
                         get: { current.enabled }, set: { servers.setEnabled(id: record.id, $0) }))
-                        .disabled(session.isBusy)
+                        .disabled(session.isBusy || session.isSigningIn)
                         .accessibilityIdentifier("mcp.serverEnabled")
                     if !session.allowsNetwork {
                         Text(localizer.text(.mcpIsolation))
@@ -272,29 +283,38 @@ private struct MCPServerDetail: View {
                         .focused($focused, equals: .endpoint)
                         .submitLabel(.done)
                         .onSubmit { focused = nil }
-                        .disabled(session.isBusy)
+                        .disabled(session.isBusy || session.isSigningIn)
                         .accessibilityLabel(localizer.text(.mcpEndpointAX))
                         .accessibilityIdentifier("mcp.endpoint")
                     Text(localizer.text(.mcpEndpointHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    // Like the Play build's optional access token (Bearer header).
-                    SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
-                        .mcpSecretEntry()
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .privacySensitive()
-                        .focused($focused, equals: .token)
-                        .submitLabel(.done)
-                        .onSubmit { focused = nil }
-                        .disabled(session.isBusy)
-                        .accessibilityLabel(localizer.text(.mcpTokenAX))
-                        .accessibilityIdentifier("mcp.token")
-                    if session.hasStoredToken {
-                        Text(localizer.text(.mcpTokenStored))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("mcp.tokenStatus")
+                    MCPAuthPicker(selection: $session.authDraft, identifier: "mcp.auth")
+                        .disabled(session.isBusy || session.isSigningIn)
+                    switch session.authDraft {
+                    case .token:
+                        // Like the Play build's optional access token (Bearer header).
+                        SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
+                            .mcpSecretEntry()
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .privacySensitive()
+                            .focused($focused, equals: .token)
+                            .submitLabel(.done)
+                            .onSubmit { focused = nil }
+                            .disabled(session.isBusy)
+                            .accessibilityLabel(localizer.text(.mcpTokenAX))
+                            .accessibilityIdentifier("mcp.token")
+                        if session.hasStoredToken {
+                            Text(localizer.text(.mcpTokenStored))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("mcp.tokenStatus")
+                        }
+                    case .oauth:
+                        oauthRows
+                    case .none:
+                        EmptyView()
                     }
                     HStack(spacing: 12) {
                         Button(localizer.text(.mcpSave)) {
@@ -306,17 +326,17 @@ private struct MCPServerDetail: View {
                         .disabled(session.isBusy || !(nameChanged || session.canSave))
                         .accessibilityIdentifier("mcp.save")
                         Button(localizer.text(.mcpClearDraft)) {
-                            session.endpointDraft = ""; session.tokenDraft = ""; nameDraft = current.name
+                            clearDrafts(); nameDraft = current.name
                         }
                         .buttonStyle(.bordered)
-                        .disabled((session.endpointDraft.isEmpty && session.tokenDraft.isEmpty && !nameChanged) || session.isBusy)
+                        .disabled((drafts.allSatisfy(\.isEmpty) && !nameChanged) || session.isBusy)
                         .accessibilityIdentifier("mcp.clearDraft")
                     }
                     if let error = servers.errorText {
                         Text(localizer.text(error)).foregroundStyle(.red).accessibilityIdentifier("mcp.serverError")
                     }
                     Button(localizer.text(.mcpDeleteServer), role: .destructive) { confirmDelete = true }
-                        .disabled(session.isBusy)
+                        .disabled(session.isBusy || session.isSigningIn)
                         .accessibilityIdentifier("mcp.deleteServer")
                 }
 
@@ -403,21 +423,103 @@ private struct MCPServerDetail: View {
             }
             .accessibilityIdentifier("mcp.confirmDeleteServer")
         }
-        .onAppear { nameDraft = current.name }
-        // Leaving the page or the app clears what was typed.
+        .onAppear {
+            nameDraft = current.name
+            showsClient = session.hasUserClient
+        }
+        .onChange(of: session.needsUserClient) { _, needed in
+            if needed { showsClient = true }
+        }
+        // Leaving the page or the app clears what was typed; an unsaved choice goes too.
         .onDisappear {
-            session.endpointDraft = ""
-            session.tokenDraft = ""
+            clearDrafts()
+            if !session.isSigningIn { session.authDraft = session.authMode }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { session.endpointDraft = ""; session.tokenDraft = "" }
+            if phase != .active { clearDrafts() }
         }
+    }
+
+    private var drafts: [String] {
+        [session.endpointDraft, session.tokenDraft, session.clientIDDraft, session.clientSecretDraft]
+    }
+
+    private func clearDrafts() {
+        session.endpointDraft = ""
+        session.tokenDraft = ""
+        session.clientIDDraft = ""
+        session.clientSecretDraft = ""
+    }
+
+    /// OAuth 登入, like Android's 使用 OAuth 2.1 登入: the sign-in state, 登入 or
+    /// 登出, and a client the user registered for a server that registers no apps.
+    @ViewBuilder private var oauthRows: some View {
+        Text(localizer.text(session.signInMessage))
+            .font(.subheadline.weight(.semibold))
+            .accessibilityIdentifier("mcp.signInStatus")
+        Text(localizer.text(.mcpAuthOAuthHelp))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        if session.isSigningIn {
+            ProgressView(localizer.text(.mcpSigningIn))
+            Button(localizer.text(.mcpCancelSignIn)) { session.cancelSignIn() }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("mcp.cancelSignIn")
+        } else {
+            HStack(spacing: 12) {
+                Button(localizer.text(.mcpSignIn)) {
+                    focused = nil
+                    let pages = ModelAccountCallbackPage(localizer: localizer)
+                    session.signIn(browser: MCPSignInPage.shared, page: { pages.html(failure: $0) })
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!session.canSignIn)
+                .accessibilityIdentifier("mcp.signIn")
+                if session.authMode == .oauth && session.signInStatus != .signedOut {
+                    Button(localizer.text(.mcpSignOut), role: .destructive) { session.signOut() }
+                        .buttonStyle(.bordered)
+                        .disabled(session.isBusy)
+                        .accessibilityIdentifier("mcp.signOut")
+                }
+            }
+        }
+        DisclosureGroup(localizer.text(.mcpUserClient), isExpanded: $showsClient) {
+            TextField(localizer.text(.mcpClientID), text: $session.clientIDDraft)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($focused, equals: .clientID)
+                .submitLabel(.done)
+                .onSubmit { focused = nil }
+                .disabled(session.isBusy || session.isSigningIn)
+                .accessibilityIdentifier("mcp.clientID")
+            SecureField(localizer.text(.mcpClientSecret), text: $session.clientSecretDraft)
+                .mcpSecretEntry()
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .privacySensitive()
+                .focused($focused, equals: .clientSecret)
+                .submitLabel(.done)
+                .onSubmit { focused = nil }
+                .disabled(session.isBusy || session.isSigningIn)
+                .accessibilityIdentifier("mcp.clientSecret")
+            Text(localizer.text(.mcpUserClientHelp))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if session.hasUserClient {
+                Text(localizer.text(.mcpUserClientStored))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("mcp.userClientStatus")
+            }
+        }
+        .accessibilityIdentifier("mcp.userClient")
     }
 
     private var statusSymbol: String {
         switch session.phase {
         case .connected: return "checkmark.circle.fill"
         case .failed: return "exclamationmark.triangle.fill"
+        case .signInRequired: return "person.crop.circle.badge.exclamationmark"
         case .connecting, .discovering: return "arrow.triangle.2.circlepath"
         case .notConfigured, .saved, .disconnected, .cancelled, .suspended: return "link"
         }
@@ -427,8 +529,32 @@ private struct MCPServerDetail: View {
         switch session.phase {
         case .connected: return .green
         case .failed: return .red
+        case .signInRequired: return .orange
         case .notConfigured, .saved, .connecting, .discovering, .disconnected, .cancelled, .suspended:
             return MCPPageStyle.accent(colorScheme)
+        }
+    }
+}
+
+/// 驗證方式: nothing, a fixed access token or an OAuth sign-in.
+private struct MCPAuthPicker: View {
+    @Environment(\.appLocalizer) private var localizer
+    @Binding var selection: MCPAuthMode
+    let identifier: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(localizer.text(.mcpAuth))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Picker(localizer.text(.mcpAuth), selection: $selection) {
+                Text(localizer.text(.mcpAuthNone)).tag(MCPAuthMode.none)
+                Text(localizer.text(.mcpAuthToken)).tag(MCPAuthMode.token)
+                Text(localizer.text(.mcpAuthOAuth)).tag(MCPAuthMode.oauth)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityIdentifier(identifier)
         }
     }
 }
