@@ -13,8 +13,13 @@ public enum DocumentPDFRenderer {
     public static let maximumPages = 256
     public static let maximumOutputBytes = DocumentLimits.maximumOutputBytes
 
-    public static func render(_ report: DocumentReport) throws -> Data {
-        try render(report, pageLimit: maximumPages)
+    /// The inline marks drawn. An exported answer keeps bold only
+    /// (DocumentInlineEmphasis); a file the assistant creates also draws
+    /// italic and code (DocumentInlineStyle), as its Word file does.
+    public enum Marks: Sendable { case bold, boldItalicCode }
+
+    public static func render(_ report: DocumentReport, marks: Marks = .bold) throws -> Data {
+        try render(report, pageLimit: maximumPages, marks: marks)
     }
 
     public static func renderAsync(_ report: DocumentReport) async throws -> Data {
@@ -22,7 +27,7 @@ public enum DocumentPDFRenderer {
     }
 
     /// Internal limit override makes the failure path testable without rendering 256 pages.
-    static func render(_ report: DocumentReport, pageLimit: Int) throws -> Data {
+    static func render(_ report: DocumentReport, pageLimit: Int, marks: Marks = .bold) throws -> Data {
         try Task.checkCancellation()
         guard (1...maximumPages).contains(pageLimit) else { throw DocumentPDFError.pageLimitExceeded }
         let format = UIGraphicsPDFRendererFormat()
@@ -32,7 +37,7 @@ public enum DocumentPDFRenderer {
         var failure: Error?
         let data = renderer.pdfData { context in
             do {
-                try PDFLayout(context: context, language: report.language, pageLimit: pageLimit).draw(report)
+                try PDFLayout(context: context, language: report.language, pageLimit: pageLimit, marks: marks).draw(report)
             } catch { failure = error }
         }
         if let failure { throw failure }
@@ -56,29 +61,44 @@ private struct PDFLine {
 }
 
 /// UTF-16 offsets are advanced only by Core Text cluster/line breaks. No substring is dropped
-/// but the marks of a closed **bold** pair, whose words are drawn bold (DocumentInlineEmphasis).
+/// but the marks of a closed **bold** pair, whose words are drawn bold (DocumentInlineEmphasis),
+/// and, for created files, the marks of italic and code (DocumentInlineStyle).
 private struct PDFText {
     private let typesetter: CTTypesetter
     private let string: NSString
     private let fontSize: CGFloat
     private var offset = 0
 
-    init(_ text: String, size: CGFloat, language: String, bold: Bool = false) {
+    init(_ text: String, size: CGFloat, language: String, bold: Bool = false,
+         marks: DocumentPDFRenderer.Marks = .bold) {
         fontSize = size
         // Use a document font instead of the private system UI font. PDFKit
         // separates the UI font's low underscore glyphs from the surrounding
         // text, corrupting copied identifiers even when the page looks correct.
         // Core Text still selects language-appropriate fallback glyphs for CJK.
         let baseFont = CTFontCreateWithName("Helvetica" as CFString, size, nil)
-        let boldFont = CTFontCreateCopyWithSymbolicTraits(baseFont, size, nil, .traitBold, .traitBold) ?? baseFont
-        func attributes(strong: Bool) -> [NSAttributedString.Key: Any] {
-            [NSAttributedString.Key(kCTFontAttributeName as String): strong ? boldFont : baseFont,
+        func font(strong: Bool, italic: Bool, code: Bool) -> CTFont {
+            let base = code ? CTFontCreateWithName("Courier" as CFString, size, nil) : baseFont
+            let traits: CTFontSymbolicTraits = [strong ? .traitBold : [], italic ? .traitItalic : []]
+            guard !traits.isEmpty else { return base }
+            return CTFontCreateCopyWithSymbolicTraits(base, size, nil, traits, traits) ?? base
+        }
+        func attributes(strong: Bool, italic: Bool = false, code: Bool = false) -> [NSAttributedString.Key: Any] {
+            [NSAttributedString.Key(kCTFontAttributeName as String): font(strong: strong, italic: italic, code: code),
              NSAttributedString.Key(kCTLanguageAttributeName as String): language,
              NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.09, alpha: 1)]
         }
         let attributed = NSMutableAttributedString()
-        for run in DocumentInlineEmphasis.runs(text) {
-            attributed.append(NSAttributedString(string: run.text, attributes: attributes(strong: bold || run.strong)))
+        switch marks {
+        case .bold:
+            for run in DocumentInlineEmphasis.runs(text) {
+                attributed.append(NSAttributedString(string: run.text, attributes: attributes(strong: bold || run.strong)))
+            }
+        case .boldItalicCode:
+            for run in DocumentInlineStyle.runs(text) {
+                attributed.append(NSAttributedString(string: run.text,
+                    attributes: attributes(strong: bold || run.bold, italic: run.italic, code: run.code)))
+            }
         }
         // Offsets count in the drawn string, the one without the marks.
         string = attributed.string as NSString
@@ -127,6 +147,7 @@ private final class PDFLayout {
     private let context: UIGraphicsPDFRendererContext
     private let language: String
     private let pageLimit: Int
+    private let marks: DocumentPDFRenderer.Marks
     private var pageCount = 0
     private var y = PDFLayout.margin
     private var bottom: CGFloat { Self.page.height - Self.margin }
@@ -134,10 +155,12 @@ private final class PDFLayout {
     private var bodyHeight: CGFloat { bottom - Self.margin }
     private var cg: CGContext { context.cgContext }
 
-    init(context: UIGraphicsPDFRendererContext, language: String, pageLimit: Int) {
+    init(context: UIGraphicsPDFRendererContext, language: String, pageLimit: Int,
+         marks: DocumentPDFRenderer.Marks = .bold) {
         self.context = context
         self.language = language
         self.pageLimit = pageLimit
+        self.marks = marks
     }
 
     func draw(_ report: DocumentReport) throws {
@@ -174,7 +197,7 @@ private final class PDFLayout {
     }
 
     private func paragraph(_ text: String, size: CGFloat, bold: Bool = false, gap: CGFloat) throws {
-        var flow = PDFText(text, size: size, language: language, bold: bold)
+        var flow = PDFText(text, size: size, language: language, bold: bold, marks: marks)
         while let line = try flow.next(width: width) {
             guard line.height <= bodyHeight else { throw DocumentPDFError.unrenderableText }
             if y + line.height > bottom { try beginPage() }
@@ -185,7 +208,7 @@ private final class PDFLayout {
     }
 
     private func lines(_ text: String, width: CGFloat, bold: Bool = false) throws -> [PDFLine] {
-        var flow = PDFText(text, size: 10, language: language, bold: bold)
+        var flow = PDFText(text, size: 10, language: language, bold: bold, marks: marks)
         var result: [PDFLine] = []
         var height: CGFloat = 0
         while let line = try flow.next(width: width) {
