@@ -206,10 +206,12 @@ final class FakeAuthorization: @unchecked Sendable {
         var resource: String?
         var scopesSupported: [String]?
         /// The resource metadata's authorization server: nil this server at `issuerPath`.
-        var authorizationServer: String?
+        var authorizationServer: ((FakeAuthorization) -> String)?
         var issuerPath = "/_clerk"
         /// Where authorization server metadata answers, and whether that copy names the registration endpoint.
         var metadataPaths = ["/.well-known/oauth-authorization-server/_clerk": true, "/_clerk/.well-known/openid-configuration": false]
+        /// The issuer a metadata copy names, by path: nil this server at `issuerPath`.
+        var issuers: [String: (FakeAuthorization) -> String] = [:]
         var challengeMethods: [String]? = ["S256"]
         var authMethods: [String]? = ["none"]
         var issParameter = false
@@ -270,13 +272,14 @@ final class FakeAuthorization: @unchecked Sendable {
         default:
             if let target = options.redirectPaths[request.path] { return .redirect(base.value + target) }
             if options.protectedPaths.contains(request.path) {
-                var metadata: [String: Any] = ["authorization_servers": [options.authorizationServer ?? issuer]]
+                var metadata: [String: Any] = ["authorization_servers": [options.authorizationServer?(self) ?? issuer]]
                 if options.resource != "" { metadata["resource"] = options.resource ?? endpoint }
                 if let scopes = options.scopesSupported { metadata["scopes_supported"] = scopes }
                 return .json(200, Self.text(metadata))
             }
             if let registers = options.metadataPaths[request.path] {
-                var metadata: [String: Any] = ["issuer": issuer, "authorization_endpoint": issuer + "/authorize",
+                var metadata: [String: Any] = ["issuer": options.issuers[request.path]?(self) ?? issuer,
+                                               "authorization_endpoint": issuer + "/authorize",
                                                "token_endpoint": issuer + "/token", "response_types_supported": ["code"],
                                                "authorization_response_iss_parameter_supported": options.issParameter]
                 if registers { metadata["registration_endpoint"] = base.value + "/register" }
@@ -534,6 +537,13 @@ enum Browser {
         check([MCPOAuth.allowed("http://a.test/x"), MCPOAuth.allowed("https://u:p@a.test/x"), MCPOAuth.allowed("https://a.test/x#f"),
                MCPOAuth.allowed("ftp://a.test/x"), MCPOAuth.allowed("not a url"), MCPOAuth.allowed(nil)].allSatisfy { $0 == nil },
               "plain HTTP elsewhere, user info, fragments and other schemes are refused")
+        let clerk = "https://higgsfield.ai/_clerk"
+        check(MCPOAuth.sameIssuer(clerk, clerk) && MCPOAuth.sameIssuer(clerk + "/", clerk) && MCPOAuth.sameIssuer(clerk, clerk + "/"),
+              "RFC 8414 §3.3: the same issuer, give or take one trailing slash")
+        check(!MCPOAuth.sameIssuer(clerk + "//", clerk) && !MCPOAuth.sameIssuer("https://Higgsfield.ai/_clerk", clerk)
+                && !MCPOAuth.sameIssuer("https://mcp.higgsfield.ai", clerk) && !MCPOAuth.sameIssuer("https://higgsfield.ai", clerk)
+                && !MCPOAuth.sameIssuer(clerk + "/x", clerk) && !MCPOAuth.sameIssuer(nil, clerk),
+              "and nothing else: two slashes, another case, host or path, or none")
         let mcp = URL(string: "https://mcp.example.com/tenant/mcp")!
         check(MCPOAuth.covers(URL(string: "https://mcp.example.com/tenant/mcp")!, mcp) && MCPOAuth.covers(URL(string: "https://MCP.example.com")!, mcp)
                 && MCPOAuth.covers(URL(string: "https://mcp.example.com/tenant/")!, mcp), "resource metadata about this server or a path above it")
@@ -743,6 +753,43 @@ enum Browser {
                 && (try? legacyFound.get())?.resource == legacy.endpoint,
               "no resource metadata at all: the server's own origin is the authorization server (2025-03-26)")
 
+        // RFC 8414 §3.3: a document is used only when its issuer is the one its address was built from.
+        check(server.issuer == fromChallenge.issuer && fromChallenge.issuer.hasSuffix("/_clerk"),
+              "a path issuer (Higgsfield's https://higgsfield.ai/_clerk) is accepted as it is")
+        let (slashed, slashedFound) = try await discover { $0.issuers = [insertion: { fake in fake.issuer + "/" }] }
+        check((try? slashedFound.get())?.issuer == slashed.issuer + "/" && slashed.paths.last == insertion,
+              "a metadata issuer with one more trailing slash is the same issuer")
+        let (namedSlash, namedSlashFound) = try await discover { $0.authorizationServer = { fake in fake.issuer + "/" } }
+        check((try? namedSlashFound.get())?.issuer == namedSlash.issuer && namedSlash.paths.last == insertion,
+              "so is an authorization server the resource metadata names with a trailing slash")
+        let (fallback, fallbackFound) = try await discover {
+            $0.metadataPaths = [insertion: true, openIDAfter: false]
+            $0.issuers = [insertion: { _ in "https://evil.example/_clerk" }]
+        }
+        check(fallback.paths == ["/mcp", "/meta/protected", insertion, openIDInsertion, openIDAfter]
+                && (try? fallbackFound.get())?.issuer == fallback.issuer && (try? fallbackFound.get())?.registrationEndpoint == nil,
+              "a document naming another issuer is not used: discovery goes on to the next address")
+        let (doubled, doubledFound) = try await discover {
+            $0.metadataPaths = [insertion: true, openIDAfter: false]
+            $0.issuers = [insertion: { fake in fake.issuer + "//" }]
+        }
+        check(doubled.paths.last == openIDAfter && (try? doubledFound.get())?.registrationEndpoint == nil,
+              "two more slashes is another issuer")
+        let rootMetadata = "/.well-known/oauth-authorization-server"
+        let (mismatched, noMatch) = try await discover {
+            // The MCP host also has metadata of its own at the root, like mcp.higgsfield.ai.
+            $0.metadataPaths = [insertion: true, openIDInsertion: true, openIDAfter: true, rootMetadata: true]
+            $0.issuers = [insertion: { _ in "https://evil.example/_clerk" }, openIDInsertion: { fake in fake.base.value },
+                          openIDAfter: { fake in fake.issuer + "/tenant" }, rootMetadata: { fake in fake.base.value }]
+        }
+        check(noMatch.failureReason == .setup && mismatched.paths == ["/mcp", "/meta/protected", insertion, openIDInsertion, openIDAfter],
+              "every document names another issuer: no sign-in settings, and the MCP host's own metadata is never asked")
+        let (_, legacyMismatch) = try await discover {
+            $0.challengePath = nil; $0.protectedPaths = []; $0.issuerPath = ""; $0.metadataPaths = [rootMetadata: true]
+            $0.issuers = [rootMetadata: { fake in fake.base.value + "/other" }]
+        }
+        check(legacyMismatch.failureReason == .setup, "without resource metadata, the origin's metadata must name the origin")
+
         // Scope: the challenge's, else scopes_supported, else none.
         let (_, scoped) = try await discover { $0.challengeScope = nil; $0.scopesSupported = ["mcp:read", "mcp:write"] }
         check((try? scoped.get())?.scope == "mcp:read mcp:write", "without the challenge's scope, scopes_supported")
@@ -754,7 +801,7 @@ enum Browser {
         // What can't be used.
         let (_, elsewhere) = try await discover { $0.resource = "https://other.example.com/mcp" }
         check((try? elsewhere.get()) == nil && (elsewhere.failureReason == .insecure), "metadata about another server is not used")
-        let (_, insecure) = try await discover { $0.authorizationServer = "http://auth.example.com/as" }
+        let (_, insecure) = try await discover { $0.authorizationServer = { _ in "http://auth.example.com/as" } }
         check(insecure.failureReason == .insecure, "an authorization server that isn't HTTPS is refused")
         let (_, noPKCE) = try await discover { $0.challengeMethods = ["plain"] }
         check(noPKCE.failureReason == .setup, "an authorization server without S256 is refused")

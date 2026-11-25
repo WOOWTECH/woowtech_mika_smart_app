@@ -8,8 +8,9 @@ import Foundation
 /// authorization code with PKCE (S256), `state` and the server as `resource` (RFC 8707). The
 /// redirect is the loopback listener (LoopbackCallbackServer), as for ChatGPT.
 ///
-/// Two differences from Android, as the spec orders them: the 401 challenge's `resource_metadata`
-/// is tried first, then the path, then the root well-known; and an authorization server without a
+/// Differences from Android, as the specs ask: the 401 challenge's `resource_metadata` is tried
+/// first, then the path, then the root well-known; authorization server metadata counts only when
+/// its issuer is the authorization server's (RFC 8414 §3.3); and an authorization server without a
 /// registration endpoint takes a client the user entered instead of failing.
 ///
 /// TODO: Client ID Metadata Documents (the 2025-11-25 spec's other way to name a client without
@@ -104,12 +105,13 @@ extension MCPOAuth {
     /// from (a) the `resource_metadata` of the 401 an unauthenticated request gets, (b) the
     /// well-known address with the endpoint's path, (c) the one at the root; without any, the
     /// server's own origin is the authorization server (the 2025-03-26 spec, like Android). Its
-    /// metadata is the first 200 answer of `authorizationServerMetadataURLs`.
+    /// metadata is the first 200 answer of `authorizationServerMetadataURLs` whose issuer is that
+    /// authorization server's (`sameIssuer`); a document naming another issuer is passed over.
     public static func discover(endpoint: URL, http: MCPOAuthHTTP) async throws -> MCPOAuthServer {
         let challenge = try await probe(endpoint, http: http)
         let protected = try await firstMetadata(resourceMetadataURLs(endpoint: endpoint, challenge: challenge), http: http)
         var resource = canonicalResource(endpoint)
-        var issuer = origin(endpoint)
+        var issuer = origin(endpoint)?.absoluteString
         if let protected {
             // RFC 9728 §3.3: metadata about another server is not used.
             if let named = protected["resource"] as? String {
@@ -119,11 +121,13 @@ extension MCPOAuth {
             guard let first = (protected["authorization_servers"] as? [Any])?.first as? String else {
                 throw MCPOAuthError(.setup, detail: "no authorization_servers")
             }
-            guard let server = allowed(first) else { throw MCPOAuthError(.insecure, detail: "authorization server") }
-            issuer = server
+            guard allowed(first) != nil else { throw MCPOAuthError(.insecure, detail: "authorization server") }
+            issuer = first.trimmingCharacters(in: .whitespaces)
         }
-        guard let issuer, let metadata = try await firstMetadata(authorizationServerMetadataURLs(issuer: issuer), http: http) else {
-            throw MCPOAuthError(.setup, detail: "no authorization server metadata")
+        guard let issuer, let issuerURL = allowed(issuer),
+              let metadata = try await firstMetadata(authorizationServerMetadataURLs(issuer: issuerURL), http: http,
+                                                     where: { sameIssuer($0["issuer"] as? String, issuer) }) else {
+            throw MCPOAuthError(.setup, detail: "no authorization server metadata for its issuer")
         }
         func address(_ key: String) throws -> URL? {
             guard let text = metadata[key] as? String else { return nil }
@@ -190,8 +194,10 @@ extension MCPOAuth {
     }
 
     /// RFC 8414 §3.2 and RFC 9728 §3.2: only a 200 answer with a JSON object is metadata. A
-    /// redirect is not followed, and a failed or missing one goes on to the next address.
-    static func firstMetadata(_ urls: [URL], http: MCPOAuthHTTP) async throws -> [String: Any]? {
+    /// redirect is not followed, and a failed or missing one, or one `usable` refuses, goes on to
+    /// the next address.
+    static func firstMetadata(_ urls: [URL], http: MCPOAuthHTTP,
+                              where usable: ([String: Any]) -> Bool = { _ in true }) async throws -> [String: Any]? {
         for url in urls {
             var request = URLRequest(url: url)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -201,9 +207,19 @@ extension MCPOAuth {
                 try Task.checkCancellation()
                 continue
             }
-            if answer.status == 200, let found = object(answer.body) { return found }
+            if answer.status == 200, let found = object(answer.body), usable(found) { return found }
         }
         return nil
+    }
+
+    /// RFC 8414 §3.3 and OpenID Connect Discovery 1.0 §4.3: authorization server metadata is used
+    /// only when its `issuer` is identical to the issuer its address was built from (the resource
+    /// metadata's authorization server, or the server's origin), give or take one trailing slash.
+    /// So an MCP host's own metadata (Higgsfield's mcp.higgsfield.ai) never stands in for the
+    /// authorization server the resource metadata names (higgsfield.ai/_clerk).
+    static func sameIssuer(_ found: String?, _ expected: String) -> Bool {
+        guard let found else { return false }
+        return found == expected || found == expected + "/" || found + "/" == expected
     }
 }
 

@@ -26,6 +26,7 @@ class MCPOAuthTests(unittest.TestCase):
                 (OAUTH, 'guard params["state"] == attempt.state else', 'guard params["state"] != nil else'),
                 (OAUTH, '("code_verifier", attempt.verifier)', '("code_verifier", attempt.state)'),
                 (OAUTH, "[allowed(challenge?.resourceMetadata), wellKnown(", "[wellKnown("),
+                (OAUTH, 'return found == expected || found == expected + "/" || found + "/" == expected', "return !found.isEmpty"),
                 (CLIENT, "let refreshed = try await accessToken(rejected: token)", "let refreshed = token"),
                 (SESSION, "if (error as? MCPError) == .signInRequired {", "if (error as? MCPError) == .transportFailure {")]:
             original = (ROOT / source).read_text()
