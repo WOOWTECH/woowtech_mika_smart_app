@@ -274,18 +274,23 @@ private struct MCPServerDetail: View {
                         Text(localizer.text(.mcpIsolation))
                             .accessibilityIdentifier("mcp.testIsolation")
                     }
-                    SecureField(localizer.text(.mcpEndpoint), text: $session.endpointDraft)
-                        .mcpSecretEntry()
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .privacySensitive()
-                        .focused($focused, equals: .endpoint)
-                        .submitLabel(.done)
-                        .onSubmit { focused = nil }
-                        .disabled(session.isBusy || session.isSigningIn)
-                        .accessibilityLabel(localizer.text(.mcpEndpointAX))
-                        .accessibilityIdentifier("mcp.endpoint")
+                    // No secure field while a sign-in page is open (MCPSecretPlaceholder).
+                    if session.isSigningIn {
+                        MCPSecretPlaceholder(localizer.text(.mcpEndpoint))
+                    } else {
+                        SecureField(localizer.text(.mcpEndpoint), text: $session.endpointDraft)
+                            .mcpSecretEntry()
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .privacySensitive()
+                            .focused($focused, equals: .endpoint)
+                            .submitLabel(.done)
+                            .onSubmit { focused = nil }
+                            .disabled(session.isBusy)
+                            .accessibilityLabel(localizer.text(.mcpEndpointAX))
+                            .accessibilityIdentifier("mcp.endpoint")
+                    }
                     Text(localizer.text(.mcpEndpointHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -492,16 +497,20 @@ private struct MCPServerDetail: View {
                 .onSubmit { focused = nil }
                 .disabled(session.isBusy || session.isSigningIn)
                 .accessibilityIdentifier("mcp.clientID")
-            SecureField(localizer.text(.mcpClientSecret), text: $session.clientSecretDraft)
-                .mcpSecretEntry()
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .privacySensitive()
-                .focused($focused, equals: .clientSecret)
-                .submitLabel(.done)
-                .onSubmit { focused = nil }
-                .disabled(session.isBusy || session.isSigningIn)
-                .accessibilityIdentifier("mcp.clientSecret")
+            if session.isSigningIn {
+                MCPSecretPlaceholder(localizer.text(.mcpClientSecret))
+            } else {
+                SecureField(localizer.text(.mcpClientSecret), text: $session.clientSecretDraft)
+                    .mcpSecretEntry()
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .privacySensitive()
+                    .focused($focused, equals: .clientSecret)
+                    .submitLabel(.done)
+                    .onSubmit { focused = nil }
+                    .disabled(session.isBusy)
+                    .accessibilityIdentifier("mcp.clientSecret")
+            }
             Text(localizer.text(.mcpUserClientHelp))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -533,6 +542,23 @@ private struct MCPServerDetail: View {
         case .notConfigured, .saved, .connecting, .discovering, .disconnected, .cancelled, .suspended:
             return MCPPageStyle.accent(colorScheme)
         }
+    }
+}
+
+/// Stands in for a secret's SecureField while a sign-in page is open, when the field is empty
+/// and switched off anyway. In the simulator run of 11/25 iOS offered to save a password ("Save
+/// Password?") over the server's sign-in page, and again over the page afterwards, when the
+/// page had a name field, a secure field and a sign-in under way. (The ChatGPT sign-in, for
+/// comparison, starts from a sheet with no field.) With no secure text field on the screen, iOS
+/// has no password field to read the page as a login form by. It takes no input, and
+/// VoiceOver skips it because the field it replaces is unavailable then.
+private struct MCPSecretPlaceholder: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title).foregroundStyle(.tertiary).accessibilityHidden(true)
     }
 }
 
@@ -644,7 +670,9 @@ private extension View {
     /// above them, iOS read the form as a sign-up form and covered both with
     /// Automatic Strong Password (CI run 44332295841: no keyboard came up and
     /// the endpoint kept one character). An explicit non-password content
-    /// type keeps iOS from generating, filling or offering to save a password.
+    /// type keeps iOS from generating or filling a password. It does not keep
+    /// iOS from offering to save one: while a sign-in page is open, the server
+    /// page therefore shows no secure field (MCPSecretPlaceholder).
     func mcpSecretEntry() -> some View {
         textContentType(.oneTimeCode)
     }
