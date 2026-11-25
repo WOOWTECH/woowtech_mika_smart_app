@@ -91,6 +91,10 @@ public enum MCPError: Error, Sendable, Equatable, LocalizedError {
     case notInitialized, busy, capabilityUnavailable, toolNotAllowed
     case responseIDMismatch, unsupportedServerRequest, paginationLimit, responseTooLarge
     case redirectRejected, timedOut, cancelled, transportFailure
+    /// An OAuth sign-in (MCPCredential.oauth) that ran out or that the server
+    /// still refused after one refresh, or a server that names its OAuth sign-in
+    /// (RFC 9728) and refused a request without one: the user signs in. Nothing was run.
+    case signInRequired
     case httpStatus(statusCode: Int)
     case rpcFailure(rpcCode: Int)
 
@@ -105,6 +109,7 @@ public enum MCPError: Error, Sendable, Equatable, LocalizedError {
     static func sanitized(_ error: Error) -> MCPError {
         if error is CancellationError || Task.isCancelled { return .cancelled }
         if let known = error as? MCPError { return known }
+        if let refused = error as? MCPAuthorizationFailure { return .httpStatus(statusCode: refused.status) }
         if let urlError = error as? URLError {
             if urlError.code == .cancelled { return .cancelled }
             if urlError.code == .timedOut { return .timedOut }

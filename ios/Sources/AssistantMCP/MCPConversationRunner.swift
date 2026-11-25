@@ -451,6 +451,9 @@ public struct MCPConversationRunner: Sendable {
                 text = "MCP server returned JSON-RPC error \(code). Whether changes were applied is unknown. "
                     + unknownWriteGuard
             }
+        case .signInRequired?:
+            // The server refused the token, or no token could be had: nothing reached the tool.
+            text = "MCP server request was not run: the user needs to sign in to this server in the app's MCP server settings."
         default:
             text = "MCP server request failed before a result arrived, so its outcome is unknown. " + unknownWriteGuard
         }
