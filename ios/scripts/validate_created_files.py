@@ -189,11 +189,14 @@ def main():
     check = Checks()
     for entry in manifest['files']:
         path = folder / entry['path']
-        if entry['format'] != 'pdf':
-            package(check, path, entry)
-        {'docx': word, 'xlsx': spreadsheet, 'pptx': presentation, 'pdf': pdf}.get(entry['format'], lambda *a: None)(check, path, entry)
-        if entry['format'] == 'zip':
-            archive(check, path, entry, folder)
+        try:
+            if entry['format'] != 'pdf':
+                package(check, path, entry)
+            {'docx': word, 'xlsx': spreadsheet, 'pptx': presentation, 'pdf': pdf}.get(entry['format'], lambda *a: None)(check, path, entry)
+            if entry['format'] == 'zip':
+                archive(check, path, entry, folder)
+        except Exception as error:  # a file the library cannot open at all
+            check.expect(False, f'{path.name}: cannot be opened: {type(error).__name__}: {error}')
     for failure in check.failures:
         print('FAIL: ' + failure)
     print(json.dumps({'checks': check.count, 'failures': len(check.failures), 'files': len(manifest['files'])}))
