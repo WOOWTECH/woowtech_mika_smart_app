@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bot_ui_avatar">Conversation icon</string>
+    <string name="bot_ui_close">Close</string>
+    <string name="bot_ui_history">Conversation history</string>
+    <string name="bot_ui_more">Conversation menu</string>
+    <string name="bot_ui_profile">Name and icon</string>
+    <string name="bot_ui_find">Find in conversation</string>
+    <string name="bot_ui_files">Files</string>
+    <string name="bot_ui_name">Name</string>
+    <string name="bot_ui_robot">Robot</string>
+    <string name="bot_ui_upload">Upload</string>
+    <string name="bot_ui_choose_image">Choose an image</string>
+    <string name="bot_ui_style">Style</string>
+    <string name="bot_ui_color">Color</string>
+    <string name="bot_ui_face">Face</string>
+    <string name="bot_ui_selected">Selected</string>
+    <string name="bot_ui_save_error">Could not load the image or save changes. Your previous profile is preserved. Please try again.</string>
+    <string name="bot_ui_matches">%1$d matches</string>
+    <string name="bot_ui_no_files">No exported files in this conversation yet.</string>
+    <string name="bot_ui_search_history">Search conversations</string>
+    <string name="bot_ui_services">Switch assistant or service</string>
+    <string name="bot_ui_notifications">Notifications</string>
+    <string name="bot_ui_shortcuts">Shortcuts</string>
+    <string name="bot_ui_no_results">No matching conversations</string>
+    <string name="bot_ui_loading">Loading…</string>
+    <string name="bot_ui_local">On this phone</string>
+    <string name="bot_ui_back">Back to conversation</string>
+    <string name="bot_ui_voice">Voice</string>
+</resources>

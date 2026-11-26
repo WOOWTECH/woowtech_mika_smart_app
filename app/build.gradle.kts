@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -24,6 +26,7 @@ android {
         buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
         // 关于页版本号后的 Beta 标记;出正式版时改成 false
         buildConfigField("boolean", "BETA", "true")
+        buildConfigField("boolean", "WOOWTECHBOT_ENABLED", "false")
     }
 
     // 沙箱程序只有 arm64 版本(jniLibs/arm64-v8a);APK 不限 ABI,别的设备照常安装、显示「此设备不支持沙箱」。
@@ -126,6 +129,16 @@ val apporoBrandRes = extra["apporoBrandRes"] as java.io.File
 val woowtechRevision = extra["woowtechRevision"] as Int
 val woowtechBrandRes = extra["woowtechBrandRes"] as java.io.File
 val woowtechSigning = extra["woowtechSigning"] as java.util.Properties?
+// Firebase client configuration is supplied externally, never borrowed from another product.
+val botFirebase = System.getenv("WOOWTECHBOT_FIREBASE_PROPERTIES")?.let { path ->
+    Properties().apply { file(path).inputStream().use { load(it) } }.also {
+        require(it.getProperty("applicationId") == "io.woowtech.agent") { "Firebase config must belong to io.woowtech.agent" }
+        for (key in listOf("google_app_id", "google_api_key", "gcm_defaultSenderId", "project_id")) {
+            require(!it.getProperty(key).isNullOrBlank()) { "Missing Firebase client property: $key" }
+        }
+    }
+}
+
 android {
     // upstream:上游原样,单测与金样的基准;woowtech:发行用的渥屋助理
     flavorDimensions += "brand"
@@ -144,6 +157,11 @@ android {
         create("woowtech") {
             dimension = "brand"
             applicationId = "io.woowtech.agent"
+            buildConfigField("boolean", "WOOWTECHBOT_ENABLED", "true")
+            botFirebase?.let { config ->
+                for (key in listOf("google_app_id", "google_api_key", "gcm_defaultSenderId", "project_id"))
+                    resValue("string", key, config.getProperty(key))
+            }
             versionCode = (defaultConfig.versionCode ?: 0) * 100 + woowtechRevision
             versionName = "${defaultConfig.versionName}-woow.$woowtechRevision"
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
@@ -169,9 +187,10 @@ androidComponents {
     // 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
     beforeVariants { variant ->
         if (variant.flavorName in setOf("woowtech", "apporo")) {
-            variant.enableUnitTest = false
+            variant.enableUnitTest = variant.flavorName == "woowtech" && providers.gradleProperty("woowtechbotTests").isPresent
             // Explicit cloud acceptance only; ordinary branded release builds still omit test APKs.
-            variant.androidTest.enable = providers.gradleProperty("documentAcceptanceTests").isPresent ||
+            variant.androidTest.enable = providers.gradleProperty("woowtechbotTests").isPresent ||
+                providers.gradleProperty("documentAcceptanceTests").isPresent ||
                 (variant.flavorName == "apporo" && providers.gradleProperty("apporoAlignmentTests").isPresent)
         }
     }
@@ -182,4 +201,9 @@ androidComponents {
             variant.androidResources.aaptAdditionalParameters.addAll("--exclude-configs", "zh")
         }
     }
+}
+
+// Firebase is packaged only with the explicitly enabled WOOWTECH direct edition.
+dependencies {
+    add("woowtechImplementation", "com.google.firebase:firebase-messaging:26.0.2")
 }

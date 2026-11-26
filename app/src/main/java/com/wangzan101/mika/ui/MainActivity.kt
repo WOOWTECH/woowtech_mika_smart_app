@@ -117,6 +117,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         conversationRequests.restore(intent, savedInstanceState)
+        com.wangzan101.mika.woowbot.push.BotPushTapEntry.handle(this, intent)
         monitor = SystemStatusMonitor(this, PhoneServices.of(this).shellControl)
         val store = ProviderStore.get(this)
         setContent {
@@ -136,6 +137,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         conversationRequests.receive(intent)
+        com.wangzan101.mika.woowbot.push.BotPushTapEntry.handle(this, intent)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -363,6 +365,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 reopen = nav.reopenDrawer,
                 onReopened = nav::drawerReopened,
                 externalOpenRevision = conversationOpenRevision,
+                onBotServices = { context.startActivity(com.wangzan101.mika.woowbot.BotServicesActivity.intent(context)) },
+                onBotNotifications = { context.startActivity(Intent(context, com.wangzan101.mika.woowbot.push.BotPushSettingsActivity::class.java)) },
             ) { openDrawer ->
                 ChatScreen(
                     vm = app.chat,

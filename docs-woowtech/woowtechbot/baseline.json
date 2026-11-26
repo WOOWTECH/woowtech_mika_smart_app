@@ -1,0 +1,53 @@
+{
+  "implementation_base": "2bb46820",
+  "preview_base": "bc65d7b2",
+  "applicationId": "io.woowtech.agent",
+  "installed_version": "0.1.37-woow.11",
+  "installed_versionCode": 3811,
+  "candidate_version": "0.1.37-woow.12",
+  "installed_cert_sha256": "806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8",
+  "scope": [
+    "Android WOOWTECH direct",
+    "local chat UI",
+    "full remote webpage",
+    "service isolation",
+    "notifications"
+  ],
+  "excluded": [
+    "Play",
+    "Apporo",
+    "iOS",
+    "remote phone tool execution"
+  ],
+  "preserve": [
+    "conversations",
+    "memory",
+    "skills",
+    "model settings",
+    "MCP credentials",
+    "browser sessions",
+    "files",
+    "schedules",
+    "phone automation",
+    "document export"
+  ],
+  "acceptance": [
+    "independent conversation name and icon",
+    "four entry conversation menu",
+    "history search and existing shortcut reachability",
+    "two service auth/state isolation",
+    "disconnect keeps local assistant usable",
+    "file picker camera upload download",
+    "no unrestricted native bridge",
+    "unknown notification service rejected",
+    "same event duplicate suppressed distinct event same thread accepted",
+    "foreground background cold-start notification routing",
+    "token rotation logout service removal",
+    "signed in-place update retains existing data"
+  ],
+  "external_dependencies": [
+    "Firebase config for io.woowtech.agent",
+    "authorized test bot pairing",
+    "deployed assistant push adapter"
+  ]
+}
