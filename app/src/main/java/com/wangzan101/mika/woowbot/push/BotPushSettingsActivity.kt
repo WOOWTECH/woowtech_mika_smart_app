@@ -10,6 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.wangzan101.mika.woowbot.BotServices
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,6 +22,8 @@ import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.AppLanguage
 import com.wangzan101.mika.ui.theme.MikaTheme
+import com.wangzan101.mika.ui.theme.appearanceDark
+import com.wangzan101.mika.ui.theme.systemBarsFor
 
 class BotPushSettingsActivity : ComponentActivity() {
     private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -31,11 +36,15 @@ class BotPushSettingsActivity : ComponentActivity() {
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
         BotPushBootstrap.install(this)
         setContent {
-            MikaTheme {
+            val dark = appearanceDark()
+            SideEffect { systemBarsFor(dark) }
+            MikaTheme(dark = dark) {
                 val controller = BotPushRuntime.controller
                 val state = controller?.state?.collectAsState()?.value ?: BotPushState.NOT_CONFIGURED
+                val discovery = controller?.discovery?.collectAsState()?.value.orEmpty()
+                val services by remember { BotServices.registry(this) }.state.collectAsState()
                 Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text(stringResource(R.string.bot_push_settings_title), style = MaterialTheme.typography.headlineSmall)
                         Text(stringResource(R.string.bot_push_settings_privacy))
                         Text(stringResource(if (controller?.configured != true) R.string.bot_push_not_configured else statusText(state)))
@@ -45,9 +54,19 @@ class BotPushSettingsActivity : ComponentActivity() {
                                 permission.launch(Manifest.permission.POST_NOTIFICATIONS)
                             else BotPushBootstrap.setOptIn(this@BotPushSettingsActivity, true)
                         }) { Text(stringResource(if (controller?.optedIn == true) R.string.bot_push_disable else R.string.bot_push_enable)) }
+                        if (state == BotPushState.RETRY_REQUIRED || state == BotPushState.SERVER_NOT_READY) {
+                            OutlinedButton(onClick = { BotPushBootstrap.refresh(this@BotPushSettingsActivity) }) {
+                                Text(stringResource(R.string.bot_push_retry))
+                            }
+                        }
                         OutlinedButton(onClick = {
                             startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
                         }) { Text(stringResource(R.string.bot_push_system_settings)) }
+                        for (service in services.services.filter { it.enabled }) {
+                            HorizontalDivider()
+                            Text(service.name, style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(discoveryText(discovery[service.id])), style = MaterialTheme.typography.bodyMedium)
+                        }
                         TextButton(onClick = { finish() }) { Text(stringResource(R.string.bot_push_back)) }
                     }
                 }
@@ -57,12 +76,21 @@ class BotPushSettingsActivity : ComponentActivity() {
     override fun onResume() { super.onResume(); if (BuildConfig.WOOWTECHBOT_ENABLED) BotPushBootstrap.refresh(this) }
     companion object {
         fun intent(context: Context) = Intent(context, BotPushSettingsActivity::class.java)
+        private fun discoveryText(state: BotPushDiscovery?) = when (state) {
+            null, BotPushDiscovery.CHECKING -> R.string.bot_push_discovery_checking
+            BotPushDiscovery.READY -> R.string.bot_push_discovery_ready
+            BotPushDiscovery.SIGN_IN_REQUIRED -> R.string.bot_push_discovery_sign_in
+            BotPushDiscovery.IDENTITY_CHANGED -> R.string.bot_push_discovery_changed
+            BotPushDiscovery.SERVER_NOT_READY -> R.string.bot_push_server_not_ready
+            BotPushDiscovery.UNAVAILABLE -> R.string.bot_push_discovery_unavailable
+        }
         private fun statusText(state: BotPushState) = when (state) {
             BotPushState.OFF -> R.string.bot_push_off
             BotPushState.NOT_CONFIGURED -> R.string.bot_push_not_configured
             BotPushState.PERMISSION_REQUIRED -> R.string.bot_push_permission_required
             BotPushState.NO_SERVICES -> R.string.bot_push_no_services
             BotPushState.PENDING -> R.string.bot_push_pending
+            BotPushState.RETRY_REQUIRED -> R.string.bot_push_retry_required
             BotPushState.SERVER_NOT_READY -> R.string.bot_push_server_not_ready
             BotPushState.REGISTERED -> R.string.bot_push_registered
         }

@@ -17,4 +17,11 @@
     <string name="bot_push_no_services">尚未啟用任何配對服務的通知。</string>
     <string name="bot_push_pending">通知註冊或移除尚待完成。</string>
     <string name="bot_push_registered">註冊已確認，尚未驗證通知送達。</string>
+    <string name="bot_push_retry_required">通知註冊檢查或更新尚未完成，既有紀錄已保留。請確認網路後重試。</string>
+    <string name="bot_push_retry">重新檢查註冊</string>
+    <string name="bot_push_discovery_checking">正在檢查服務連線…</string>
+    <string name="bot_push_discovery_ready">服務身分與推播能力已確認；尚不代表通知已送達。</string>
+    <string name="bot_push_discovery_sign_in">無法讀取服務登入狀態，請開啟服務確認連線。</string>
+    <string name="bot_push_discovery_changed">檢查期間服務身分已變更，請待連線穩定後重試。</string>
+    <string name="bot_push_discovery_unavailable">無法確認此服務，既有註冊紀錄已保留。</string>
 </resources>

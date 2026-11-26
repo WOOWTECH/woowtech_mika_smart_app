@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** Only cookies in process memory; durable ledger remains identity-only. All profile reads run on main. */
 internal class BotPushConnections(private val registry: BotServiceRegistry, private val pending: () -> Set<BotPushBinding>) {
+    val discovery = kotlinx.coroutines.flow.MutableStateFlow<Map<String, BotPushDiscovery>>(emptyMap())
+    private fun report(id: String, state: BotPushDiscovery) { discovery.value = discovery.value + (id to state) }
     private val sessions = ConcurrentHashMap<BotPushBinding, BotPushSession>()
     private val retiringCredentials = ConcurrentHashMap<String, BotPushCredentials>()
     @Volatile private var eligible: Set<BotPushBinding> = emptySet()
@@ -47,24 +49,30 @@ internal class BotPushConnections(private val registry: BotServiceRegistry, priv
         val next = mutableSetOf<BotPushBinding>()
         val recorded = pending()
         var unresolvedRegistration = false
-        for (service in registry.state.value.services.filter { it.enabled }) {
+        val enabled = registry.state.value.services.filter { it.enabled }
+        discovery.value = enabled.associate { it.id to BotPushDiscovery.CHECKING }
+        for (service in enabled) {
             val hasRegistration = recorded.any { it.serviceId == service.id }
             val credentials = withContext(Dispatchers.Main.immediate) { runCatching { capture(service) }.getOrNull() }
             if (credentials == null) {
+                report(service.id, BotPushDiscovery.SIGN_IN_REQUIRED)
                 if (hasRegistration) unresolvedRegistration = true
                 continue
             }
             try {
                 val session = api.discover(credentials)
                 if (!valid() || !current(credentials)) {
+                    report(service.id, BotPushDiscovery.IDENTITY_CHANGED)
                     if (hasRegistration) unresolvedRegistration = true
                     continue
                 }
+                report(service.id, if (session.ready) BotPushDiscovery.READY else BotPushDiscovery.SERVER_NOT_READY)
                 sessions[session.binding] = session
                 if (session.ready) next.add(session.binding)
                 else if (hasRegistration) unresolvedRegistration = true
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) {
+                report(service.id, BotPushDiscovery.UNAVAILABLE)
                 // Missing discovery is not a user request to revoke a previously registered service.
                 if (hasRegistration) unresolvedRegistration = true
             }

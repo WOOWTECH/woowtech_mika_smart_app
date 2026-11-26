@@ -1,5 +1,6 @@
 package com.wangzan101.mika.ui.theme
 
+import com.wangzan101.mika.BuildConfig
 import android.content.Context
 import android.provider.Settings
 import android.view.View
@@ -86,8 +87,9 @@ fun ComponentActivity.systemBarsFor(dark: Boolean) {
 /** 深浅色按设置里的外观([appearanceDark]);同时把 Material 组件(弹窗、输入框、底部面板)的颜色对上。 */
 @Composable
 fun MikaTheme(dark: Boolean = appearanceDark(), reduceMotion: Boolean = false, content: @Composable () -> Unit) {
-    val colors = if (dark) DarkColors else LightColors
-    val scheme = if (dark) DarkScheme else LightScheme
+    val colors = if (BuildConfig.WOOWTECHBOT_ENABLED) { if (dark) WoowDarkColors else WoowLightColors }
+        else if (dark) DarkColors else LightColors
+    val scheme = remember(colors) { scheme(colors) }
     val layoutDirection = if (LocalContext.current.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
         LayoutDirection.Rtl
     } else {

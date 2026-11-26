@@ -24,7 +24,7 @@ object BotPushBootstrap {
         val connections = BotPushConnections(registry, BotPushPreferencesLedger(app)::read)
         val controller = BotPushController(app, tokens, connections.api,
             bindings = connections::bindings, permissionGranted = { permissionGranted(app) },
-            serverReady = connections::ready, prepare = connections::prepare, stillCurrent = connections::valid)
+            serverReady = connections::ready, prepare = connections::prepare, stillCurrent = connections::valid, discovery = connections.discovery)
         BotServices.onSessionMayHaveChanged = { service -> connections.sessionHint(service); refresh(app) }
         BotServices.beforeSessionCleared = { service -> connections.retiring(service) }
         BotServices.beforeRemoteLogout = { service ->

@@ -1,0 +1,5 @@
+<resources>
+    <string name="bot_workspace_hint">切換服務後，接續剛才的畫面。各服務的對話與登入分開保留。</string>
+    <string name="bot_workspace_device">這支手機</string>
+    <string name="bot_workspace_local_detail">對話、工具與設定</string>
+</resources>

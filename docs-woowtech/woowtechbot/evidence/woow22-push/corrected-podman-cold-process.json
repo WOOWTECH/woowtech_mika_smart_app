@@ -1,0 +1,47 @@
+{
+  "source": "0a78edb2",
+  "versionCode": 3822,
+  "eventId": "a7d54a46-3d20-4793-a43e-76b10bf8c36a",
+  "baseline": {
+    "observedAtUtc": "2026-11-26T21:24:09.265569+00:00",
+    "pid": null,
+    "stopped": "false"
+  },
+  "senderSentAtUtc": "2026-11-26T21:25:02.360Z",
+  "senderAckAtUtc": "2026-11-26T21:25:03.278Z",
+  "processStartAtUtc": "2026-11-26T21:25:02.620Z",
+  "processStartReason": "broadcast FirebaseInstanceIdReceiver",
+  "pid": 9642,
+  "polls": [
+    {
+      "utc": "2026-11-26T21:25:00.482737+00:00",
+      "pid": null
+    },
+    {
+      "utc": "2026-11-26T21:25:01.230357+00:00",
+      "pid": null
+    },
+    {
+      "utc": "2026-11-26T21:25:01.958340+00:00",
+      "pid": null
+    },
+    {
+      "utc": "2026-11-26T21:25:02.655026+00:00",
+      "pid": null
+    },
+    {
+      "utc": "2026-11-26T21:25:03.360908+00:00",
+      "pid": "9642"
+    },
+    {
+      "utc": "2026-11-26T21:25:04.087736+00:00",
+      "pid": "9642"
+    },
+    {
+      "utc": "2026-11-26T21:25:04.779535+00:00",
+      "pid": "9642"
+    }
+  ],
+  "notificationObservedAtUtc": "2026-11-26T21:25:32.270253Z",
+  "classification": "stop-app no-process FCM wake; not force-stop/offline/low-memory"
+}

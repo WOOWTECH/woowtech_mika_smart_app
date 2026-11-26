@@ -1,0 +1,15 @@
+{
+  "beforeAt": "2026-11-26T15:16:52.115225+00:00",
+  "beforeNet": [
+    "Active default network: none"
+  ],
+  "beforeRecords": [],
+  "wifiEnableAt": "2026-11-26T15:16:52.511019+00:00",
+  "receivedObservedAt": "2026-11-26T15:17:07.031529+00:00",
+  "afterNet": [
+    "Active default network: 113"
+  ],
+  "afterRecords": [
+    "NotificationRecord(0x0602167e: pkg=io.woowtech.agent user=UserHandle{0} id=0 tag=6a0f26fa-c49f-4350-983b-1f52592b72a8|e6763931-993b-4e56-80d9-e87705f2d929|5c288d5b-ade1-40ca-ab16-9f7a2477762b|d25bf5cf-6f2b-4c12-90e9-e75c9915bd48 importance=3 key=0|io.woowtech.agent|0|6a0f26fa-c49f-4350-983b-1f52592b72a8|e6763931-993b-4e56-80d9-e87705f2d929|5c288d5b-ade1-40ca-ab16-9f7a2477762b|d25bf5cf-6f2b-4c12-90e9-e75c9915bd48|10315 bbbc=0: Notification(channel=woowtechbot_results shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL color=0x00000000 vis=SECRET))"
+  ]
+}

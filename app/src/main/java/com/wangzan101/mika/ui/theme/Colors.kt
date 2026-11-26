@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
  * 实色只用在强调(主按钮、选中、开关、用户消息)和状态(成功、需要你、出错);图标块一律中性。
  */
 @Immutable
-class MikaColors(
+data class MikaColors(
     /** 页面背景。 */
     val bg: Color,
     /** 卡片、分组。 */
@@ -131,3 +131,21 @@ val DarkColors = MikaColors(
 
 /** 没有包在 [MikaTheme] 里时(比如界面测试)按浅色。 */
 val LocalMikaColors = staticCompositionLocalOf { LightColors }
+
+/** Direct WOOWTECH only: preview06 Midnight / Daylight; store brands retain their palettes. */
+val WoowLightColors = LightColors.copy(
+    bg = Color(0xFFFCFCFC), surface = Color(0xFFEFEFEF), fill = Color(0xFFE3E3E3),
+    ink = Color(0xFF1C1C1C), ink2 = Color(0xAD1C1C1C), ink3 = Color(0xA61C1C1C),
+    hair = Color(0x3D1C1C1C), edge = Color(0x1F1C1C1C),
+    accent = Color(0xFF0B69CC), accentSoft = Color(0xFFE4E4E4), onAccent = Color.White,
+    answer = Color(0xFFEFEFEF), glass = Color(0xFFE3E3E3), glassEdge = Color(0x1F1C1C1C),
+    ok = Color(0xFF007A44), bad = Color(0xFFCD2834),
+)
+val WoowDarkColors = DarkColors.copy(
+    bg = Color(0xFF121212), surface = Color(0xFF1F1F1F), fill = Color(0xFF282828),
+    ink = Color(0xFFF5F5F5), ink2 = Color(0xA8F5F5F5), ink3 = Color(0x91F5F5F5),
+    hair = Color(0xFF383838), edge = Color(0x0FF5F5F5),
+    accent = Color(0xFF7FC0FF), accentSoft = Color(0xFF202020), onAccent = Color(0xFF121212),
+    answer = Color(0xFF1F1F1F), glass = Color(0xFF282828), glassEdge = Color(0xFF383838),
+    ok = Color(0xFF38D591), bad = Color(0xFFFF5667),
+)

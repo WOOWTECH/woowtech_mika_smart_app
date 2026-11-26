@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "9e0382d2",
+  "version": "0.1.37-woow.22",
+  "versionCode": 3822,
+  "diagnostics": false,
+  "apkSha256": "a2bae3db69d05714bbb4d88c79ab24964f70bf7ca4fc7111c19396245afb32ff",
+  "installedApkMatches": true,
+  "originalSignature": true,
+  "firstInstallTime": "2026-11-09 13:12:33",
+  "unitTests": 32,
+  "unitFailures": 0,
+  "releaseAssembly": "PASS",
+  "backendEvents": "HOLD",
+  "published": false
+}
