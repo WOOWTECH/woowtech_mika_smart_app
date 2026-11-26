@@ -56,6 +56,24 @@ jobs:
         run: python3 .github/scripts/prepare-compiler-repository.py
       - name: Brand layer tests
         run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :core:test --tests "com.wangzan101.mika.core.brand.*" --stacktrace
+      - name: Configure WOOWTECH Firebase client
+        env:
+          FIREBASE_CLIENT_PROPERTIES: ${{ secrets.WOOWTECHBOT_FIREBASE_CLIENT_PROPERTIES }}
+        run: |
+          python3 - <<'PYCODE'
+          import os
+          from pathlib import Path
+          config = os.environ.get("FIREBASE_CLIENT_PROPERTIES", "")
+          if not config:
+              if os.environ["GITHUB_EVENT_NAME"] != "pull_request":
+                  raise SystemExit("Firebase client configuration required for release")
+          else:
+              path = Path(os.environ["RUNNER_TEMP"]) / "woowtech-firebase.properties"
+              path.touch(mode=0o600)
+              path.write_text(config)
+              with open(os.environ["GITHUB_ENV"], "a") as out:
+                  out.write("WOOWTECHBOT_FIREBASE_PROPERTIES=" + str(path) + "\n")
+          PYCODE
       - name: Build woowtech release (unsigned) and debug
         run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleWoowtechRelease :app:assembleWoowtechDebug --stacktrace
       - name: Brand checks (APK)
