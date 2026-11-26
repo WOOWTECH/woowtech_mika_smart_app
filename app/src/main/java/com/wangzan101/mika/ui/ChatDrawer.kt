@@ -505,8 +505,18 @@ fun ChatWithDrawer(
     onReopened: () -> Unit = {},
     /** A notification/deep-link request should reveal the conversation beneath an open drawer. */
     externalOpenRevision: Int = 0,
+    /** WOOWTECH direct-only full-page history controls; the parent owns these destinations. */
+    onBotServices: () -> Unit = {},
+    onBotNotifications: () -> Unit = {},
+    onBotFiles: (() -> Unit)? = null,
     content: @Composable (openDrawer: () -> Unit) -> Unit,
 ) {
+    if (botUiEnabled(LocalContext.current)) {
+        BotUiHistoryHost(vm, conversations, conversationChanges, onPlans, onMemory, onBrowser,
+            onMcpServers, onComputerAccess, onScreens, onSettings, onAbout, updateAvailable,
+            onBotServices, onBotNotifications, onBotFiles, reopen, onReopened, externalOpenRevision, content)
+        return
+    }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var handledOpenRevision by rememberSaveable { mutableIntStateOf(externalOpenRevision) }

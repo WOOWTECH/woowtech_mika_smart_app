@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "token": "fake-fcm-token:fixture_only_000000000000000000",
+  "locale": "zh-TW",
+  "reason": "finished",
+  "target": {
+    "serviceId": "service_demo",
+    "botId": "bot_demo",
+    "threadId": "thread_demo",
+    "eventId": "event_demo_0001"
+  }
+}

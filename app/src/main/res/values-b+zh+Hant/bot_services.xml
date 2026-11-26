@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bot_services_title">助理與服務</string>
+    <string name="bot_services_local">本機助理</string>
+    <string name="bot_services_description">開啟各服務原本的完整網頁，直接在網頁配對與登入。本機助理仍可離線使用。</string>
+    <string name="bot_services_unsupported">此 WebView 不支援服務帳號隔離。請更新 Android System WebView 或 Chrome，再重新開啟 App。本機助理仍可使用。</string>
+    <string name="bot_services_storage_error">無法讀取服務資料，本機助理不受影響。</string>
+    <string name="bot_services_action_error">無法儲存變更。若已清除多個工作階段，請重新啟動 App 完成舊設定檔刪除，再重試。</string>
+    <string name="bot_services_ready">可開啟 · 登入狀態以網頁為準</string>
+    <string name="bot_services_disconnected">已在這支手機中斷連線</string>
+    <string name="bot_services_open">開啟</string>
+    <string name="bot_services_connect">連線</string>
+    <string name="bot_services_disconnect">中斷連線</string>
+    <string name="bot_services_manage_session">管理登入／移除服務</string>
+    <string name="bot_services_add">新增 woowtechbot 服務</string>
+    <string name="bot_services_disconnect_help">中斷連線會關閉手機上的服務頁面並保留登入。登出會清除該服務的登入狀態。伺服器任務仍會獨立執行。</string>
+    <string name="bot_services_name">服務名稱</string>
+    <string name="bot_services_address">服務網址（https://bot.example.com）</string>
+    <string name="bot_services_lan_opt_in">允許信任的區域網路位址（私有 IP 或 .local）使用未加密 HTTP。同一網路可能看見密碼與訊息。</string>
+    <string name="bot_services_invalid">請輸入名稱與服務來源網址，不含路徑、登入碼、帳密或查詢參數。除非啟用信任的區網 HTTP，否則必須使用 HTTPS。</string>
+    <string name="bot_services_cancel">取消</string>
+    <string name="bot_services_missing">此服務已不存在。</string>
+    <string name="bot_services_switch">服務</string>
+    <string name="bot_services_more">更多</string>
+    <string name="bot_services_reload">重新載入網頁</string>
+    <string name="bot_services_share">分享服務網址</string>
+    <string name="bot_services_logout">登出服務</string>
+    <string name="bot_services_remove">移除服務</string>
+    <string name="bot_services_retry">重試</string>
+    <string name="bot_services_load_failed">無法載入服務，請檢查網址與網路後重試。</string>
+    <string name="bot_services_logout_help">清除此服務在手機上的 Cookie 與網頁資料，並嘗試撤銷伺服器登入。若離線，請稍後在服務的工作階段設定撤銷。其他服務與本機助理不受影響。</string>
+    <string name="bot_services_confirm">確認</string>
+    <string name="bot_services_external">在外部瀏覽器開啟連結？</string>
+    <string name="bot_services_navigation_blocked">此連結不屬於設定的服務，或格式無效。</string>
+    <string name="bot_services_download_done">下載已儲存。</string>
+    <string name="bot_services_download_failed">下載失敗，所選檔案可能不完整。下載必須來自同一服務來源，且小於 100 MB。</string>
+    <string name="bot_services_download_unsupported">無法儲存此下載。目前僅支援來自此服務的直接檔案，尚不支援網頁產生的 blob 下載。</string>
+    <string name="bot_services_tls_error">無法驗證服務憑證，已封鎖連線。</string>
+    <string name="bot_services_logged_out">已在這支手機登出。</string>
+    <string name="bot_services_logout_offline">已清除本機登入，但無法確認伺服器撤銷結果。服務恢復連線後，請在服務中撤銷此工作階段。</string>
+    <string name="bot_services_logging_out">正在清除登入…</string>
+</resources>

@@ -326,6 +326,7 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
 
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.WOOWTECHBOT_ENABLED) com.wangzan101.mika.woowbot.push.BotPushBootstrap.install(this)
         AppLanguage.initializeBrandDefault(this)
         // 界面以外的文字(通知、服务、悬浮胶囊)按 App 语言取
         AppLanguage.applyDefaultLocale(this)

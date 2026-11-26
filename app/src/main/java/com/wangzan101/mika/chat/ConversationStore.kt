@@ -137,6 +137,22 @@ class ConversationStore(private val dir: File) {
         return writeTitle(conversationId, title)
     }
 
+    /** v06 profile: title metadata, pinning, messages and branch metadata keep their existing formats. */
+    @Synchronized
+    fun botUiProfile(id: String): BotUiProfile = BotUiProfileDisk.read(File(file(id).path + ".bot_ui_profile"))
+
+    @Synchronized
+    fun saveBotUiProfile(id: String, name: String, profile: BotUiProfile): Boolean {
+        if (name.isBlank() || safe(id) in deleted || !profile.valid()) return false
+        val sidecar = File(file(id).path + ".bot_ui_profile")
+        val previous = runCatching { sidecar.takeIf { it.exists() }?.readBytes() }.getOrElse { return false }
+        if (!BotUiProfileDisk.write(sidecar, profile)) return false
+        if (rename(id, name)) return true
+        // A failed name write must not silently commit the avatar portion of an edit.
+        runCatching { if (previous == null) sidecar.delete() else sidecar.writeBytes(previous) }
+        return false
+    }
+
     /** 用户给对话改名:不管有没有标题都换成 [title];空的不改。写进去了返回 true。 */
     @Synchronized
     fun rename(conversationId: String, title: String): Boolean = writeTitle(conversationId, title)

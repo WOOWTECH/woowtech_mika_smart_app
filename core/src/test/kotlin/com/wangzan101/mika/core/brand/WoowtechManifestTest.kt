@@ -78,8 +78,14 @@ class WoowtechManifestTest {
     fun browserEntryIsIsolatedAndUsesTheInstalledPackageScheme() {
         val root = manifest("woowtech/AndroidManifest.xml")
         val activities = root.getElementsByTagName("activity")
-        assertEquals(1, activities.length)
-        val entry = activities.item(0) as Element
+        val entries = (0 until activities.length).map { activities.item(it) as Element }
+        val browserEntries = entries.filter { it.getAttributeNS(androidNs, "name") == ".woowtech.BrowserOpenActivity" }
+        assertEquals(1, browserEntries.size)
+        val entry = browserEntries.single()
+        entries.filter { it !== entry }.forEach {
+            assertEquals("Internal activities must not be exported", "false", it.getAttributeNS(androidNs, "exported"))
+            assertEquals("Internal activities must not accept external intents", 0, it.getElementsByTagName("intent-filter").length)
+        }
         assertEquals(".woowtech.BrowserOpenActivity", entry.getAttributeNS(androidNs, "name"))
         assertEquals("true", entry.getAttributeNS(androidNs, "exported"))
         assertEquals("true", entry.getAttributeNS(androidNs, "noHistory"))

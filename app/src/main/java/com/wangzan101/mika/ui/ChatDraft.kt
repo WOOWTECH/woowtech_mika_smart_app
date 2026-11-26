@@ -17,8 +17,8 @@ import androidx.compose.ui.platform.LocalContext
  * Sending or explicitly clearing the field removes the saved text. This is app-private storage;
  * backup is disabled in the manifest. It does not contain partial/cancelled recordings or audio.
  */
-internal class ChatDraftState(private val prefs: SharedPreferences) : MutableState<String> {
-    private val state = mutableStateOf(prefs.getString(TEXT, "").orEmpty())
+internal class ChatDraftState(private val prefs: SharedPreferences, private val textKey: String = "text") : MutableState<String> {
+    private val state = mutableStateOf(prefs.getString(textKey, "").orEmpty())
 
     override var value: String
         get() = state.value
@@ -26,14 +26,13 @@ internal class ChatDraftState(private val prefs: SharedPreferences) : MutableSta
             if (text == state.value) return
             state.value = text
             prefs.edit().also { editor ->
-                if (text.isEmpty()) editor.remove(TEXT) else editor.putString(TEXT, text)
+                if (text.isEmpty()) editor.remove(textKey) else editor.putString(textKey, text)
             }.apply()
         }
 
     override fun component1(): String = value
     override fun component2(): (String) -> Unit = { value = it }
 
-    private companion object { const val TEXT = "text" }
 }
 
 @Composable
@@ -41,3 +40,25 @@ internal fun rememberChatDraft(
     prefs: SharedPreferences = LocalContext.current.applicationContext
         .getSharedPreferences("chat_draft", Context.MODE_PRIVATE),
 ): MutableState<String> = remember(prefs) { ChatDraftState(prefs) }
+
+/** One-time copy of the legacy draft; its original value is retained for rollback to the old UI. */
+internal fun botUiDraft(prefs: SharedPreferences, id: String): ChatDraftState {
+    val key = "bot_ui_text_$id"
+    if (!prefs.contains("bot_ui_seen_$id")) prefs.edit().putLong("bot_ui_seen_$id", System.currentTimeMillis()).apply()
+    if (!prefs.contains("bot_ui_migrated")) {
+        val edit = prefs.edit().putBoolean("bot_ui_migrated", true)
+        if (!prefs.contains(key)) edit.putString(key, prefs.getString("text", "").orEmpty())
+        edit.apply()
+    }
+    return ChatDraftState(prefs, key)
+}
+
+@Composable
+internal fun rememberBotUiDraft(id: String, prefs: SharedPreferences = LocalContext.current.applicationContext
+    .getSharedPreferences("chat_draft", Context.MODE_PRIVATE)): MutableState<String> {
+    return remember(prefs, id) { botUiDraft(prefs, id) }
+}
+
+internal fun botUiForgetDraft(prefs: SharedPreferences, id: String) {
+    prefs.edit().remove("bot_ui_seen_$id").remove("bot_ui_text_$id").apply()
+}

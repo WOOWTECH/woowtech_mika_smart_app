@@ -1,0 +1,4 @@
+11-26 18:29:10.111 20281 20281 I BotRouteQA: activityCreate restored=false
+11-26 18:29:10.352 20281 20281 I BotRouteQA: initial explicitTarget=true restored=false threadPresent=true
+11-26 18:29:11.062 20281 20281 I BotRouteQA: pageStart sameOrigin=true targetQueryMatches=true
+11-26 18:29:13.148 20281 20344 I BotRouteQA: switchTask method=POST expectedTarget=true

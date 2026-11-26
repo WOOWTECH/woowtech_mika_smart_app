@@ -1,0 +1,20 @@
+<resources>
+    <string name="bot_push_channel_action">Bot requests</string>
+    <string name="bot_push_channel_done">Bot completions</string>
+    <string name="bot_push_title">WOOWTECH Bot</string>
+    <string name="bot_push_action">A bot needs your attention. Open to review.</string>
+    <string name="bot_push_done">A bot has finished. Open to review.</string>
+    <string name="bot_push_settings_title">Bot notifications</string>
+    <string name="bot_push_settings_privacy">Notifications contain only a generic alert. Open the service to review details.</string>
+    <string name="bot_push_not_configured">Notifications are unavailable in this build. This app’s own Firebase configuration has not been supplied.</string>
+    <string name="bot_push_server_not_ready">Push delivery is not ready: the paired service registration integration is not available yet.</string>
+    <string name="bot_push_enable">Allow bot notifications</string>
+    <string name="bot_push_disable">Turn off bot notifications</string>
+    <string name="bot_push_system_settings">Android notification settings</string>
+    <string name="bot_push_back">Back</string>
+    <string name="bot_push_off">Bot notifications are off.</string>
+    <string name="bot_push_permission_required">Allow notifications in Android settings to continue.</string>
+    <string name="bot_push_no_services">No paired service is enabled for notifications.</string>
+    <string name="bot_push_pending">Notification registration or removal is pending.</string>
+    <string name="bot_push_registered">Registration acknowledged. Delivery has not been verified.</string>
+</resources>

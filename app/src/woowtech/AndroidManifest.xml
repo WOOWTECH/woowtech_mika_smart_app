@@ -23,7 +23,7 @@
 
   Guards: core WoowtechManifestTest (this file) and woowtech/tools/brand-check.sh apk (the built APK).
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
 
     <!-- No maxSdkVersion: the system ignores a permission on any API level above it. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
@@ -34,6 +34,22 @@
         android:maxSdkVersion="32" />
 
     <application>
+        <!-- Explicit opt-in only. Loading the local assistant must not enroll a push device. -->
+        <provider android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider" tools:node="remove" />
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+
+        <activity android:name=".woowbot.BotServicesActivity" android:exported="false" />
+        <activity android:name=".woowbot.BotServiceActivity" android:exported="false" android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|density" />
+        <activity android:name=".woowbot.push.BotPushSettingsActivity" android:exported="false" />
+        <service android:name=".woowbot.push.BotPushRefreshJob" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <service android:name=".woowbot.push.BotFirebaseMessagingService" android:exported="false">
+            <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
+        </service>
+
         <!-- Browser input stops here; MainActivity must never receive its extras or URI grants. -->
         <activity
             android:name=".woowtech.BrowserOpenActivity"

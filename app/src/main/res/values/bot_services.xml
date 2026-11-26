@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bot_services_title">Assistants and services</string>
+    <string name="bot_services_local">Local assistant</string>
+    <string name="bot_services_description">Open each service’s complete original website. Pair and sign in there. Your local assistant remains available offline.</string>
+    <string name="bot_services_unsupported">This WebView cannot isolate service accounts. Update Android System WebView or Chrome, then reopen the app. Local assistant is still available.</string>
+    <string name="bot_services_storage_error">Service metadata could not be read. Your local assistant is unaffected.</string>
+    <string name="bot_services_action_error">Could not save this change. If many sessions were cleared, restart the app to finish deleting old profiles and try again.</string>
+    <string name="bot_services_ready">Available · sign-in status is shown in the website</string>
+    <string name="bot_services_disconnected">Disconnected on this phone</string>
+    <string name="bot_services_open">Open</string>
+    <string name="bot_services_connect">Connect</string>
+    <string name="bot_services_disconnect">Disconnect</string>
+    <string name="bot_services_manage_session">Manage sign-in / remove service</string>
+    <string name="bot_services_add">Add woowtechbot service</string>
+    <string name="bot_services_disconnect_help">Disconnect closes this service on your phone and keeps its sign-in. Logout clears this service’s sign-in. Server tasks continue independently.</string>
+    <string name="bot_services_name">Service name</string>
+    <string name="bot_services_address">Service origin (https://bot.example.com)</string>
+    <string name="bot_services_lan_opt_in">Allow unencrypted HTTP for a trusted LAN address (private IP or .local). Passwords and messages may be visible on that network.</string>
+    <string name="bot_services_invalid">Enter a name and an origin only: no path, sign-in code, credentials, or query. HTTPS is required unless trusted LAN HTTP is enabled.</string>
+    <string name="bot_services_cancel">Cancel</string>
+    <string name="bot_services_missing">This service is no longer available.</string>
+    <string name="bot_services_switch">Services</string>
+    <string name="bot_services_more">More</string>
+    <string name="bot_services_reload">Reload website</string>
+    <string name="bot_services_share">Share service address</string>
+    <string name="bot_services_logout">Log out of service</string>
+    <string name="bot_services_remove">Remove service</string>
+    <string name="bot_services_retry">Retry</string>
+    <string name="bot_services_load_failed">Unable to load the service. Check the address and network, then retry.</string>
+    <string name="bot_services_logout_help">Clear this service’s cookies and website data on this phone. We will also try to revoke the server session; if offline, revoke it later in the service’s session settings. Other services and the local assistant are unaffected.</string>
+    <string name="bot_services_confirm">Confirm</string>
+    <string name="bot_services_external">Open link in your browser?</string>
+    <string name="bot_services_navigation_blocked">This link is outside the configured service or is invalid.</string>
+    <string name="bot_services_download_done">Download saved.</string>
+    <string name="bot_services_download_failed">Download failed. The selected file may be incomplete. Downloads must stay on the service origin and be under 100 MB.</string>
+    <string name="bot_services_download_unsupported">This download cannot be saved here. Only direct files from this service are supported; generated blob downloads are not supported yet.</string>
+    <string name="bot_services_tls_error">The service certificate could not be verified. Connection blocked.</string>
+    <string name="bot_services_logged_out">Signed out on this phone.</string>
+    <string name="bot_services_logout_offline">Local sign-in cleared. Server revocation could not be confirmed; revoke this session in the service when it is reachable.</string>
+    <string name="bot_services_logging_out">Clearing sign-in…</string>
+</resources>
