@@ -79,3 +79,27 @@ One artificial attention `fec0157f-3a73-4f4d-a9d7-8938798c856c`, expiry21:49:23.
 Final lab53 post-tap21:38:35.276Z confirms exact seed/task/notifications/idle, original live client, registered rev1/exact session/outbox0. Relay21:41:36.832Z confirms event sent/exact attention+expiry fingerprint/live revision1/pending0. Lab53 corrected-source acceptance complete.
 
 Additional HA cold post-tap21:40:53.263Z confirms seed/task/thread API/client/live registration rev1/outbox0; relay21:40:55.876Z confirms same event sent/attention fingerprint/live/pending0. Cold acceptance corroborated. Offline request had not been submitted when initial ready exceeded the sender's freshness window; fresh observation21:43:38.089907Z again confirmed Home/WiFi0/mobile_data0/default none, authorizing the same single, still-unsubmitted request. No duplicate request or notification.
+
+## Corrected source0a78edb2 — additional HA offline natural completion PASS
+
+Same single authorized normal API request, refreshed offline observation21:43:38.089907Z: Home/WiFi0/mobile_data0/default network none. sendId `434ee058-906c-4f5f-9fa4-369194e4eac0`, marker `android-qa-ha-0a78-434ee058`; normal API21:44:04.596Z /20221:44:04.627Z, real Codex success21:44:08.548Z, exact assistant reply. Native done event `66cd3a47-3b10-423d-bc85-27b2141d422f`, expiry21:54:08.557Z. No artificial injection/retry.
+
+USB21:45:05.412176Z confirms default network none and expected event absent. Restored only original WiFi1 at21:45:06.498489Z, mobile_data remained0. Phone21:45:25.316611Z exact service|bot|seed|event results/SECRET; connectivity21:45:41.443173Z network114. Visible completion text, group expanded and actual body tapped; correct HA QA bot/composer and actual assistant exact new marker. [Body tap](evidence/woow22-push/corrected-ha-offline-body.png).
+
+PaaS directly read relay21:45:24.509Z: sent, expected finished six-field/expiry fingerprint, original exact live revision1 binding/pending0. HA post-tap21:47:03.059Z confirms seed/task/API/client/live registration rev1/outbox0 and original exact successful reply. Ordinary-program offline-to-WiFi delayed receipt PASS, not cold/cellular/force-stop. Single seed has no independent handset selected-ID observation; tag/UI marker/server metadata corroborate the target.
+
+PaaS independently corroborated the separate corrected HA cold event at21:41:36.811Z with sent/exact attention+expiry fingerprint/live revision1/pending0. All original profiles retained. Original WiFi1/mobile_data0/automatic rotation1 restored. Final native notification page after recovery displays confirmed registration, not unresolved PENDING. These follow-up records do not change release head1ddf8750 or rerun completed events.
+
+## Corrected source0a78edb2 — Podman natural notification, marker failure retained
+
+One guarded request `poco22fix-natural-f99b4a02-28dd-44a3-a60e-60edd50d911b` submitted21:59:36.392Z (202). Model terminal/succeeded true and pending false were reported22:00:22.865Z; the assistant treated the relayed content as reference and did not reproduce `PODMAN-0A78-NATURAL-4ae53ec5-88d1-483c-8da7-0dbf7cde6c5e`. Marker compliance FAIL; no retry or API substitution.
+
+Phone22:00:08.471534Z observed the exact original Podman service/bot/main-thread/event tag for `67356475-2967-44b0-8845-2c57e5e52e4c` in results/SECRET. Expanded the actual notification group, tapped its body, and reached BotServiceActivity / Podman實測516b0108 / composer. Portrait evidence shows both this unique requested marker and the actual refusal. Opening the conversation picker at22:05 left the original long-response main conversation highlighted without switching threads. Natural notification receipt/body navigation PASS; semantic marker failure remains separate.
+
+PaaS independently read the relay22:01:36.214Z: sole event sent, exact finished six-field and expiry fingerprint, original live revision1 identity, pending0. Expiry22:09:40.955Z. This is persisted FCM acceptance, not an independently captured HTTP ACK timestamp. Original station post-tap metadata requested; preserve all original profiles. Phone automatic rotation restored1 after portrait observation. All additional events/models HOLD.
+
+Podman final read-only post-tap22:05:30.644Z confirms owner environment, QA activeThreadId=main seed, retained RESTORE-HAIKU-1126, notifications enabled/idle; the same unique sendId exists in that thread, pending false, assistant terminal/succeeded true. Original client live/client scope, service/registration revision1 registered, outbox0. Combined with the exact phone tag/body/picker and independent sole finished relay event, receipt/navigation/main-seed PASS is complete; marker semantics FAIL remains. No new event/model was requested.
+
+Podman independently archived this same test in PR14 branch commit `9e77874`; outstanding native checks/materials are separately recorded in `e97a477`, PR14 remains draft. This does not claim those outstanding checks passed. Parent restored Home/WiFi1/mobile_data0/automatic rotation1 at22:08:33.787829Z; that restoration is not a new ready/send authorization.
+
+Podman handset evidence: [unique request and actual reply](evidence/woow22-push/corrected-podman-natural-portrait.png), [main conversation highlighted](evidence/woow22-push/corrected-podman-natural-picker.png), [machine-readable result](evidence/woow22-push/corrected-podman-natural.json).
