@@ -2,13 +2,11 @@
 (function (config) {
   const root = document.documentElement;
   const existing = window.__woowWorkspaceAppearance;
-  if (existing) { existing(config.skin); return !!document.querySelector('[data-look="app"]'); }
+  if (existing) return existing(config.skin);
   function appearance(skin) {
     root.dataset.skin = skin;
     root.style.colorScheme = skin === 'midnight' ? 'dark' : 'light';
   }
-  window.__woowWorkspaceAppearance = appearance;
-  appearance(config.skin);
   const style = document.createElement('style');
   style.textContent = `
     [data-sidebar-top-slot]:has(>.woow-workspace-controls){gap:8px}
@@ -23,9 +21,16 @@
     services: '<path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/>',
     notifications: '<path d="M5 9a7 7 0 0 1 14 0c0 7 2 7 2 9H3c0-2 2-2 2-9M10 22h4"/>'
   };
+  const slots = () => document.querySelectorAll('[data-look="app"] [data-sidebar-top-slot]');
+  function complete(controls) {
+    return controls && ['services', 'notifications'].every(action =>
+      controls.querySelector('a[href="woowtech-ui://' + action + '"]'));
+  }
   function attach() {
-    for (const slot of document.querySelectorAll('[data-sidebar-top-slot]')) {
-      if (slot.querySelector('.woow-workspace-controls')) continue;
+    for (const slot of slots()) {
+      const previous = slot.querySelector(':scope > .woow-workspace-controls');
+      if (complete(previous)) continue;
+      if (previous) previous.remove();
       const controls = document.createElement('div'); controls.className = 'woow-workspace-controls';
       for (const action of ['services', 'notifications']) {
         const button = document.createElement('a');
@@ -43,6 +48,13 @@
   new MutationObserver(() => {
     if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; attach(); }); }
   }).observe(root, {childList:true, subtree:true});
-  attach();
-  return !!document.querySelector('[data-look="app"]');
+  // Mobile chat keeps its list/sidebar mounted but hidden. Test installed controls,
+  // not visibility, so opening a chat never adds a duplicate native toolbar.
+  // Reattach synchronously on reinjection, including while React replaces a slot.
+  window.__woowWorkspaceAppearance = skin => {
+    appearance(skin);
+    attach();
+    return Array.from(slots()).some(slot => complete(slot.querySelector(':scope > .woow-workspace-controls')));
+  };
+  return window.__woowWorkspaceAppearance(config.skin);
 })(__WOOW_CONFIGURATION__)
