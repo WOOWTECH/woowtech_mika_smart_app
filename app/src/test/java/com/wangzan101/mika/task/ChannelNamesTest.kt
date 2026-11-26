@@ -115,13 +115,13 @@ class ChannelNamesTest {
     }
 
     /**
-     * 改名只改名字:建频道(`NotificationChannel(`)的只有原来的三处,各自的重要程度见 TaskChannelsTest 和 PairingNoticeTest;
+     * 改名只改名字:建频道(`NotificationChannel(`)的只有原来的三处与独立 bot 通知,各自的重要程度见 TaskChannelsTest 和 PairingNoticeTest;
      * 改名的文件里没有建频道,也不碰重要程度、声音、振动、角标、分组这类设置。
      */
     @Test fun renamingNeverCreatesChannelsOrTouchesTheirSettings() {
         val constructs = Regex("""\bNotificationChannel\(""")
         assertEquals(
-            setOf("PairingNotifier.kt", "SandboxForeground.kt", "TaskService.kt"),
+            setOf("PairingNotifier.kt", "SandboxForeground.kt", "TaskService.kt", "BotPushNotifications.kt"),
             sources.filter { constructs.containsMatchIn(code(it)) }.map { it.name }.toSet(),
         )
         val own = code(sources.single { it.name == "ChannelNames.kt" })

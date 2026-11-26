@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import com.wangzan101.mika.R
+import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.core.woowbot.push.*
 
 class BotPushNotifications(
@@ -27,8 +28,8 @@ class BotPushNotifications(
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val channel = if (target.reason == "finished") DONE else ACTION
         manager.createNotificationChannels(listOf(
-            NotificationChannel(ACTION, context.getString(R.string.bot_push_channel_action), NotificationManager.IMPORTANCE_DEFAULT),
-            NotificationChannel(DONE, context.getString(R.string.bot_push_channel_done), NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(ACTION, tr(R.string.bot_push_channel_action), NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(DONE, tr(R.string.bot_push_channel_done), NotificationManager.IMPORTANCE_DEFAULT),
         ))
         if (manager.getNotificationChannel(channel)?.importance == NotificationManager.IMPORTANCE_NONE) return
         if (received.contains(target.deliveryKey)) return
@@ -42,8 +43,8 @@ class BotPushNotifications(
         val tap = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.bot_push_title))
-            .setContentText(context.getString(if (target.reason == "finished") R.string.bot_push_done else R.string.bot_push_action))
+            .setContentTitle(tr(R.string.bot_push_title))
+            .setContentText(tr(if (target.reason == "finished") R.string.bot_push_done else R.string.bot_push_action))
             .addExtras(android.os.Bundle().apply { putString(SERVICE_EXTRA, target.serviceId) })
             .setVisibility(Notification.VISIBILITY_SECRET)
             .setContentIntent(tap).setAutoCancel(true).build()
