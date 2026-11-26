@@ -69,3 +69,22 @@ Mac 沒有對應 PaaS authorized_keys 的 SSH 金鑰，未新增 SSH 授權。�
 - 未驗「相同 subject、合法簽章、僅 UID 不同」：未重建原 KSA，也未接觸簽章私鑰。不得以篡改簽章測試代替獨立 UID 條件測試。
 - 臨時 Pod、ConfigMap、負向 KSA 已要求清除，尚待清除結果；原 KSA、lab sessions 與 QA 資料保留。sender 未啟用。
 - 下一前置是 bot/relay 候選映像與 digest，PaaS 依既有 sealed approval 流程提供具體核可單；尚未收到候選成品或部署結果。手機 token、真 FCM 收件與 WebView 空白仍未通過。
+
+## Android 追加真機測試（2026-11-26 16:41–16:44 台北）
+
+設備與版本：既有 POCO、3813；未重新安裝、清資料或更換登入。
+
+| 操作 | 實際結果 | 判定範圍 |
+| --- | --- | --- |
+| lab43 橫向轉直向；開啟 lab53 直向 | 兩個服務的 QA bot 標題可見，thread/composer 仍空白 | 失敗；不是僅橫向高度不足 |
+| lab43 簡易模式引導視窗 | 完整顯示、完成按鈕可關閉；關閉後仍空白 | 網頁部分 UI 能渲染及回應觸控 |
+| lab43 網頁返回、加號與開始新對話 | 列表與選單可操作，開始後內容仍空白 | 不宣稱新 thread 建立成功；已請 PaaS 核對並加 QA 名稱，未送模型訊息 |
+| lab43 → lab53 切換 | 各自顯示正確 QA bot，未要求重新配對 | 登入保留與畫面服務對應通過；不等於完整隔離驗收 |
+| lab53 中斷連線 | 顯示已在此手機中斷，lab43 列表狀態仍可開啟 | 本機開關狀態未連動其他服務；不是遠端 revoke 驗收 |
+| lab53 重新連線 | 自動開啟原 QA bot，未要求配對；空白仍在 | 本機中斷／恢復的登入保留通過 |
+| Home 後透過 launcher 重開 | 回到本機助理首頁 | 沒有恢復遠端頁；本次不列遠端背景返回狀態通過 |
+| 鍵盤遮擋、草稿保存 | 無 composer 可供輸入 | 未測，不能列通過 |
+
+`dumpsys activity top` 顯示直向原生 WebView 範圍 `0,0–720,1334`，排除零尺寸容器；這不是 CSS viewport 數值。列表搜尋列出現在螢幕 y475–561 附近而底下大片留白，已交 PaaS 對照 root/visualViewport 高度計算；尚未定位根因。近期 logcat 篩選沒有取得 Chromium ERROR/CONSOLE，不代表沒有前端錯誤。
+
+截圖位於 [本輪證據目錄](evidence/20261126-device-additional/)。測試後已恢復原系統自動旋轉設定（accelerometer_rotation=1、user_rotation=0），lab53 已重新連線。未改商店版、未清任何 profile、未呼叫模型或發送推播。
