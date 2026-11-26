@@ -58,3 +58,14 @@ Mac 沒有對應 PaaS authorized_keys 的 SSH 金鑰，未新增 SSH 授權。�
 - 2026-11-26：Cloud SDK 登入完成，WIF pool `paas-k3s-test`、provider `cluster1`、專用 SA 與兩項精確 IAM 綁定已實際建立；apply 後另一次唯讀驗證 `verified=true`。公開 JWKS、issuer、subject/UID condition、ACTIVE 狀態及沒有 user-managed key 均核對通過。
 - project NUMBER `795023111689`；SA `woowtech-assistant-fcm-test@woowtech-assistant.iam.gserviceaccount.com`。配置與重現方式見 `tools/woowtechbot/wif/README.md`。
 - 已向 PaaS 協調對話送達開始 STS／SA impersonation 正負向驗證的通知（HTTP 202）；通知送達不等於對方測試已完成。STS、真 FCM、lab 新版部署仍待回報與實測。
+
+## PaaS 回報：實際 WIF 驗證（2026-11-26）
+
+以下為 PaaS 協調者回報，非 Android 本機重跑：
+
+- 一次性 Pod 的 kubelet projected KSA token（600 秒）核對 issuer、subject、UID、audience 與公開 JWKS 簽章後，Google STS 200、專用 SA impersonation（firebase.messaging scope，600 秒）200。
+- FCM HTTP v1 `validateOnly=true` 測試 topic 回 200；只驗請求與權限，沒有手機通知，不算真收件驗收。
+- 另一 KSA 的合法簽章 token（錯 subject/UID）被 attribute condition 拒絕；錯 token audience、錯 provider audience、篡改 UID 保留原簽章均拒絕。
+- 未驗「相同 subject、合法簽章、僅 UID 不同」：未重建原 KSA，也未接觸簽章私鑰。不得以篡改簽章測試代替獨立 UID 條件測試。
+- 臨時 Pod、ConfigMap、負向 KSA 已要求清除，尚待清除結果；原 KSA、lab sessions 與 QA 資料保留。sender 未啟用。
+- 下一前置是 bot/relay 候選映像與 digest，PaaS 依既有 sealed approval 流程提供具體核可單；尚未收到候選成品或部署結果。手機 token、真 FCM 收件與 WebView 空白仍未通過。
