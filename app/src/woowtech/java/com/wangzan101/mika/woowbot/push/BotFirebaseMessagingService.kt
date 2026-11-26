@@ -10,6 +10,7 @@ class BotFirebaseMessagingService : FirebaseMessagingService() {
         BotPushRuntime.notifications?.receive(message.data)
     }
     override fun onNewToken(token: String) {
+        BotPushRuntime.epoch.incrementAndGet()
         // Persist/schedule work through the application-owned scheduler; do not perform network work here.
         BotPushRefreshJob.schedule(this)
     }

@@ -22,6 +22,7 @@ object DisabledBotPushTokens : BotPushTokenSource {
 
 /** Install during Application.onCreate, including cold starts into the messaging service. */
 object BotPushRuntime {
+    val epoch = java.util.concurrent.atomic.AtomicLong()
     @Volatile var controller: BotPushController? = null
     @Volatile var notifications: BotPushNotifications? = null
 }
@@ -36,6 +37,8 @@ class BotPushController(
     private val bindings: () -> Set<BotPushBinding>,
     private val permissionGranted: () -> Boolean,
     private val serverReady: () -> Boolean = { false },
+    private val prepare: suspend () -> Unit = {},
+    private val stillCurrent: () -> Boolean = { true },
 ) {
     private val prefs = context.getSharedPreferences("woowbot_push_consent", Context.MODE_PRIVATE)
     private val lifecycle = BotPushLifecycle(api, BotPushPreferencesLedger(context))
@@ -57,6 +60,8 @@ class BotPushController(
     }
     private suspend fun reconcile(): Boolean {
         mutableState.value = BotPushState.PENDING
+        prepare()
+        if (!stillCurrent()) return false
         val enabled = optedIn && configured && permissionGranted() && serverReady()
         val desired = if (enabled) bindings() else emptySet()
         var token: String? = null
@@ -66,6 +71,7 @@ class BotPushController(
             else tokens.disableAndDelete()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (_: Exception) { tokenOk = false }
+        if (!stillCurrent()) return false
         val complete = lifecycle.reconcile(token, desired) && tokenOk
         mutableState.value = when {
             !complete && lifecycle.serverNotReady -> BotPushState.SERVER_NOT_READY

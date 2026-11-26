@@ -8,10 +8,9 @@ data class BotPushBinding(val serviceId: String, val authIdentity: String)
 
 /** Adapter must resolve credentials for this exact binding, reject redirects, and use the saved direct origin.
  * PUT replaces the authenticated phone's token atomically; DELETE is idempotent.
- * Before PUT require an explicit WOOWTECH routing capability; the upstream strict schema does NOT
- * accept serviceId. Do not send that field without the extension. Capture /api/auth/session identity,
- * profile epoch and origin before the request; abort if any changes. A browser-only cookie is not a
- * paired-phone identity. Throw BotPushNotReadyException for unsupported server/auth capabilities.
+ * Before PUT require the woowtechAndroidPush v1 capability and the dedicated device route.
+ * Capture session identity, profile epoch and exact origin; abort if any changes. True cookieOnly
+ * is accepted only on this dedicated route. Throw BotPushNotReadyException only for preflight rejection.
  * Registration success means the server acknowledged the token AND routing alias, not real delivery.
  */
 interface BotPushDeviceApi {

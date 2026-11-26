@@ -1,13 +1,13 @@
 # Android push client integration (2026-11-26)
 
-Implemented isolated core contracts/tests and Android lifecycle/notifications. Actual delivery is **not verified**: own Firebase project config, paired-session API extension, relay deployment and device testing are required. No foreign Firebase configuration is included. The WOOWTECH flavor contains the manifest entries and Firebase dependency; application startup and notification tap handling are gated by the build flag.
+Implemented core contracts/tests, Android lifecycle/notifications and the dedicated v1 HTTP adapter. Actual delivery is **not verified**: WIF provisioning, backend deployment and device/FCM testing are still required. Firebase project `woowtech-assistant` / number `795023111689` and Android app `io.woowtech.agent` exist; client config stays external to the repository. No foreign Firebase configuration is included. The WOOWTECH flavor contains the manifest entries and Firebase dependency; application startup and notification tap handling are gated by the build flag.
 
 ## Exact payload shared with relay
 
 FCM **data only**, all values strings, exactly these six keys:
 
 ```json
-{"v":"1","serviceId":"service_demo","botId":"bot_demo","threadId":"thread_demo","eventId":"event_demo_0001","reason":"finished"}
+{"v":"1","serviceId":"b91482c6-8dd0-46b3-a2de-13a8c3932762","botId":"bot_demo","threadId":"thread_demo","eventId":"event_demo_0001","reason":"finished"}
 ```
 
 Reasons: `finished`, `permission`, `attention`. Bot kinds map `done → finished`, `approval → permission`, `question/sign-in → attention`. IDs match `[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}`. `eventId` must be stable across retry and unique across server restarts (e.g. epoch plus sequence). Never dedup on thread alone. Client dedup keys include service, bot, thread, event with an unambiguous separator; 128-entry receipt/tap caches and 16 pending taps. Android receipt and handled-tap dedup use separate bounded persistent histories across process restarts; core defaults remain in-memory for tests. Old entries may repeat after FIFO eviction. Neither names nor conversation content nor URLs are accepted. Relay must omit BOTH top-level notification and android.notification: background notification payloads bypass client validation/consent and generic local rendering. Use high priority, bounded TTL, no thread-wide collapse key.
@@ -34,7 +34,7 @@ POST_NOTIFICATIONS (API33+) and RECEIVE_BOOT_COMPLETED (persisted jobs) are need
 
 ## Application/settings/navigation hooks
 
-BotPushBootstrap now installs runtime through the gated MikaApp.onCreate call, including cold starts. Main has no Firebase linkage: reflection loads @Keep BotFirebaseTokens only in WOOWTECH. Bootstrap intentionally uses empty bindings, serverReady=false and UnavailableBotPushDeviceApi until the service adapter exists; no FCM token is requested in that state. Settings Activity is available via BotPushSettingsActivity.intent(context).
+BotPushBootstrap now installs runtime through the gated MikaApp.onCreate call, including cold starts. Main has no Firebase linkage: reflection loads @Keep BotFirebaseTokens only in WOOWTECH. Bootstrap installs BotPushConnections and BotPushHttpApi. Discovery uses each saved WebView profile on the main thread, capturing one cookie for session and device paths. Missing/disabled/not-ready capability prevents obtaining a new FCM token or sending PUT. Settings Activity is available via BotPushSettingsActivity.intent(context).
 
 ```kotlin
 val tokens = BotFirebaseTokens(context) // WOOWTECH source set only
@@ -46,27 +46,57 @@ BotPushRuntime.controller = controller
 BotPushRuntime.notifications = BotPushNotifications(context, MainActivity::class.java, controller::accepts)
 ```
 
-Settings call suspend `controller.setOptIn(enabled)` after permission handling and collect `controller.state`. States OFF/NOT_CONFIGURED/PERMISSION_REQUIRED/NO_SERVICES/PENDING/SERVER_NOT_READY/REGISTERED distinguish readiness. REGISTERED means API acknowledgment, never verified delivery. Boolean return means reconciliation complete. Show own-project config absence explicitly. Use `UnavailableBotPushDeviceApi` until a real capability-aware API adapter exists; it always reports server-not-ready.
+Settings call suspend `controller.setOptIn(enabled)` after permission handling and collect `controller.state`. States OFF/NOT_CONFIGURED/PERMISSION_REQUIRED/NO_SERVICES/PENDING/SERVER_NOT_READY/REGISTERED distinguish readiness. REGISTERED means API acknowledgment, never verified delivery. Boolean return means reconciliation complete. Show own-project config absence explicitly. `UnavailableBotPushDeviceApi` remains a test/default stub and is no longer wired by Bootstrap.
 
 Call `BotPushRefreshJob.schedule(context)` after consent changes, registration/session changes, network/foreground resume, and failed refresh. `onNewToken` automatically schedules durable unique backoff work; callback token values are not used, avoiding stale queued-token registration. Worker re-fetches latest token under controller mutex. Parent must schedule pending retries before leaving settings and on startup. Opt-out deletes the FCM token locally and DELETEs every recorded server binding. Failed/ambiguous PUTs stay in the durable ledger and are revoked too. Failed DELETEs remain pending across restart. Token PUT replaces the same authenticated phone's prior token atomically.
 
 Maintain one process-scoped `BotPushRouter(knownService=...)`. `knownService` must recognize only allowed saved direct services. Call `BotPushNotifications.capture(intent, router)` in onCreate and onNewIntent; it removes routing extras after queueing. Call router.drain after navigation and the target service's auth are ready. Return true from open only when navigation accepts; resolve a bot/thread through that service's own authenticated state, never interpolate into an arbitrary URL. Call forgetService on removal/logout. Unknown/deleted services are rejected/rechecked. Pending queue survives UI remount only if router is process-scoped; it is not persisted across process death.
 
-## Service API contract and readiness gap
+## Dedicated v1 service API (supersedes the old extension proposal)
 
-`core...woowbot.push.BotPushDeviceApi` exposes suspend `register(BotPushBinding, token)` and `revoke(BotPushBinding)`. Binding includes `serviceId` and `authIdentity`; encode the profile epoch plus captured server session identity in authIdentity, with no credential material. Keep exact origin and scoped-cookie lookup in adapter metadata. Never resolve by selected service. Never mutate binding identity when credentials rotate. Calls must use explicit saved direct origin, strict timeouts, no redirects, no automatic cross-origin cookie forwarding, no token/cookie logs.
+Backend candidate: PaaS PR785, commit `39bf7685f942f51cc0170d7a4137a869db81234d`.
+Patch SHA256 `f53bca4f04622d5718fc01f3fcc2b85c7c1de1931aae9be1a7ac0edffdae322a`.
+PaaS reports six CI checks green; this is not a deployment or delivery claim.
 
-Existing bot `/api/push/device` PUT/GET/DELETE identifies device via request auth. Its strict PUT accepts platform/token/environment/pairing/kinds, NOT serviceId, event schema, or locale. Native pairing with `cookie:true` can supply a paired session; `browser:true` produces cookieOnly auth which phoneKey excludes. Do not treat browser login success as phone-push registration readiness.
+* Discover `/api/auth/session` using the captured profile cookie. Require kind=session,
+  via=cookie, client scope, explicit boolean cookieOnly, capability woowtechAndroidPush=1,
+  devicePath=/api/woowtech/android-push/device, payloadVersion="1", auth=cookie,
+  acceptsCookieOnly=true. PUT/token acquisition additionally require enabled=true and ready=true.
+* Normal cookie and genuine cookieOnly are both supported on this **new route only**.
+  Old `/api/push/device`, phoneKey, Smart APIs and store/Apporo builds are not changed.
+* Every device operation sends captured Cookie, exact HTTPS Origin and
+  X-Woowtech-Session-Id. Dedicated OkHttp client has no interceptors/cookie jar,
+  no redirects, no automatic connection retry, a 20-second call timeout and bounded responses.
+  HTTP 429 Retry-After (seconds or HTTP date) defers further calls to that origin in this process;
+  the existing persisted refresh job also backs off. The Retry-After timestamp itself is not persisted.
+* PUT exact JSON: `{ "v":1, "platform":"fcm", "serviceId":"<local UUID>", "token":"<opaque token>" }`.
+  Token is 20..4096 printable non-whitespace ASCII; body <=8192 bytes. No Android revision/epoch fields.
+* GET has no query. DELETE has only `?serviceId=<local UUID>` and no body.
+  GET pending does not imply permission to PUT; cleanup follows the local durable ledger.
+* Acknowledgements validate v/state/registered, exact alias and canonical registration UUID.
+  DELETE success requires the complete absent shape with both IDs null.
+* Only capability preflight failure or explicit 503 push_not_ready can discard a **new** ledger entry.
+  relay_unavailable (including an overtaken slow PUT), malformed acknowledgements, redirect,
+  401/403/404/409/429 and network ambiguity preserve it. Existing ledger entries are never
+  removed merely because a new PUT was rejected before mutation.
 
-Required extension proposal (not presently implemented): authenticated GET `/api/push/device` advertises an explicit `capabilities.woowtechAndroidPush=1`; only then PUT may accept an extension mapping the client's serviceId and negotiated v1 payload contract (plus locale if needed). Server must bind alias to authenticated phone/installation, acknowledge it, and emit stable eventId. Capability absence => throw BotPushNotReadyException, no invented fields sent to upstream. Exact extension schema is a server integration decision; no speculative HTTP adapter is shipped.
+Controller Mutex serializes discovery, current-token retrieval and reconciliation. onNewToken
+increments an atomic operation epoch and only schedules work; its callback token is never used.
+Profile rotation/removal, cookie-change hints and consent changes invalidate old operations.
+PUT re-fetches auth/session with the same cookie and checks the saved identity, current profile,
+origin, cookie and token epoch before transport, at transport dispatch, and after response.
+Binding identity hashes profile epoch + origin + environment + session id; it contains no credentials.
 
-Before PUT/DELETE, obtain `/api/auth/session` via the saved profile cookie, capture identity and origin, and confirm profile epoch/service still match. Send using that captured cookie, never re-read current selection midway. Reject redirect and identity changes. Server must reject unpaired/cookieOnly auth itself. On logout/remove, revoke before deleting the old profile cookie or provide a server-side session-revocation cascade; otherwise the retained local revocation ledger cannot authenticate cleanup. Never pretend clearing local metadata has revoked the server. A failed revoke blocks registration of a new identity at the same service; other services remain independent. Parent must coordinate `BotServices.cleanRetired` accordingly.
-
-Smart reference is design guidance only: its wsp1 token envelope and `/api/smart/v1/notify` target schema are NOT bot contracts. Bot's upstream hosted control-plane credentials/endpoint must be replaced/bridged server-side to own relay. Android receives no installation relay secret.
+Old snapshots retain their original cookie only in process memory for DELETE after profile retirement.
+After restart an unavailable old cookie cannot be recovered from the identity-only ledger: cleanup stays
+pending and blocks a new identity at that service. Server expiry/revoke cascade is still required;
+Android does not interpret an arbitrary auth failure as evidence of cascade completion. A future
+explicit verifiable cascade acknowledgement may resolve such entries; none is invented here.
+No installation credential or Google sender key enters Android.
 
 ## Verification
 
-Pure Kotlin tests cover strict schema, malformed IDs/URLs/content, unknown/deleted services, deferred taps, successful navigation dedup, repeated thread events, bounded queues, ambiguous registration, rotation, failed revocation/restart, service/session isolation and missing capability. Android build/device delivery validation is a separate integration gate.
+Pure Kotlin tests cover strict schema, malformed IDs/URLs/content, unknown/deleted services, deferred taps, successful navigation dedup, repeated thread events, bounded queues, ambiguous registration, rotation, failed revocation/restart, service/session isolation and missing capability. Fourteen additional v1 HTTP fixture tests cover ordinary/true cookieOnly, strict discovery, token/profile/session changes, disabled cleanup, pending GET, opaque tokens, malformed acknowledgements and retained ledgers on HTTP failures. Android release compilation passes; deployed-service/device delivery remains a separate integration gate.
 
 Official Firebase references checked: https://firebase.google.com/docs/cloud-messaging/android/get-started and https://firebase.google.com/docs/cloud-messaging/android/receive-messages .
 
