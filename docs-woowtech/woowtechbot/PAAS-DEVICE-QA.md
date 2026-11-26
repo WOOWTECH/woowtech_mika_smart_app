@@ -1,6 +1,6 @@
 # PaaS 真機驗收紀錄（2026-11-26）
 
-本輪使用 POCO C85 / Android 15 上原簽章 `io.woowtech.agent`，版本 `0.1.37-woow.12`。不變更商店版。以下是進行中的紀錄，不代表完整推播驗收通過。
+本輪使用 POCO C85 / Android 15 上原簽章 `io.woowtech.agent`，初始版本 `0.1.37-woow.12`，後續升級至 `0.1.37-woow.13`。不變更商店版。以下是進行中的紀錄，不代表完整推播驗收通過。
 
 ## 測試範圍
 
@@ -45,6 +45,14 @@ Mac 沒有對應 PaaS authorized_keys 的 SSH 金鑰，未新增 SSH 授權。�
 - Console 確認 Firebase Cloud Messaging API (V1) 已啟用；舊版 API 停用。
 - 建立時未啟用 Analytics 或 Gemini，保留 Spark 方案。
 - 自有 `google-services.json` 下載後移至 repo 外私有目錄（0600），已由 `tools/woowtechbot/firebase_config.py` 驗證並轉成外部 properties。未提交 API key、服務帳戶私鑰或 FCM token。
-- 指定 `WOOWTECHBOT_FIREBASE_PROPERTIES` 執行 `:app:generateWoowtechReleaseResValues` 成功；確認四個必要資源存在且 project ID 正確，未輸出 API key。這只驗證建置設定，尚未重包／替換手機 APK。
+- 指定 `WOOWTECHBOT_FIREBASE_PROPERTIES` 執行 `:app:generateWoowtechReleaseResValues` 成功；確認四個必要資源存在且 project ID 正確，未輸出 API key。其後已重包並覆蓋安裝 3813，見下節。
 - 未建立 sender 私鑰；已向 PaaS 協調 workload identity 或專用發送身份的安全部署方式。
-- 新的後端規格使用 `/api/woowtech/android-push/device`，不能向舊 `/api/push/device` 送擴充欄位。capability 缺席時維持 SERVER_NOT_READY。完整 HTTP adapter、受限 cookieOnly 測試及真實 FCM 尚未完成。
+- 新的後端規格使用 `/api/woowtech/android-push/device`，不能向舊 `/api/push/device` 送擴充欄位。capability 缺席時維持 SERVER_NOT_READY。HTTP adapter 與普通／真 cookieOnly fixture 測試已完成；受限 cookieOnly 真服務測試及真實 FCM 尚未完成。
+
+## 3813 原簽章覆蓋安裝與未就緒保護
+
+- 2026-11-26：含獨立 Firebase client 設定與 v1 HTTP adapter 的 `0.1.37-woow.13` 已編譯、簽章核對及 `adb install -r` 成功。APK DEX 必要類別六項通過，手機與交付 APK SHA-256 一致。
+- appId 10315、firstInstallTime 2026-11-09 13:12:33 保留；歷史對話、lab43/lab53 設定仍存在。lab53 仍能顯示已登入的專用 QA bot，沒有重新配對。未宣稱全資料庫逐項比對。
+- 真機開啟「允許機器人通知」後顯示服務通知整合尚未提供（SERVER_NOT_READY）；沒有誤報 REGISTERED。此為 UI/未就緒保護驗證，沒有取得或檢查真 FCM token，也沒有真推播。
+- lab53 的 WebView thread/composer 空白仍可重現，留為未通過。
+- GCP Console 已重新登入；WIF pool/provider/SA/IAM 尚未完成，仍不可通知後端啟用 sender。

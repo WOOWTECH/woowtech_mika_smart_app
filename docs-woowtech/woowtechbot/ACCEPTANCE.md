@@ -2,7 +2,7 @@
 
 ## 交付狀態
 
-介面、服務容器與通知客戶端基礎已實作。原簽章 APK `0.1.37-woow.12`（3812）已在 POCO C85 / Android 15 覆蓋安裝並啟動。**這是待完成推播整合的候選版，不能視為整項需求驗收完成。** 未發布 GitHub release、未變更商店版部署。
+介面、服務容器與通知客戶端基礎已實作。原簽章 APK `0.1.37-woow.13`（3813）已在 POCO C85 / Android 15 覆蓋安裝並啟動。**這是待完成推播整合的候選版，不能視為整項需求驗收完成。** 未發布 GitHub release、未變更商店版部署。
 
 基準：`2bb46820`；設計參考 `bc65d7b2`。僅 `woowtech` 直裝 flavor 啟用 `WOOWTECHBOT_ENABLED`。共用文件、草稿、服務／推播契約保留在既有共用模組，平台交付與 Firebase 依賴限定 Android 直裝 flavor。
 
@@ -24,7 +24,7 @@
 | 冷／暖啟動路由 | 用模擬通知點擊 Intent，冷啟動開服務 2，既有程序開服務 1；各自解析已保存 origin；本機返回可用。未驗證真實遠端 thread 權限與內容 |
 | 參考服務連線 | 手機直接連 `192.168.2.10:18531/18532` 收到服務端 403；主機可收到 200。手機 shell HTTP 也收到 403，確認不是 WebView URL policy 導致。未繞過服務端限制 |
 | Apporo 邊界 | 合併 manifest 沒有 bot activities/services、FCM receiver/service 或 FirebaseInitProvider；保留既有 ML Kit registrars。未執行 Apporo 商店發布或完整功能驗收 |
-| APK／覆蓋安裝 | Release lint、六個必要 DEX 類別檢查、原簽章核對通過；`adb install -r` 成功，3811→3812。appId 10315 與 firstInstallTime 保持不變；手機 APK SHA-256 與交付檔一致 |
+| APK／覆蓋安裝 | Release lint、六個必要 DEX 類別檢查、原簽章核對通過；`adb install -r` 成功，3811→3812→3813。appId 10315 與 firstInstallTime 保持不變；手機 APK SHA-256 與交付檔一致 |
 
 正式包啟動與四項選單已實機確認。覆蓋安裝沒有解除安裝或清除資料；本輪沒有逐項讀取／比對既有全部對話、MCP 金鑰、記憶、技能、排程與瀏覽器資料，因此不宣稱完整資料庫內容逐項驗證。
 
