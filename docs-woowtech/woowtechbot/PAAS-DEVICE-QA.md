@@ -55,4 +55,6 @@ Mac 沒有對應 PaaS authorized_keys 的 SSH 金鑰，未新增 SSH 授權。�
 - appId 10315、firstInstallTime 2026-11-09 13:12:33 保留；歷史對話、lab43/lab53 設定仍存在。lab53 仍能顯示已登入的專用 QA bot，沒有重新配對。未宣稱全資料庫逐項比對。
 - 真機開啟「允許機器人通知」後顯示服務通知整合尚未提供（SERVER_NOT_READY）；沒有誤報 REGISTERED。此為 UI/未就緒保護驗證，沒有取得或檢查真 FCM token，也沒有真推播。
 - lab53 的 WebView thread/composer 空白仍可重現，留為未通過。
-- GCP Console 已重新登入；WIF pool/provider/SA/IAM 尚未完成，仍不可通知後端啟用 sender。
+- 2026-11-26：Cloud SDK 登入完成，WIF pool `paas-k3s-test`、provider `cluster1`、專用 SA 與兩項精確 IAM 綁定已實際建立；apply 後另一次唯讀驗證 `verified=true`。公開 JWKS、issuer、subject/UID condition、ACTIVE 狀態及沒有 user-managed key 均核對通過。
+- project NUMBER `795023111689`；SA `woowtech-assistant-fcm-test@woowtech-assistant.iam.gserviceaccount.com`。配置與重現方式見 `tools/woowtechbot/wif/README.md`。
+- 已向 PaaS 協調對話送達開始 STS／SA impersonation 正負向驗證的通知（HTTP 202）；通知送達不等於對方測試已完成。STS、真 FCM、lab 新版部署仍待回報與實測。

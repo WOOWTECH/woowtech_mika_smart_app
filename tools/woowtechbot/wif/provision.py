@@ -7,6 +7,8 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import time
+import sys
 
 PROJECT = 'woowtech-assistant'
 NUMBER = '795023111689'
@@ -29,8 +31,20 @@ def main():
     args = parser.parse_args()
 
     def cloud(*parts):
-        output = subprocess.check_output([args.gcloud, *parts, '--project='+PROJECT, '--format=json', '--quiet'], text=True)
-        return json.loads(output) if output.strip() else None
+        command = [args.gcloud, *parts, '--project='+PROJECT, '--format=json', '--quiet']
+        # Google IAM can acknowledge creation before the resource is visible to reads.
+        read_only = any(verb in parts for verb in ('list', 'describe', 'get-iam-policy'))
+        for attempt in range(7):
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode == 0:
+                if result.stderr.strip():
+                    print(result.stderr.strip(), file=sys.stderr)
+                return json.loads(result.stdout) if result.stdout.strip() else None
+            if not (read_only and 'NOT_FOUND' in result.stderr and attempt < 6):
+                print(result.stderr, file=sys.stderr)
+                raise RuntimeError('gcloud operation failed: ' + ' '.join(parts[:3]))
+            print('Waiting for IAM resource visibility...', file=sys.stderr, flush=True)
+            time.sleep(5)
 
     def require(condition, message):
         if not condition:
