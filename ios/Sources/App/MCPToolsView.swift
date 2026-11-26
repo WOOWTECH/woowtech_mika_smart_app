@@ -257,162 +257,168 @@ private struct MCPServerDetail: View {
                           detail: session.hasStoredEndpoint ? .mcpStored : .mcpNotStored,
                           symbol: statusSymbol, tint: statusTint, back: back,
                           name: current.name.isEmpty ? localizer.text(.mcpServerDefaultName) : current.name)
-            List {
-                Section(localizer.text(.mcpConnectionSection)) {
-                    TextField(localizer.text(.mcpServerName), text: $nameDraft)
-                        .autocorrectionDisabled()
-                        .focused($focused, equals: .name)
-                        .submitLabel(.done)
-                        .onSubmit { focused = nil }
-                        .disabled(session.isBusy || session.isSigningIn)
-                        .accessibilityIdentifier("mcp.serverName")
-                    Toggle(localizer.text(.mcpServerEnabled), isOn: Binding(
-                        get: { current.enabled }, set: { servers.setEnabled(id: record.id, $0) }))
-                        .disabled(session.isBusy || session.isSigningIn)
-                        .accessibilityIdentifier("mcp.serverEnabled")
-                    if !session.allowsNetwork {
-                        Text(localizer.text(.mcpIsolation))
-                            .accessibilityIdentifier("mcp.testIsolation")
-                    }
-                    // No secure field while a sign-in page is open (MCPSecretPlaceholder).
-                    if session.isSigningIn {
-                        MCPSecretPlaceholder(localizer.text(.mcpEndpoint))
-                    } else {
-                        SecureField(localizer.text(.mcpEndpoint), text: $session.endpointDraft)
-                            .mcpSecretEntry()
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
+            // The detail has a small form followed by its catalog. Keep the scroll range
+            // tied to the stack's content: the collection-backed List could scroll its
+            // last control above this fixed header and leave an empty viewport.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    MCPDetailSection(localizer.text(.mcpConnectionSection)) {
+                        TextField(localizer.text(.mcpServerName), text: $nameDraft)
                             .autocorrectionDisabled()
-                            .privacySensitive()
-                            .focused($focused, equals: .endpoint)
+                            .focused($focused, equals: .name)
                             .submitLabel(.done)
                             .onSubmit { focused = nil }
-                            .disabled(session.isBusy)
-                            .accessibilityLabel(localizer.text(.mcpEndpointAX))
-                            .accessibilityIdentifier("mcp.endpoint")
-                    }
-                    Text(localizer.text(.mcpEndpointHelp))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    MCPAuthPicker(selection: $session.authDraft, identifier: "mcp.auth")
-                        .disabled(session.isBusy || session.isSigningIn)
-                    switch session.authDraft {
-                    case .token:
-                        // Like the Play build's optional access token (Bearer header).
-                        SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
-                            .mcpSecretEntry()
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .privacySensitive()
-                            .focused($focused, equals: .token)
-                            .submitLabel(.done)
-                            .onSubmit { focused = nil }
-                            .disabled(session.isBusy)
-                            .accessibilityLabel(localizer.text(.mcpTokenAX))
-                            .accessibilityIdentifier("mcp.token")
-                        if session.hasStoredToken {
-                            Text(localizer.text(.mcpTokenStored))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .accessibilityIdentifier("mcp.tokenStatus")
+                            .disabled(session.isBusy || session.isSigningIn)
+                            .accessibilityIdentifier("mcp.serverName")
+                        Toggle(localizer.text(.mcpServerEnabled), isOn: Binding(
+                            get: { current.enabled }, set: { servers.setEnabled(id: record.id, $0) }))
+                            .disabled(session.isBusy || session.isSigningIn)
+                            .accessibilityIdentifier("mcp.serverEnabled")
+                        if !session.allowsNetwork {
+                            Text(localizer.text(.mcpIsolation))
+                                .accessibilityIdentifier("mcp.testIsolation")
                         }
-                    case .oauth:
-                        oauthRows
-                    case .none:
-                        EmptyView()
-                    }
-                    HStack(spacing: 12) {
-                        Button(localizer.text(.mcpSave)) {
-                            focused = nil
-                            if nameChanged, servers.rename(id: record.id, to: nameDraft) { nameDraft = current.name }
-                            if session.canSave { session.saveEndpoint() }
+                        // No secure field while a sign-in page is open (MCPSecretPlaceholder).
+                        if session.isSigningIn {
+                            MCPSecretPlaceholder(localizer.text(.mcpEndpoint))
+                        } else {
+                            SecureField(localizer.text(.mcpEndpoint), text: $session.endpointDraft)
+                                .mcpSecretEntry()
+                                .keyboardType(.URL)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .privacySensitive()
+                                .focused($focused, equals: .endpoint)
+                                .submitLabel(.done)
+                                .onSubmit { focused = nil }
+                                .disabled(session.isBusy)
+                                .accessibilityLabel(localizer.text(.mcpEndpointAX))
+                                .accessibilityIdentifier("mcp.endpoint")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(session.isBusy || !(nameChanged || session.canSave))
-                        .accessibilityIdentifier("mcp.save")
-                        Button(localizer.text(.mcpClearDraft)) {
-                            clearDrafts(); nameDraft = current.name
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled((drafts.allSatisfy(\.isEmpty) && !nameChanged) || session.isBusy)
-                        .accessibilityIdentifier("mcp.clearDraft")
-                    }
-                    if let error = servers.errorText {
-                        Text(localizer.text(error)).foregroundStyle(.red).accessibilityIdentifier("mcp.serverError")
-                    }
-                    Button(localizer.text(.mcpDeleteServer), role: .destructive) { confirmDelete = true }
-                        .disabled(session.isBusy || session.isSigningIn)
-                        .accessibilityIdentifier("mcp.deleteServer")
-                }
-
-                Section(localizer.text(.mcpExploration)) {
-                    Text(localizer.text(.mcpProtocol(version: session.protocolVersion ?? localizer.text(.commonUnknown))))
-                        .accessibilityIdentifier("mcp.protocol")
-                    if session.phase == .connected {
-                        Text(session.supportsTools ? localizer.text(.mcpToolCount(count: session.toolNames.count)) : localizer.text(.mcpNoTools))
-                            .accessibilityIdentifier("mcp.toolCount")
-                    }
-                    if session.isBusy {
-                        ProgressView(localizer.text(session.statusMessage))
-                        Button(localizer.text(.mcpCancel)) { session.cancel() }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("mcp.cancel")
-                    } else {
-                        Button(localizer.text(.mcpConnect)) {
-                            focused = nil
-                            session.connect()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!session.canConnect)
-                        .accessibilityIdentifier("mcp.connect")
-                    }
-                    if session.phase == .connected {
-                        Button(localizer.text(.mcpDisconnect)) { session.disconnect() }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("mcp.disconnect")
-                    }
-                    if let error = session.errorText {
-                        Text(localizer.text(error))
-                            .foregroundStyle(.red)
-                            .accessibilityIdentifier("mcp.error")
-                    }
-                    if let notice = session.noticeText {
-                        Text(localizer.text(notice))
+                        Text(localizer.text(.mcpEndpointHelp))
                             .font(.footnote)
-                            .accessibilityIdentifier("mcp.notice")
-                    }
-                }
-
-                if session.phase == .connected {
-                    Section(localizer.text(.mcpServerTools)) {
-                        Text(localizer.text(.mcpSelectedCount(count: session.selectedToolNames.count)))
-                            .accessibilityIdentifier("mcp.selectionCount")
-                        TextField(localizer.text(.mcpSearchTools), text: $session.toolSearch)
-                            .autocorrectionDisabled().textInputAutocapitalization(.never)
-                            .focused($focused, equals: .search).submitLabel(.done)
-                            .onSubmit { focused = nil }
-                            .accessibilityIdentifier("mcp.toolSearch")
-                        ForEach(session.visibleTools, id: \.name) { tool in
-                            Toggle(isOn: Binding(get: { session.selectedToolNames.contains(tool.name) },
-                                                 set: { session.selectTool(tool.name, enabled: $0) })) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "wrench.and.screwdriver")
-                                        .scaledFont(size: 16).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                                        .foregroundStyle(.primary)
-                                        .frame(width: 30, height: 30)
-                                        .background(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04),
-                                                    in: RoundedRectangle(cornerRadius: 9))
-                                        .accessibilityHidden(true)
-                                    Text(verbatim: tool.name).privacySensitive()
-                                }
+                            .foregroundStyle(.secondary)
+                        MCPAuthPicker(selection: $session.authDraft, identifier: "mcp.auth")
+                            .disabled(session.isBusy || session.isSigningIn)
+                        switch session.authDraft {
+                        case .token:
+                            // Like the Play build's optional access token (Bearer header).
+                            SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
+                                .mcpSecretEntry()
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .privacySensitive()
+                                .focused($focused, equals: .token)
+                                .submitLabel(.done)
+                                .onSubmit { focused = nil }
+                                .disabled(session.isBusy)
+                                .accessibilityLabel(localizer.text(.mcpTokenAX))
+                                .accessibilityIdentifier("mcp.token")
+                            if session.hasStoredToken {
+                                Text(localizer.text(.mcpTokenStored))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityIdentifier("mcp.tokenStatus")
                             }
-                            .accessibilityIdentifier("mcp.enable.\(tool.name)")
+                        case .oauth:
+                            oauthRows
+                        case .none:
+                            EmptyView()
+                        }
+                        HStack(spacing: 12) {
+                            Button(localizer.text(.mcpSave)) {
+                                focused = nil
+                                if nameChanged, servers.rename(id: record.id, to: nameDraft) { nameDraft = current.name }
+                                if session.canSave { session.saveEndpoint() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(session.isBusy || !(nameChanged || session.canSave))
+                            .accessibilityIdentifier("mcp.save")
+                            Button(localizer.text(.mcpClearDraft)) {
+                                clearDrafts(); nameDraft = current.name
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled((drafts.allSatisfy(\.isEmpty) && !nameChanged) || session.isBusy)
+                            .accessibilityIdentifier("mcp.clearDraft")
+                        }
+                        if let error = servers.errorText {
+                            Text(localizer.text(error)).foregroundStyle(.red).accessibilityIdentifier("mcp.serverError")
+                        }
+                        Button(localizer.text(.mcpDeleteServer), role: .destructive) { confirmDelete = true }
+                            .disabled(session.isBusy || session.isSigningIn)
+                            .accessibilityIdentifier("mcp.deleteServer")
+                    }
+
+                    MCPDetailSection(localizer.text(.mcpExploration)) {
+                        Text(localizer.text(.mcpProtocol(version: session.protocolVersion ?? localizer.text(.commonUnknown))))
+                            .accessibilityIdentifier("mcp.protocol")
+                        if session.phase == .connected {
+                            Text(session.supportsTools ? localizer.text(.mcpToolCount(count: session.toolNames.count)) : localizer.text(.mcpNoTools))
+                                .accessibilityIdentifier("mcp.toolCount")
+                        }
+                        if session.isBusy {
+                            ProgressView(localizer.text(session.statusMessage))
+                            Button(localizer.text(.mcpCancel)) { session.cancel() }
+                                .buttonStyle(.bordered)
+                                .accessibilityIdentifier("mcp.cancel")
+                        } else {
+                            Button(localizer.text(.mcpConnect)) {
+                                focused = nil
+                                session.connect()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!session.canConnect)
+                            .accessibilityIdentifier("mcp.connect")
+                        }
+                        if session.phase == .connected {
+                            Button(localizer.text(.mcpDisconnect)) { session.disconnect() }
+                                .buttonStyle(.bordered)
+                                .accessibilityIdentifier("mcp.disconnect")
+                        }
+                        if let error = session.errorText {
+                            Text(localizer.text(error))
+                                .foregroundStyle(.red)
+                                .accessibilityIdentifier("mcp.error")
+                        }
+                        if let notice = session.noticeText {
+                            Text(localizer.text(notice))
+                                .font(.footnote)
+                                .accessibilityIdentifier("mcp.notice")
+                        }
+                    }
+
+                    if session.phase == .connected {
+                        MCPDetailSection(localizer.text(.mcpServerTools)) {
+                            Text(localizer.text(.mcpSelectedCount(count: session.selectedToolNames.count)))
+                                .accessibilityIdentifier("mcp.selectionCount")
+                            TextField(localizer.text(.mcpSearchTools), text: $session.toolSearch)
+                                .autocorrectionDisabled().textInputAutocapitalization(.never)
+                                .focused($focused, equals: .search).submitLabel(.done)
+                                .onSubmit { focused = nil }
+                                .accessibilityIdentifier("mcp.toolSearch")
+                            ForEach(session.visibleTools, id: \.name) { tool in
+                                Toggle(isOn: Binding(get: { session.selectedToolNames.contains(tool.name) },
+                                                     set: { session.selectTool(tool.name, enabled: $0) })) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "wrench.and.screwdriver")
+                                            .scaledFont(size: 16).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                                            .foregroundStyle(.primary)
+                                            .frame(width: 30, height: 30)
+                                            .background(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04),
+                                                        in: RoundedRectangle(cornerRadius: 9))
+                                            .accessibilityHidden(true)
+                                        Text(verbatim: tool.name).privacySensitive()
+                                    }
+                                }
+                                .accessibilityIdentifier("mcp.enable.\(tool.name)")
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -545,6 +551,28 @@ private struct MCPServerDetail: View {
     }
 }
 
+/// A measured section of the server form, using the same card style as Settings.
+private struct MCPDetailSection<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.footnote).foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+            MikaSettingsCard {
+                VStack(alignment: .leading, spacing: 16) { content }
+                    .padding(16)
+            }
+        }
+    }
+}
+
 /// Stands in for a secret's SecureField while a sign-in page is open, when the field is empty
 /// and switched off anyway. In the simulator run of 11/25 iOS offered to save a password ("Save
 /// Password?") over the server's sign-in page, and again over the page afterwards, when the
@@ -585,7 +613,7 @@ private struct MCPAuthPicker: View {
     }
 }
 
-/// The page title and its status card. Kept outside the List so a long tool
+/// The page title and its status card. Kept outside the scroll view so a long tool
 /// catalog cannot virtualize it away.
 private struct MCPPageHeader: View {
     @Environment(\.appLocalizer) private var localizer
