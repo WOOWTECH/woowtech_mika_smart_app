@@ -10,7 +10,15 @@ import AssistantDocuments
 struct ContentView: View {
     @State private var selection: AppSection = .chat
     @State private var browserReturnSection: AppSection = .chat
+    #if WOOWTECHBOT
+    @State private var showsDrawer = true
+    @StateObject private var botWorkspace = BotWorkspaceStore.shared
+    @State private var botSheet: BotChatSheet?
+    @State private var botDraftSave: Task<Void, Never>?
+    @State private var botRestored = false
+    #else
     @State private var showsDrawer = false
+    #endif
     @State private var showsNewConversationConfirmation = false
     @State private var pendingNewConversationProtection: NewConversationProtection?
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
@@ -41,6 +49,61 @@ struct ContentView: View {
 
     var body: some View {
         shell
+        #if WOOWTECHBOT
+        .fullScreenCover(isPresented: Binding(get: { botWorkspace.selectedService != nil }, set: { if !$0 { botWorkspace.selectedService = nil } })) {
+            if let id = botWorkspace.selectedService, let web = botWorkspace.session(id) {
+                BotServiceScreen(web: web, chat: session, localizer: localizer,
+                    close: { botWorkspace.selectedService = nil }, attach: { url in
+                        let attached = await attachDownload(url)
+                        if attached { botWorkspace.selectedService = nil }
+                        return attached
+                    })
+                    .id(web.service.profileID)
+            }
+        }
+        .sheet(item: $botSheet) { sheet in
+            switch sheet {
+            case .edit:
+                if let archive = session.archive {
+                    BotConversationEditor(id: session.conversationID, archive: archive, workspace: botWorkspace, localizer: localizer)
+                }
+            case .search: BotConversationSearch(chat: session, localizer: localizer)
+            case .files: BotConversationFiles(chat: session, localizer: localizer)
+            case .notifications:
+                NavigationStack {
+                    TaskNotificationSettingsView(store: notifications)
+                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button(localizer.text(.commonDone)) { botSheet = nil } } }
+                }
+            }
+        }
+        .alert(botText("提示", "Notice"), isPresented: Binding(get: { botWorkspace.notice != nil }, set: { if !$0 { botWorkspace.notice = nil } })) {
+            Button(botText("確認", "OK")) { botWorkspace.notice = nil }
+        } message: { Text(botWorkspace.notice ?? "") }
+        .onReceive(session.draftModel.$text) { text in
+            guard botRestored else { return }
+            botDraftSave?.cancel()
+            let id = session.conversationID
+            botDraftSave = Task { @MainActor in
+                do { try await Task.sleep(for: .milliseconds(500)); try botWorkspace.saveDraft(id, text: text) }
+                catch is CancellationError {}
+                catch { botWorkspace.notice = botText("草稿尚未保存，請解鎖後重試。", "Draft was not saved. Unlock and try again.") }
+            }
+        }
+        .onAppear {
+            guard !botRestored else { return }
+            if let id = botWorkspace.state.currentChat.flatMap(UUID.init(uuidString:)) {
+                _ = session.switchBotConversation(to: id, workspace: botWorkspace)
+            }
+            botRestored = true
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                botDraftSave?.cancel()
+                do { try botWorkspace.saveDraft(session.conversationID, text: session.draft) }
+                catch { botWorkspace.notice = botText("草稿尚未保存，請解鎖後重試。", "Draft was not saved. Unlock and try again.") }
+            }
+        }
+        #endif
         .animation(.easeOut(duration: 0.22), value: showsDrawer)
         .alert(localizer.text(.newConversationConfirmTitle), isPresented: $showsNewConversationConfirmation) {
             Button(localizer.text(.newConversationDiscard), role: .destructive) {
@@ -189,6 +252,13 @@ struct ContentView: View {
                   .id(task.id)
           }
           if showsDrawer {
+              #if WOOWTECHBOT
+              if let archive = session.archive {
+                  BotConversationList(chat: session, archive: archive, workspace: botWorkspace, localizer: localizer,
+                      close: closeDrawer, new: requestNewConversation, select: botSelect)
+                      .transition(.move(edge: .leading))
+              }
+              #else
               GeometryReader { geometry in
                   // Like Android's ChatDrawer the panel fills the whole screen
                   // height behind the status and home-indicator areas and pads
@@ -238,6 +308,7 @@ struct ContentView: View {
                   }
                   .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
               }
+              #endif
           }
         }
     }
@@ -246,9 +317,14 @@ struct ContentView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     if selection == .chat {
                         Button { showsDrawer = true } label: {
+                            #if WOOWTECHBOT
+                            Image(systemName: "chevron.backward")
+                                .foregroundStyle(palette.accent).frame(width: 40, height: 40)
+                            #else
                             Image(systemName: "line.3.horizontal")
                                 .foregroundStyle(palette.accent)
                                 .frame(width: 40, height: 40)
+                            #endif
                         }
                         .accessibilityLabel(localizer.text(.shellMenu))
                         .accessibilityIdentifier("chat.menu")
@@ -271,6 +347,14 @@ struct ContentView: View {
                 }
                 if selection == .chat {
                     ToolbarItem(placement: .principal) {
+                        #if WOOWTECHBOT
+                        Button { botSheet = .edit } label: {
+                            HStack(spacing: 8) {
+                                BotAvatar(avatar: botWorkspace.presentation(session.conversationID).avatar).frame(width: 28, height: 28)
+                                Text(botCurrentTitle).font(.headline).lineLimit(1)
+                            }.padding(.horizontal, 12).padding(.vertical, 6).background(palette.assistant, in: Capsule())
+                        }.buttonStyle(.plain).accessibilityIdentifier("bot.chat.identity")
+                        #else
                         VStack(spacing: 1) {
                             Text(localizer.text(.shellBrandTitle))
                                 .scaledFont(size: 17, weight: .semibold)
@@ -284,8 +368,18 @@ struct ContentView: View {
                         }
                         // The bar keeps its height at the largest sizes, so the conversation keeps the screen.
                         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                        #endif
                     }
                     ToolbarItem(placement: .topBarTrailing) {
+                        #if WOOWTECHBOT
+                        Menu {
+                            Button(botText("名稱與圖示", "Name & icon"), systemImage: "pencil") { botSheet = .edit }
+                            Button(botText("新增對話", "New conversation"), systemImage: "plus", action: requestNewConversation).disabled(session.isSubmitting)
+                            Button(botText("在對話中尋找", "Find in conversation"), systemImage: "magnifyingglass") { botSheet = .search }
+                            Button(botText("檔案", "Files"), systemImage: "folder") { botSheet = .files }
+                        } label: { Image(systemName: "ellipsis.circle").frame(width: 40, height: 40) }
+                        .accessibilityIdentifier("bot.chat.menu")
+                        #else
                         Button(action: requestNewConversation) {
                             Image(systemName: "square.and.pencil")
                                 .foregroundStyle(session.isSubmitting ? palette.secondaryInk : palette.accent)
@@ -294,6 +388,7 @@ struct ContentView: View {
                         .disabled(session.isSubmitting)
                         .accessibilityLabel(localizer.text(.shellNewConversation))
                         .accessibilityIdentifier("chat.newConversation")
+                        #endif
                     }
                 }
     }
@@ -372,6 +467,11 @@ struct ContentView: View {
     }
 
     private func requestNewConversation() {
+        #if WOOWTECHBOT
+        if session.switchBotConversation(to: nil, workspace: botWorkspace) {
+            selection = .chat; closeDrawer()
+        }
+        #else
         guard !session.isSubmitting else { return }
         if let protection = NewConversationProtection.current(in: session) {
             pendingNewConversationProtection = protection
@@ -380,7 +480,28 @@ struct ContentView: View {
             selection = .chat
             closeDrawer()
         }
+        #endif
     }
+
+    #if WOOWTECHBOT
+    private func botText(_ zh: String, _ en: String) -> String { localizer.language == .english ? en : zh }
+    private var botCurrentTitle: String {
+        let record = session.archive?.conversations.first { $0.id.uuidString == session.conversationID }
+        return record?.customTitle ?? botWorkspace.presentation(session.conversationID).title ?? record?.title ?? botText("新對話", "New conversation")
+    }
+    private func botSelect(_ destination: BotLocalDestination) {
+        switch destination {
+        case .files: botSheet = .files; return
+        case .notifications: botSheet = .notifications; return
+        case .tools: selection = .tools
+        case .memory: selection = .memory
+        case .browser: selection = .browser
+        case .settings: selection = .settings
+        case .about: selection = .about
+        }
+        browserReturnSection = .chat; showsDrawer = false
+    }
+    #endif
 
     @ViewBuilder private var fixtureObservation: some View {
         #if DEBUG
@@ -427,7 +548,7 @@ struct ContentView: View {
 
 /// WOOWTECH Android brand.properties and ui/theme/Colors.kt at de5be358.
 /// Keep these visual tokens local to the shell; model and browser policy are unchanged.
-private struct MikaVisualPalette {
+struct MikaVisualPalette {
     private let dark: Bool
     init(_ scheme: ColorScheme) { dark = scheme == .dark }
     private func rgb(_ red: Double, _ green: Double, _ blue: Double) -> Color {

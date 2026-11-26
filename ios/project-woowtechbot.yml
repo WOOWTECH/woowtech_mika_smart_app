@@ -1,0 +1,14 @@
+include:
+  - project.yml
+targets:
+  WoowAssistant:
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WOOWTECHBOT"
+        PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.bot
+        INFOPLIST_KEY_CFBundleDisplayName: 渥屋助理 Bot
+        CURRENT_PROJECT_VERSION: "294"
+        INFOPLIST_FILE: Configuration/Info-WoowtechBot.plist
+      configs:
+        Debug:
+          INFOPLIST_FILE: Configuration/Info-WoowtechBot.plist

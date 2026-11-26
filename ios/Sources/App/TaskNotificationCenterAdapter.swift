@@ -125,6 +125,12 @@ import AssistantDomain
         let isDefault = response.actionIdentifier == UNNotificationDefaultActionIdentifier
         Task { @MainActor [weak self] in
             defer { completionHandler() }
+            #if WOOWTECHBOT
+            if isDefault, response.notification.request.content.userInfo["woowtechbot"] != nil {
+                _ = BotWorkspaceStore.shared.openNotification(response.notification.request.content.userInfo)
+                return
+            }
+            #endif
             guard let self, let logical = Self.logicalIdentifier(identifier, scope: self.scope),
                   let destination = TaskNotificationPayload.destination(for: logical) else { return }
             self.onDismiss?(logical)

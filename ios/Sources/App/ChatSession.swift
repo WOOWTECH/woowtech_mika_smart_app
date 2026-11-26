@@ -249,6 +249,48 @@ final class ChatSession: ObservableObject {
     }
     @Published private(set) var pendingQuote: ConversationQuote.Quote?
     private var quoteSource: ArchivedConversation?
+    #if WOOWTECHBOT
+    private struct BotParkedComposer {
+        let attachments: [ChatAttachmentItem]
+        let quote: ConversationQuote.Quote?
+        let source: ArchivedConversation?
+    }
+    private var botComposers: [String: BotParkedComposer] = [:]
+
+    /// A switch parks waiting attachments without deleting their files. Active
+    /// requests and unsaved replies still have to finish before switching.
+    @discardableResult func switchBotConversation(to id: UUID?, workspace: BotWorkspaceStore) -> Bool {
+        if id?.uuidString == conversationID { return true }
+        guard !isSubmitting, !isAddingAttachments, replyPreview == nil, pendingArchiveSave == nil, archiveNotice == nil else {
+            workspace.notice = "請先完成目前工作或保存回覆，再切換對話。"; return false
+        }
+        let record = id.flatMap { id in archive?.conversations.first { $0.id == id } }
+        if let id, record == nil, workspace.state.chats[id.uuidString] == nil { return false }
+        if let record, !canOpenConversation(record) { return false }
+        do { try workspace.saveDraft(conversationID, text: draft) }
+        catch { workspace.notice = "草稿尚未保存，請解鎖後重試。"; return false }
+        let previous = conversationID
+        botComposers[previous] = .init(attachments: pendingAttachments, quote: pendingQuote, source: quoteSource)
+        // newConversation's cleanup sees an empty tray; ownership stays parked.
+        pendingAttachments = []
+        if let record {
+            guard openConversation(id: record.id) else {
+                let parked = botComposers.removeValue(forKey: previous)
+                pendingAttachments = parked?.attachments ?? []; return false
+            }
+        } else {
+            newConversation()
+            if let id { conversationID = id.uuidString }
+        }
+        let parked = botComposers.removeValue(forKey: conversationID)
+        pendingAttachments = parked?.attachments ?? []
+        pendingQuote = parked?.quote; quoteSource = parked?.source
+        draft = workspace.presentation(conversationID).draft
+        do { try workspace.saveDraft(conversationID, text: draft) }
+        catch { workspace.notice = "目前草稿尚未保存；請解鎖後重試。" }
+        return true
+    }
+    #endif
     @Published var baseURLDraft = ""
     @Published var modelDraft = ""
     @Published var keyDraft = ""
@@ -747,6 +789,9 @@ final class ChatSession: ObservableObject {
             try archive.save(pendingArchiveSave.record, expected: pendingArchiveSave.expected,
                              replacingLastTurn: pendingArchiveSave.replacingLastTurn)
             self.pendingArchiveSave = nil; archiveNotice = nil
+            #if WOOWTECHBOT
+            applyBotTitle(pendingArchiveSave.record.id)
+            #endif
         } catch { archiveNotice = Self.archiveSaveFailure }
     }
 
@@ -1409,6 +1454,9 @@ final class ChatSession: ObservableObject {
         do {
             let record = try archivedRecord(turn, assistant: assistant)
             let evicted = try archive.save(record, expected: turn.prior)
+            #if WOOWTECHBOT
+            applyBotTitle(record.id)
+            #endif
             pendingTurn?.prior = archive.state.conversations.first { $0.id == record.id } ?? record
             checkpointedRequestID = turn.requestID
             deleteAttachments(ofEvicted: evicted)
@@ -1428,11 +1476,24 @@ final class ChatSession: ObservableObject {
             let evicted = try archive.save(record, expected: turn.prior, replacingLastTurn: replacing)
             pendingArchiveSave = nil
             archiveNotice = nil
+            #if WOOWTECHBOT
+            applyBotTitle(record.id)
+            #endif
             deleteAttachments(ofEvicted: evicted)
         } catch {
             archiveNotice = Self.archiveSaveFailure
         }
     }
+
+    #if WOOWTECHBOT
+    private func applyBotTitle(_ id: UUID) {
+        let workspace = BotWorkspaceStore.shared
+        guard let title = workspace.presentation(id.uuidString).title,
+              let archive, let record = archive.conversations.first(where: { $0.id == id }), record.customTitle == nil else { return }
+        do { try archive.rename(id: id, expectedTitle: nil, to: title) }
+        catch { workspace.notice = "對話已保存，但名稱尚未同步；請重新編輯名稱。" }
+    }
+    #endif
 
     /// Conversations that gave way for a save take their attachment files with
     /// them, except files a remaining branch still shows.
