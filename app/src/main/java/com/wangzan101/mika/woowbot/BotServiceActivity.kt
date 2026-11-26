@@ -12,6 +12,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.wangzan101.mika.ui.theme.appearanceDark
+import com.wangzan101.mika.ui.theme.systemBarsFor
+import com.wangzan101.mika.woowbot.push.BotPushSettingsActivity
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,7 +32,7 @@ import com.wangzan101.mika.ui.theme.MikaTheme
 import kotlinx.coroutines.*
 import java.io.ByteArrayInputStream
 
-/** Hosts the unmodified mobile website. No JS interfaces, remote phone tools, or token extraction. */
+/** Hosts the complete mobile website with two bounded, presentation-only host actions. No native JS interface. */
 class BotServiceActivity : ComponentActivity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var webView: WebView? = null
@@ -46,6 +51,12 @@ class BotServiceActivity : ComponentActivity() {
     private var externalUrl by mutableStateOf<String?>(null)
     private var pairing by mutableStateOf<Pair<BotService, String>?>(null)
     private var scanning by mutableStateOf(false)
+    private var integrated by mutableStateOf(false)
+    private var darkAppearance = false
+    private var choosing by mutableStateOf(false)
+    private var managing by mutableStateOf(false)
+    private var selectedService by mutableStateOf<String?>(null)
+    private val parked = LinkedHashMap<String, WebView>()
     private data class Download(val service: BotService, val url: String, val cookie: String?)
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -76,10 +87,15 @@ class BotServiceActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        selectedService = intent.getStringExtra(EXTRA_SERVICE)
+        managing = intent.getBooleanExtra(EXTRA_MANAGE, false)
         if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityCreate restored=" + (savedInstanceState != null))
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
         setContent {
-            MikaTheme {
+            val dark = appearanceDark()
+            SideEffect { darkAppearance = dark; systemBarsFor(dark) }
+            MikaTheme(dark = dark) {
+                LaunchedEffect(dark) { webView?.let(::applyAppearance) }
                 val registry = remember { runCatching { BotServices.registry(this) }.getOrNull() }
                 if (registry == null) BotUnavailableScreen(R.string.bot_services_storage_error) { finish() }
                 else ServiceContent(registry)
@@ -91,7 +107,7 @@ class BotServiceActivity : ComponentActivity() {
     @Composable
     private fun ServiceContent(registry: BotServiceRegistry) {
         val state by registry.state.collectAsState()
-        val service = state.services.find { it.id == intent.getStringExtra(EXTRA_SERVICE) }
+        val service = state.services.find { it.id == selectedService }
         val isolated = remember { BotServices.supportsIsolation() }
         LaunchedEffect(registry) { runCatching { BotServices.cleanRetired(registry) } }
         if (service == null) {
@@ -101,36 +117,13 @@ class BotServiceActivity : ComponentActivity() {
             return
         }
         BackHandler { val view = webView; if (view?.canGoBack() == true) view.goBack() else finish() }
-        Scaffold(topBar = { TopAppBar(title = { Text(service.name, maxLines = 1) }, navigationIcon = {
-            TextButton(onClick = { finish() }) { Text(stringResource(R.string.bot_services_local)) }
-        }, actions = {
-            TextButton(onClick = { startActivity(BotServicesActivity.intent(this@BotServiceActivity)); finish() }) {
-                Text(stringResource(R.string.bot_services_switch))
-            }
-            var menu by remember { mutableStateOf(false) }
-            TextButton(onClick = { menu = true }) { Text(stringResource(R.string.bot_services_more)) }
-            DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_scan_qr)) }, enabled = service.enabled && !scanning, onClick = {
-                    menu = false
-                    scanPairing(service)
-                })
-                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_reload)) }, onClick = { menu = false; retry() })
-                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_share)) }, onClick = {
-                    menu = false
-                    // Share only the configured origin, never one-time sign-in links or private conversation IDs.
-                    runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_TEXT, service.origin), getString(R.string.bot_services_share))) }
-                })
-                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_disconnect)) }, onClick = {
-                    menu = false
-                    runCatching { registry.setEnabled(service.id, false); destroyWebView() }.onFailure { status = R.string.bot_services_action_error }
-                })
-                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_logout)) }, onClick = { menu = false; confirmLogout = true })
-                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_remove)) }, onClick = { menu = false; confirmRemove = true })
-            }
-        }) }) { padding ->
+        Scaffold(containerColor = MikaTheme.colors.bg, topBar = {
+            if (!integrated) TopAppBar(title = { Text(service.name, maxLines = 1) }, navigationIcon = {
+                TextButton(onClick = { choosing = true }) { Text(stringResource(R.string.bot_services_switch)) }
+            }, actions = { TextButton(onClick = { managing = true }) { Text(stringResource(R.string.bot_services_more)) } })
+        }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-                Text(service.origin, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelSmall)
+                if (!integrated) Text(service.origin, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelSmall)
                 status?.let { message ->
                     Row(Modifier.padding(horizontal = 12.dp)) {
                         Text(stringResource(message), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
@@ -147,14 +140,48 @@ class BotServiceActivity : ComponentActivity() {
                     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                     key(service.profileName, reload) {
                         val view = remember(service.profileName, reload) {
-                            runCatching { createWebView(service) }.getOrElse { status = R.string.bot_services_load_failed; null }
+                            runCatching {
+                                parked.remove(service.profileName)?.also { webView = it; activeService = service; it.onResume(); applyAppearance(it) }
+                                    ?: createWebView(service)
+                            }.getOrElse { status = R.string.bot_services_load_failed; null }
                         }
                         if (view != null) {
                             AndroidView(factory = { view }, modifier = Modifier.fillMaxSize())
-                            DisposableEffect(view) { onDispose { destroy(view) } }
+                            DisposableEffect(view) { onDispose {
+                                if (current(service) && !isFinishing && !isDestroyed && !destroyed.contains(view)) {
+                                    (view.parent as? android.view.ViewGroup)?.removeView(view)
+                                    view.onPause()
+                                    parked[service.profileName] = view
+                                } else destroy(view)
+                            } }
                         }
                     }
                 }
+            }
+        }
+        if (choosing) Dialog(onDismissRequest = { choosing = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            BotServicesScreen(registry, onLocal = { choosing = false; finish() }, onOpen = { id ->
+                choosing = false
+                if (id != selectedService) {
+                    selectedService = id; intent = intent(this, id); integrated = false; status = null
+                }
+            }, onClose = { choosing = false }, selectedId = service.id, onManage = { id ->
+                choosing = false
+                if (id != selectedService) { selectedService = id; intent = intent(this, id); integrated = false; status = null }
+                managing = true
+            })
+        }
+        if (managing) ModalBottomSheet(onDismissRequest = { managing = false }) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(service.name, style = MaterialTheme.typography.titleLarge)
+                Text(service.origin, style = MaterialTheme.typography.bodySmall)
+                TextButton(enabled = service.enabled && !scanning, onClick = { managing = false; scanPairing(service) }) { Text(stringResource(R.string.bot_services_scan_qr)) }
+                TextButton(onClick = { managing = false; retry() }) { Text(stringResource(R.string.bot_services_reload)) }
+                TextButton(onClick = { managing = false; runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, service.origin), getString(R.string.bot_services_share))) } }) { Text(stringResource(R.string.bot_services_share)) }
+                TextButton(onClick = { managing = false; registry.setEnabled(service.id, false); destroyWebView() }) { Text(stringResource(R.string.bot_services_disconnect)) }
+                TextButton(onClick = { managing = false; confirmLogout = true }) { Text(stringResource(R.string.bot_services_logout)) }
+                TextButton(onClick = { managing = false; confirmRemove = true }) { Text(stringResource(R.string.bot_services_remove)) }
+                Spacer(Modifier.height(16.dp))
             }
         }
         if (confirmLogout || confirmRemove) AlertDialog(
@@ -191,6 +218,15 @@ class BotServiceActivity : ComponentActivity() {
             }) { Text(stringResource(R.string.bot_services_open)) } },
             dismissButton = { TextButton(onClick = { externalUrl = null }) { Text(stringResource(R.string.bot_services_cancel)) } },
         ) }
+    }
+
+    private fun applyAppearance(view: WebView) {
+        val owner = owners[view] ?: return
+        if (destroyed.contains(view) || !current(owner) || !owner.policy.allows(view.url.orEmpty())) return
+        view.setBackgroundColor(if (darkAppearance) 0xff121212.toInt() else 0xfffcfcfc.toInt())
+        view.evaluateJavascript(BotWorkspaceAppearance.script(this, darkAppearance)) { result ->
+            if (webView === view) integrated = result == "true"
+        }
     }
 
     private fun scanPairing(service: BotService) {
@@ -248,6 +284,13 @@ class BotServiceActivity : ComponentActivity() {
             view.webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
+                    val hostAction = BotWorkspaceAppearance.action(url, request.isForMainFrame, request.hasGesture(),
+                        webView === view && current(service) && service.policy.allows(view.url.orEmpty()))
+                    if (hostAction != null) {
+                        if (hostAction == "services") choosing = true
+                        else startActivity(BotPushSettingsActivity.intent(this@BotServiceActivity))
+                        return true
+                    }
                     if (service.policy.allows(url)) return false
                     if (request.isForMainFrame && request.hasGesture() && safeExternal(url)) externalUrl = url
                     else if (request.isForMainFrame) status = R.string.bot_services_navigation_blocked
@@ -266,7 +309,7 @@ class BotServiceActivity : ComponentActivity() {
                     return if (allowed) null else WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(byteArrayOf()))
                 }
                 override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-                    loading = true
+                    if (webView === view) { loading = true; integrated = false }
                     if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) {
                         val uri = runCatching { Uri.parse(url) }.getOrNull()
                         android.util.Log.i("BotRouteQA", "pageStart sameOrigin=" + service.policy.allows(url.orEmpty()) +
@@ -275,7 +318,11 @@ class BotServiceActivity : ComponentActivity() {
                     }
                 }
                 override fun onPageFinished(view: WebView, url: String?) {
-                    loading = false
+                    if (webView === view) loading = false
+                    applyAppearance(view)
+                    for (delay in listOf(250L, 1000L, 3000L)) view.postDelayed({
+                        if (webView === view && !isDestroyed) applyAppearance(view)
+                    }, delay)
                     if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) view.postDelayed({
                         if (webView === view && current(service) && service.policy.allows(view.url.orEmpty())) {
                             view.evaluateJavascript(BotViewportDiagnostics.script) { result ->
@@ -375,6 +422,7 @@ class BotServiceActivity : ComponentActivity() {
     private fun retry() { webView?.reload() ?: run { reload++ } }
     private fun destroy(view: WebView) {
         if (!destroyed.add(view)) return
+        parked.entries.removeAll { it.value === view }
         owners.remove(view)?.let { service ->
             if (current(service)) runCatching { BotWebSessions.save(service, view) }
             else BotWebSessions.clear(service.profileName)
@@ -390,7 +438,7 @@ class BotServiceActivity : ComponentActivity() {
     }
     override fun onPause() { sessionHints?.cancel(); webView?.onPause(); super.onPause() }
     override fun onResume() {
-        super.onResume(); webView?.onResume()
+        super.onResume(); webView?.onResume(); webView?.let(::applyAppearance)
         // Pairing can complete inside the SPA without navigation. Parent may re-check /api/auth/session.
         sessionHints?.cancel()
         sessionHints = scope.launch {
@@ -402,11 +450,12 @@ class BotServiceActivity : ComponentActivity() {
     }
     override fun onDestroy() {
         if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityDestroy configChange=$isChangingConfigurations")
-        destroyWebView(); scope.cancel(); super.onDestroy()
+        parked.values.toList().forEach(::destroy); destroyWebView(); scope.cancel(); super.onDestroy()
     }
 
     companion object {
         private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        const val EXTRA_MANAGE = "woowbot.manage"
         private const val EXTRA_SERVICE = "woowbot.serviceId"
         private const val EXTRA_BOT = "woowbot.botId"
         private const val EXTRA_THREAD = "woowbot.threadId"

@@ -637,8 +637,8 @@ internal fun UserBubble(text: String, conversationId: String?, note: String? = n
                 CompositionLocalProvider(LocalTextSelectionColors provides TextSelectionColors(colors.accent, colors.onAccent.copy(alpha = 0.35f))) {
                     MessageArea(
                         key, QuoteMessage.From.You, words, "selectable-user",
-                        Modifier.widthIn(max = max).background(colors.accent, bubbleShape),
-                        lifted = { LiftedMessage(bubbleShape, colors.accent) { UserBubbleText(words) } },
+                        Modifier.widthIn(max = max).background(if (botUiEnabled(context)) { if (colors.isDark) Color(0xFF5A5A5A) else Color(0xFF1C1C1C) } else colors.accent, bubbleShape),
+                        lifted = { LiftedMessage(bubbleShape, if (botUiEnabled(context)) { if (colors.isDark) Color(0xFF5A5A5A) else Color(0xFF1C1C1C) } else colors.accent) { UserBubbleText(words) } },
                     ) { UserBubbleText(words) }
                 }
             }
@@ -649,7 +649,7 @@ internal fun UserBubble(text: String, conversationId: String?, note: String? = n
 
 @Composable
 private fun UserBubbleText(words: String) {
-    Text(words, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = BubbleText, color = MikaTheme.colors.onAccent)
+    Text(words, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = BubbleText, color = if (botUiEnabled(LocalContext.current)) Color(0xFFF5F5F5) else MikaTheme.colors.onAccent)
 }
 
 /** 长按抬起的那条消息:[color] 底、带阴影;太长时(最高半屏)只露开头,下面裁掉。 */
@@ -1310,7 +1310,7 @@ internal fun Composer(
                     Icon(MikaIcons.Plus, label, Modifier.size(MikaSize.Icon).graphicsLayer { rotationZ = turn }, tint = c.ink)
                 }
             }
-            GlassBar(Modifier.weight(1f).keepsKeyboard(), backdrop, shape = if (botUi) RoundedCornerShape(22.dp) else MikaShapes.Pill) {
+            GlassBar(Modifier.weight(1f).keepsKeyboard(), backdrop, shape = if (botUi) RoundedCornerShape(27.dp) else MikaShapes.Pill) {
                 if (!botUi && attachPanel != null) {
                     val label = if (panel == Panel.Open) AttachCopy.CLOSE else AttachCopy.ADD
                     Box(
@@ -1374,12 +1374,12 @@ internal fun Composer(
                 if ((!busy || canSend) && (!botUi || canSend)) {
                     Box(
                         Modifier.size(MikaSize.IconButton)
-                            .background(if (canSend) c.accent else c.greySoft, CircleShape)
+                            .background(if (canSend) { if (botUi) c.ink else c.accent } else c.greySoft, CircleShape)
                             .clip(CircleShape)
                             .clickable(enabled = canSend, onClickLabel = stringResource(R.string.chat_send)) { panel = Panel.Closed; onSend() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(MikaIcons.Up, stringResource(R.string.chat_send), Modifier.size(20.dp), tint = if (canSend) c.onAccent else c.ink3)
+                        Icon(MikaIcons.Up, stringResource(R.string.chat_send), Modifier.size(20.dp), tint = if (canSend) { if (botUi) c.bg else c.onAccent } else c.ink3)
                     }
                 }
             }

@@ -27,7 +27,10 @@ object BotPushRuntime {
     @Volatile var notifications: BotPushNotifications? = null
 }
 
-enum class BotPushState { OFF, NOT_CONFIGURED, PERMISSION_REQUIRED, NO_SERVICES, PENDING, SERVER_NOT_READY, REGISTERED }
+/** Safe, in-memory discovery results; READY is capability readiness, not a registration ACK. */
+enum class BotPushDiscovery { CHECKING, READY, SIGN_IN_REQUIRED, IDENTITY_CHANGED, SERVER_NOT_READY, UNAVAILABLE }
+
+enum class BotPushState { OFF, NOT_CONFIGURED, PERMISSION_REQUIRED, NO_SERVICES, PENDING, RETRY_REQUIRED, SERVER_NOT_READY, REGISTERED }
 
 class BotPushController(
     context: Context,
@@ -39,6 +42,7 @@ class BotPushController(
     private val serverReady: () -> Boolean = { false },
     private val prepare: suspend () -> Unit = {},
     private val stillCurrent: () -> Boolean = { true },
+    val discovery: StateFlow<Map<String, BotPushDiscovery>> = MutableStateFlow(emptyMap()),
 ) {
     private val prefs = context.getSharedPreferences("woowbot_push_consent", Context.MODE_PRIVATE)
     private val lifecycle = BotPushLifecycle(api, BotPushPreferencesLedger(context))
@@ -66,6 +70,20 @@ class BotPushController(
     }
     private suspend fun reconcile(): Boolean {
         mutableState.value = BotPushState.PENDING
+        return try { reconcilePrepared() }
+        catch (e: kotlinx.coroutines.CancellationException) {
+            mutableState.value = BotPushState.RETRY_REQUIRED
+            throw e
+        } catch (_: Exception) {
+            // Preserve the durable ledger and consent. A failed discovery is not a revoke request.
+            mutableState.value = BotPushState.RETRY_REQUIRED
+            false
+        } finally {
+            // Stale epochs and incomplete work must not leave the UI permanently busy.
+            if (mutableState.value == BotPushState.PENDING) mutableState.value = BotPushState.RETRY_REQUIRED
+        }
+    }
+    private suspend fun reconcilePrepared(): Boolean {
         prepare()
         if (!stillCurrent()) return false
         val enabled = optedIn && configured && permissionGranted() && serverReady()

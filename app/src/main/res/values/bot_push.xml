@@ -17,4 +17,11 @@
     <string name="bot_push_no_services">No paired service is enabled for notifications.</string>
     <string name="bot_push_pending">Notification registration or removal is pending.</string>
     <string name="bot_push_registered">Registration acknowledged. Delivery has not been verified.</string>
+    <string name="bot_push_retry_required">Could not finish checking or updating notification registrations. Existing records are retained. Check your connection and retry.</string>
+    <string name="bot_push_retry">Retry registration check</string>
+    <string name="bot_push_discovery_checking">Checking service connection…</string>
+    <string name="bot_push_discovery_ready">Service identity and push capability confirmed. This is not delivery confirmation.</string>
+    <string name="bot_push_discovery_sign_in">Service sign-in could not be read. Open the service to check its connection.</string>
+    <string name="bot_push_discovery_changed">Service identity changed during the check. Retry when the connection is stable.</string>
+    <string name="bot_push_discovery_unavailable">Could not verify this service. Existing registration records are retained.</string>
 </resources>

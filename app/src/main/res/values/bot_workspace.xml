@@ -1,0 +1,5 @@
+<resources>
+    <string name="bot_workspace_hint">Switch services and continue where you left off. Each service keeps its own conversations and sign-in.</string>
+    <string name="bot_workspace_device">This phone</string>
+    <string name="bot_workspace_local_detail">Your conversations, tools and settings</string>
+</resources>

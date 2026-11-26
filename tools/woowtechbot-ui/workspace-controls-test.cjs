@@ -1,0 +1,25 @@
+const { chromium }=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const fs=require('fs'),assert=require('assert');
+(async()=>{
+ const browser=await chromium.launch({headless:true, executablePath:process.env.CHROME_EXECUTABLE});
+ const page=await browser.newPage({viewport:{width:390,height:844}});
+ await page.setContent('<html><head></head><body><div data-look="app"><header data-sidebar-top-slot><button id="original">New conversation</button></header><textarea id="draft">preserve draft</textarea></div></body></html>');
+ const source=fs.readFileSync(require('path').resolve(__dirname, '../../app/src/main/assets/woowtechbot/workspace-controls.js'),'utf8');
+ const script=skin=>source.replace('__WOOW_CONFIGURATION__',JSON.stringify({skin,services:'Services',notifications:'Notifications'}));
+ assert.equal(await page.evaluate(script('midnight')),true);
+ await page.evaluate(script('midnight'));
+ assert.equal(await page.locator('.woow-workspace-controls').count(),1);
+ assert.equal(await page.locator('.woow-workspace-controls a').count(),2);
+ assert.equal(await page.locator('#original').count(),1);
+ assert.equal(await page.locator('#draft').inputValue(),'preserve draft');
+ await page.evaluate(script('daylight'));
+ assert.equal(await page.locator('html').getAttribute('data-skin'),'daylight');
+ assert.equal(await page.locator('#draft').inputValue(),'preserve draft');
+ await page.evaluate(()=>{const old=document.querySelector('[data-sidebar-top-slot]');const replacement=document.createElement('header');replacement.dataset.sidebarTopSlot='';replacement.innerHTML='<button id="original">New conversation</button>';old.replaceWith(replacement)});
+ await page.waitForFunction(()=>document.querySelectorAll('.woow-workspace-controls').length===1);
+ assert.equal(await page.locator('.woow-workspace-controls a').first().getAttribute('href'),'woowtech-ui://services');
+ assert.equal(await page.locator('#original').count(),1);
+ await page.evaluate(()=>document.querySelector('[data-look="app"]').remove());
+ assert.equal(await page.evaluate(script('midnight')),false);
+ await browser.close();console.log('PASS: duplicate injection, original controls, draft retention, light/dark, React slot replacement, fallback');
+})().catch(e=>{console.error(e);process.exitCode=1});

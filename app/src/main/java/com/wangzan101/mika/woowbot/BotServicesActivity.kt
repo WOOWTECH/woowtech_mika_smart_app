@@ -6,6 +6,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import com.wangzan101.mika.ui.theme.MikaIcons
+import com.wangzan101.mika.ui.theme.appearanceDark
+import com.wangzan101.mika.ui.theme.systemBarsFor
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -24,12 +32,16 @@ class BotServicesActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
         setContent {
-            MikaTheme {
+            val dark = appearanceDark()
+            SideEffect { systemBarsFor(dark) }
+            MikaTheme(dark = dark) {
                 val registry = remember { runCatching { BotServices.registry(this) }.getOrNull() }
                 if (registry == null) BotUnavailableScreen(R.string.bot_services_storage_error) { finish() }
                 else BotServicesScreen(registry, onLocal = { finish() }, onOpen = {
                     startActivity(BotServiceActivity.intent(this, it))
                     finish()
+                }, onClose = { finish() }, onManage = {
+                    startActivity(BotServiceActivity.intent(this, it).putExtra(BotServiceActivity.EXTRA_MANAGE, true)); finish()
                 })
             }
         }
@@ -42,44 +54,53 @@ class BotServicesActivity : ComponentActivity() {
 /** Embeddable management screen. Opening a service does not claim it has authenticated. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BotServicesScreen(registry: BotServiceRegistry, onLocal: () -> Unit, onOpen: (String) -> Unit) {
+fun BotServicesScreen(registry: BotServiceRegistry, onLocal: () -> Unit, onOpen: (String) -> Unit,
+    onClose: () -> Unit = onLocal, selectedId: String? = null, onManage: (String) -> Unit = onOpen) {
     val state by registry.state.collectAsState()
     val supported = remember { BotServices.supportsIsolation() }
     var adding by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
     LaunchedEffect(registry) { runCatching { BotServices.cleanRetired(registry) }.onFailure { error = true } }
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.bot_services_title)) }, navigationIcon = {
-        TextButton(onClick = onLocal) { Text(stringResource(R.string.bot_services_local)) }
+    val c = MikaTheme.colors
+    Scaffold(containerColor = c.bg, topBar = { TopAppBar(title = { Text(stringResource(R.string.bot_ui_services)) }, navigationIcon = {
+        IconButton(onClick = onClose) { Icon(MikaIcons.Back, stringResource(R.string.bot_ui_back)) }
     }) }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { Text(stringResource(R.string.bot_services_description)) }
-            if (!supported) item { Text(stringResource(R.string.bot_services_unsupported), color = MaterialTheme.colorScheme.error) }
-            if (error) item { Text(stringResource(R.string.bot_services_action_error), color = MaterialTheme.colorScheme.error) }
-            items(state.services, key = { it.id }) { service ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(service.name, style = MaterialTheme.typography.titleMedium)
-                        Text(service.origin, style = MaterialTheme.typography.bodySmall)
-                        Text(stringResource(if (service.enabled) R.string.bot_services_ready else R.string.bot_services_disconnected))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(enabled = supported, onClick = {
-                                runCatching { registry.setEnabled(service.id, true); onOpen(service.id) }.onFailure { error = true }
-                            }) { Text(stringResource(if (service.enabled) R.string.bot_services_open else R.string.bot_services_connect)) }
-                            if (service.enabled) TextButton(onClick = {
-                                runCatching { registry.setEnabled(service.id, false); BotWebSessions.clear(service.profileName) }.onFailure { error = true }
-                            }) { Text(stringResource(R.string.bot_services_disconnect)) }
-                        }
-                        // Logout runs in the service activity so it can revoke the cookie session before clearing it.
-                        TextButton(enabled = supported, onClick = { onOpen(service.id) }) {
-                            Text(stringResource(R.string.bot_services_manage_session))
-                        }
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { Text(stringResource(R.string.bot_workspace_hint), color = c.ink2, style = MaterialTheme.typography.bodyMedium) }
+            item { Text(stringResource(R.string.bot_workspace_device), color = c.ink3, style = MaterialTheme.typography.labelMedium) }
+            item {
+                Row(Modifier.fillMaxWidth().background(if (selectedId == null) c.accentSoft else c.surface, RoundedCornerShape(16.dp))
+                    .clickable(onClick = onLocal).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(MikaIcons.Chats, null, Modifier.size(28.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.bot_workspace_local_detail), color = c.ink2, style = MaterialTheme.typography.bodySmall)
                     }
+                    Icon(if (selectedId == null) MikaIcons.Check else MikaIcons.Chevron, null)
                 }
             }
-            item { OutlinedButton(onClick = { adding = true }, enabled = state.services.size < BotServiceRegistry.MAX_SERVICES) {
-                Text(stringResource(R.string.bot_services_add))
+            item { Text(stringResource(R.string.bot_services_title), color = c.ink3, style = MaterialTheme.typography.labelMedium) }
+            if (!supported) item { Text(stringResource(R.string.bot_services_unsupported), color = c.bad) }
+            if (error) item { Text(stringResource(R.string.bot_services_action_error), color = c.bad) }
+            items(state.services, key = { it.id }) { service ->
+                Row(Modifier.fillMaxWidth().background(if (selectedId == service.id) c.accentSoft else c.surface, RoundedCornerShape(16.dp))
+                    .clickable(enabled = supported) {
+                        runCatching { registry.setEnabled(service.id, true); onOpen(service.id) }.onFailure { error = true }
+                    }.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(MikaIcons.Link, null, Modifier.size(28.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(service.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(service.origin, color = c.ink2, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (!service.enabled) Text(stringResource(R.string.bot_services_disconnected), color = c.ink3, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (selectedId == service.id) Icon(MikaIcons.Check, stringResource(R.string.bot_ui_selected), Modifier.size(18.dp))
+                    IconButton(onClick = { onManage(service.id) }, enabled = supported) { Icon(MikaIcons.More, stringResource(R.string.bot_services_manage_session)) }
+                }
+            }
+            item { OutlinedButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth(), enabled = state.services.size < BotServiceRegistry.MAX_SERVICES) {
+                Icon(MikaIcons.Plus, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.bot_services_add))
             } }
-            item { Text(stringResource(R.string.bot_services_disconnect_help), style = MaterialTheme.typography.bodySmall) }
         }
     }
     if (adding) {

@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -62,6 +63,17 @@ internal val botUiColors = listOf(0xff6b83f6, 0xff32a898, 0xffcf83e8, 0xffe9a05c
 internal fun BotUiButton(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
     IconButton(onClick, enabled = enabled, modifier = Modifier.size(48.dp)) {
         Icon(icon, label, tint = MikaTheme.colors.ink.copy(alpha = if (enabled) 1f else .4f))
+    }
+}
+
+@Composable
+internal fun BotUiRoundButton(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    val c = MikaTheme.colors
+    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+        IconButton(onClick, enabled = enabled, modifier = Modifier.size(42.dp)
+            .clip(CircleShape).background(c.surface).border(1.dp, c.hair, CircleShape)) {
+            Icon(icon, label, Modifier.size(22.dp), tint = c.ink.copy(alpha = if (enabled) 1f else .4f))
+        }
     }
 }
 
@@ -123,16 +135,16 @@ internal fun BotUiChatHeader(vm: ChatViewModel, ui: ChatUi, subtitle: String?, o
     var files by rememberSaveable(ui.conversationId) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(MikaTheme.colors.bg).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            BotUiButton(MikaIcons.Back, stringResource(R.string.bot_ui_history), onClick = onHistory)
-            Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(MikaTheme.colors.surface)
+            BotUiRoundButton(MikaIcons.Back, stringResource(R.string.bot_ui_history), onClick = onHistory)
+            Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(MikaTheme.colors.fill)
                 .clickable { editing = vm.botUiConversationId() }.padding(horizontal = 12.dp, vertical = 8.dp)
                 .testTag("bot_ui_name_capsule"), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BotUiAvatar(identity.second)
+                BotUiAvatar(identity.second, Modifier.size(24.dp))
                 Text(identity.first, style = MikaType.Body, color = MikaTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box {
-                BotUiButton(MikaIcons.More, stringResource(R.string.bot_ui_more)) { menu = true }
+                BotUiRoundButton(MikaIcons.More, stringResource(R.string.bot_ui_more)) { menu = true }
                 DropdownMenu(menu, { menu = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.bot_ui_profile)) }, leadingIcon = { Icon(MikaIcons.Edit, null) }, onClick = { menu = false; editing = vm.botUiConversationId() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.chat_new)) }, leadingIcon = { Icon(MikaIcons.Plus, null) }, enabled = vm.canSwitch(), onClick = { menu = false; vm.newConversation() })
