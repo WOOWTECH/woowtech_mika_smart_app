@@ -78,7 +78,7 @@ struct ContentView: View {
         }
         .alert(botText("提示", "Notice"), isPresented: Binding(get: { botWorkspace.notice != nil }, set: { if !$0 { botWorkspace.notice = nil } })) {
             Button(botText("確認", "OK")) { botWorkspace.notice = nil }
-        } message: { Text(botWorkspace.notice ?? "") }
+        } message: { Text(botWorkspace.notice?.text(localizer) ?? "") }
         .onReceive(session.draftModel.$text) { text in
             guard botRestored else { return }
             botDraftSave?.cancel()
@@ -86,7 +86,7 @@ struct ContentView: View {
             botDraftSave = Task { @MainActor in
                 do { try await Task.sleep(for: .milliseconds(500)); try botWorkspace.saveDraft(id, text: text) }
                 catch is CancellationError {}
-                catch { botWorkspace.notice = botText("草稿尚未保存，請解鎖後重試。", "Draft was not saved. Unlock and try again.") }
+                catch { botWorkspace.notice = .draftUnsaved }
             }
         }
         .onAppear {
@@ -97,10 +97,14 @@ struct ContentView: View {
             botRestored = true
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .active && !botWorkspace.available {
+                do { try botWorkspace.reload() }
+                catch { botWorkspace.notice = .unreadable }
+            }
             if phase != .active {
                 botDraftSave?.cancel()
                 do { try botWorkspace.saveDraft(session.conversationID, text: session.draft) }
-                catch { botWorkspace.notice = botText("草稿尚未保存，請解鎖後重試。", "Draft was not saved. Unlock and try again.") }
+                catch { botWorkspace.notice = .draftUnsaved }
             }
         }
         #endif

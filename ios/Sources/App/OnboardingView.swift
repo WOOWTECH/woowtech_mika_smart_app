@@ -42,6 +42,10 @@ private struct FirstLaunchOnboarding: ViewModifier {
     /// A model setting that could not be read is not "no model", so an
     /// unreadable one starts nothing.
     private var startsNow: Bool {
+        #if WOOWTECHBOT
+        // A configured service works independently of local model setup.
+        if !BotWorkspaceStore.shared.services.isEmpty { return false }
+        #endif
         guard !Onboarding.skippedForUITests, let state = OnboardingState.application,
               session.settingsError == nil else { return false }
         return Onboarding.starts(hasMainModel: session.savedSettings != nil, modelSetupDone: state.modelSetupDone)

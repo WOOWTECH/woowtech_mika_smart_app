@@ -262,13 +262,13 @@ final class ChatSession: ObservableObject {
     @discardableResult func switchBotConversation(to id: UUID?, workspace: BotWorkspaceStore) -> Bool {
         if id?.uuidString == conversationID { return true }
         guard !isSubmitting, !isAddingAttachments, replyPreview == nil, pendingArchiveSave == nil, archiveNotice == nil else {
-            workspace.notice = "請先完成目前工作或保存回覆，再切換對話。"; return false
+            workspace.notice = .busy; return false
         }
         let record = id.flatMap { id in archive?.conversations.first { $0.id == id } }
         if let id, record == nil, workspace.state.chats[id.uuidString] == nil { return false }
         if let record, !canOpenConversation(record) { return false }
         do { try workspace.saveDraft(conversationID, text: draft) }
-        catch { workspace.notice = "草稿尚未保存，請解鎖後重試。"; return false }
+        catch { workspace.notice = .draftUnsaved; return false }
         let previous = conversationID
         botComposers[previous] = .init(attachments: pendingAttachments, quote: pendingQuote, source: quoteSource)
         // newConversation's cleanup sees an empty tray; ownership stays parked.
@@ -287,7 +287,24 @@ final class ChatSession: ObservableObject {
         pendingQuote = parked?.quote; quoteSource = parked?.source
         draft = workspace.presentation(conversationID).draft
         do { try workspace.saveDraft(conversationID, text: draft) }
-        catch { workspace.notice = "目前草稿尚未保存；請解鎖後重試。" }
+        catch { workspace.notice = .draftUnsaved }
+        return true
+    }
+
+    @discardableResult func deleteBotConversation(_ id: UUID, workspace: BotWorkspaceStore) -> Bool {
+        guard !isSubmitting, !isAddingAttachments else { workspace.notice = .busy; return false }
+        let current = conversationID == id.uuidString
+        if archive?.conversations.contains(where: { $0.id == id }) == true {
+            guard deleteConversation(id: id) else { return false }
+            do { try workspace.forgetChat(id.uuidString) }
+            catch { workspace.notice = .deletedMetadataUnsaved }
+        } else {
+            do { try workspace.forgetChat(id.uuidString) }
+            catch { workspace.notice = .changesUnsaved; return false }
+            if current { newConversation() }
+        }
+        if let parked = botComposers.removeValue(forKey: id.uuidString) { attachmentStore.discard(parked.attachments) }
+        if current { draft = "" }
         return true
     }
     #endif
@@ -1491,7 +1508,7 @@ final class ChatSession: ObservableObject {
         guard let title = workspace.presentation(id.uuidString).title,
               let archive, let record = archive.conversations.first(where: { $0.id == id }), record.customTitle == nil else { return }
         do { try archive.rename(id: id, expectedTitle: nil, to: title) }
-        catch { workspace.notice = "對話已保存，但名稱尚未同步；請重新編輯名稱。" }
+        catch { workspace.notice = .titleUnsaved }
     }
     #endif
 

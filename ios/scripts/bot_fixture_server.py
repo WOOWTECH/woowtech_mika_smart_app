@@ -79,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send("invalid fixture identity", 400)
             token = secrets.token_urlsafe(24)
             SESSIONS[token] = identity
-            return self.send("", 303, headers={"Location": "/", "Set-Cookie": "bot_fixture=" + token + "; Path=/; HttpOnly; SameSite=Lax"})
+            return self.send("", 303, headers={"Location": "/", "Set-Cookie": "bot_fixture=" + token + "; Path=/; Max-Age=86400; HttpOnly; SameSite=Lax"})
         self.send("not found", 404)
 
 

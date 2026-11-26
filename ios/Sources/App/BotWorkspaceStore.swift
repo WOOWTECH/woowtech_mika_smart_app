@@ -9,6 +9,27 @@ struct BotChatPresentation: Codable, Equatable {
     var avatar = BotConversationAvatar()
     var draft = ""
     var updatedAt = Date()
+    var hasSavedContent: Bool { !draft.isEmpty || title != nil || avatar != BotConversationAvatar() }
+}
+
+enum BotWorkspaceNotice {
+    case unreadable, draftUnsaved, busy, signedOut, remoteLogoutUnconfirmed
+    case notificationUnsaved, titleUnsaved, changesUnsaved, deletedMetadataUnsaved
+    func text(_ localizer: AppLocalizer) -> String {
+        let words: (String, String)
+        switch self {
+        case .unreadable: words = ("無法讀取服務設定；原檔保留，請解鎖後重試。", "Cannot read service settings. The original file is preserved; unlock and retry.")
+        case .draftUnsaved: words = ("草稿尚未保存，請解鎖後重試。", "Draft was not saved. Unlock and try again.")
+        case .busy: words = ("請先完成目前工作或保存回覆，再切換對話。", "Finish the current task or save its reply before switching conversations.")
+        case .signedOut: words = ("這個服務已登出；其他服務與本機對話保留。", "This service is signed out. Other services and local chats are preserved.")
+        case .remoteLogoutUnconfirmed: words = ("本機登入已清除。伺服器登出尚未確認，可在服務的裝置管理撤銷舊登入。", "Local sign-in was cleared. Server logout is unconfirmed; revoke the old sign-in in the service's device settings.")
+        case .notificationUnsaved: words = ("無法保存通知開啟紀錄，請解鎖後重試。", "Could not save the notification opening record. Unlock and retry.")
+        case .titleUnsaved: words = ("對話已保存，但名稱尚未同步；請重新編輯名稱。", "The conversation was saved, but its name was not synchronized. Edit its name again.")
+        case .changesUnsaved: words = ("變更尚未保存，請重試。", "Changes were not saved. Try again.")
+        case .deletedMetadataUnsaved: words = ("對話已刪除，但圖示與草稿清除尚未保存。", "Conversation deleted; icon and draft cleanup was not saved.")
+        }
+        return localizer.language == .english ? words.1 : words.0
+    }
 }
 
 struct BotWorkspaceSnapshot: Codable {
@@ -35,7 +56,7 @@ struct BotWorkspaceSnapshot: Codable {
     static let shared = BotWorkspaceStore()
     @Published private(set) var state = BotWorkspaceSnapshot()
     @Published private(set) var available = false
-    @Published var notice: String?
+    @Published var notice: BotWorkspaceNotice?
     @Published var selectedService: UUID?
     private let vault: EncryptedLearningFile?
     private var sessions: [UUID: BotWebSession] = [:]
@@ -56,13 +77,15 @@ struct BotWorkspaceSnapshot: Codable {
         do {
             try reload()
             Task { await cleanRetiredProfiles() }
-        } catch { notice = "無法讀取服務設定；原檔保留，請解鎖後重試。" }
+        } catch { notice = .unreadable }
     }
 
     func reload() throws {
-        guard let vault else { throw BotServiceError.unavailable }
-        let next = try vault.withExclusiveAccess { try vault.load(BotWorkspaceSnapshot.self) ?? BotWorkspaceSnapshot() }
-        try next.validate(); state = next; available = true
+        do {
+            guard let vault else { throw BotServiceError.unavailable }
+            let next = try vault.withExclusiveAccess { try vault.load(BotWorkspaceSnapshot.self) ?? BotWorkspaceSnapshot() }
+            try next.validate(); state = next; available = true
+        } catch { available = false; throw error }
     }
 
     func change(_ edit: (inout BotWorkspaceSnapshot) throws -> Void) throws {
@@ -107,7 +130,7 @@ struct BotWorkspaceSnapshot: Codable {
         let cookies = await dataStore.httpCookieStore.allCookies()
         await dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         let revoked = await BotRemoteLogout.revoke(record, cookies: cookies)
-        notice = revoked ? "這個服務已登出；其他服務與本機對話保留。" : "本機登入已清除。伺服器登出尚未確認，可在服務的裝置管理撤銷舊登入。"
+        notice = revoked ? .signedOut : .remoteLogoutUnconfirmed
         await cleanRetiredProfiles()
     }
 
@@ -128,6 +151,9 @@ struct BotWorkspaceSnapshot: Codable {
         try change {
             var chat = $0.chats[id] ?? .init(); chat.draft = text; chat.updatedAt = Date()
             $0.chats[id] = chat; $0.currentChat = id
+            // Blank untouched chats have no recoverable content. Keeping one
+            // for every New tap would eventually exhaust the sidecar's bound.
+            $0.chats = $0.chats.filter { $0.value.hasSavedContent }
         }
     }
     func savePresentation(_ id: String, title: String?, avatar: BotConversationAvatar) throws {
@@ -136,7 +162,12 @@ struct BotWorkspaceSnapshot: Codable {
             $0.chats[id] = chat
         }
     }
-    func forgetChat(_ id: String) throws { try change { $0.chats.removeValue(forKey: id) } }
+    func forgetChat(_ id: String) throws {
+        try change {
+            $0.chats.removeValue(forKey: id)
+            if $0.currentChat == id { $0.currentChat = nil }
+        }
+    }
 
     /// Called only by the system notification delegate. Payloads contain IDs,
     /// never URLs, commands, model text or credentials.
@@ -151,7 +182,7 @@ struct BotWorkspaceSnapshot: Codable {
                 $0.openedEvents.append(target.deduplicationKey)
                 $0.openedEvents = Array($0.openedEvents.suffix(256))
             }
-        } catch { notice = "無法保存通知開啟紀錄，請解鎖後重試。"; return false }
+        } catch { notice = .notificationUnsaved; return false }
         web.open(url); selectedService = record.id; return true
     }
 }
@@ -165,7 +196,8 @@ private final class BotRemoteLogout: NSObject, URLSessionTaskDelegate {
         let relevant = cookies.filter {
             let domain = $0.domain.hasPrefix(".") ? String($0.domain.dropFirst()) : $0.domain
             let host = url.host ?? ""
-            return (host == domain || host.hasSuffix("." + domain)) && url.path.hasPrefix($0.path) &&
+            let pathMatches = url.path == $0.path || url.path.hasPrefix($0.path.hasSuffix("/") ? $0.path : $0.path + "/")
+            return (host == domain || host.hasSuffix("." + domain)) && pathMatches &&
                 (!$0.isSecure || url.scheme == "https") && ($0.expiresDate.map { $0 > Date() } ?? true)
         }
         guard !relevant.isEmpty else { return false }

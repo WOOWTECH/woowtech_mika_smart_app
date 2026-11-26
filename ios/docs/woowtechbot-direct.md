@@ -18,6 +18,10 @@ here is not an App Store or TestFlight upload, and does not change the separate
   files, notifications and settings. Existing chat execution stays in ChatSession.
 - Names and icons belong to conversation UUIDs. Uploaded photos become a
   cropped 320-pixel JPEG. Cancelling the editor leaves the saved icon intact.
+- Built-in icons have three robot shapes, six colors and three expressions.
+  Named or customized drafts appear in history even without text. Deleting a
+  draft clears its metadata and parked attachments; untouched empty chats do
+  not accumulate against the 300-entry presentation limit.
 - Text drafts are encrypted and restored after relaunch. Waiting attachments
   and quote context are parked during in-process conversation switches;
   attachment drafts are not promised across process death. An active task or
@@ -26,6 +30,8 @@ here is not an App Store or TestFlight upload, and does not change the separate
   including two services on the same origin. Service WebViews stay in process
   memory while switching. After process death the origin reopens; website
   localStorage persists, while DOM-only drafts depend on the website.
+  Login retention follows the website's cookie lifetime; session cookies are
+  not converted into permanent credentials by the app.
 - Full original mobile website, no proxy, HTML replacement, native JavaScript
   bridge or phone-control authority. Main-frame navigation is pinned to the
   configured origin. User-clicked external HTTPS links require confirmation.
@@ -99,6 +105,9 @@ identities and cookies exist only for this test; it never connects to PaaS.
 Verify signed-out initial state, A/B cookies and website drafts, one-profile
 logout, reconnect, relaunch, downloads and external-link cancellation. The
 fixture's read-only `/test/audit` reports fake identity status without cookies.
+Its test login cookie expires after one day so the relaunch check measures a
+persistent cookie. The earlier fixture used a session cookie, which correctly
+did not survive a process restart.
 
 Native evidence lives outside the repository under
 `Documents/WOOWTECH-iOS-validation/woowtechbot-20261126`. Each candidate records
@@ -110,3 +119,49 @@ same-named HTML labels and verifies that switches actually change.
 Physical camera scanning, authenticated PaaS/HA pairing, real AI completion and
 remote push remain separate acceptance checks. A simulator screenshot or a
 synthetic notification must not be reported as those checks passing.
+
+## Validation on 2026-11-26
+
+The final simulator candidate is build-candidate 7, app build 294, executable
+SHA256 `6e3833d46f75080cb6e424fb20abf6df297227e6c50a12e827ad045105d93efa`.
+It uses the same source hashes recorded in `candidate.json`; test runs verify
+the source file set, individual hashes, installed executable and UI driver.
+
+Confirmed on that candidate:
+
+- Independent persistent A/B website cookies and localStorage after app restart.
+- Disabling/re-enabling B preserves its login and draft. Signing out A removes
+  its local login and draft, allows a fresh login and leaves B intact. Removing
+  A removes its service entry while B and the local draft remain. The fixture
+  audit confirms three A revocations and one still-active B login.
+- Cancelled external navigation and cancelled downloads leave the service open.
+- Draft A/B switching, draft deletion, title and icon preservation, cancel-safe
+  color editing, conversation search/files screens and existing MCP, memory,
+  browser and model-settings navigation (45-step local regression).
+- System share completion through Save to Files. The exported file is 43 bytes
+  with SHA256 `2e31a8e2da41c1ff30543fb2a16f32322c0d480e0bf49c8af232ee96241b6064`.
+  Earlier candidate 5 also passed the direct Save to Files action.
+- Original unauthenticated PaaS lab43 page renders inside the service WebView
+  and identifies itself as woowtechbot 0.1.169. This proves page loading only.
+- Native pairing entry rejects a different origin, requests confirmation for
+  the saved origin and cancels without pairing. The simulator displays the
+  camera-unavailable fallback. These checks use dummy invitations that are
+  never submitted to PaaS.
+- Five Foundation tests pass for the shared origin, pairing, service profile,
+  mutation, avatar and notification-target contract.
+
+Failed attempts are retained, including the unsigned-simulator Keychain test,
+the original session-cookie relaunch expectation, and UI scripts corrected for
+the system popover, automatic download-list presentation and Chinese system
+share labels. None is counted as a passed run.
+
+`acceptance.json` records nine successful native runs (212 steps), the separate
+failed attempts, file-integrity checks and server audit. All nine successful
+runs use candidate 7. The temporary fixture was stopped and the test simulator
+shut down after this validation.
+
+The physical iPad remains unavailable to Xcode. Real camera decoding,
+authenticated PaaS/HA sessions, remote AI completion and iOS remote push have
+not passed acceptance. Push additionally requires iOS Firebase/APNs setup;
+the app continues to show its unavailable status. No archive or upload was
+performed, and the separate standard build 293 release gate is still pending.

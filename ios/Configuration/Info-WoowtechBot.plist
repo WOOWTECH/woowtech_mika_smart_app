@@ -12,7 +12,7 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>渥屋助理會在你於聊天中拍照附加（例如拍下學校通知單或繳費單，請助理整理重點），或允許網站使用相機時使用相機。</string>
+	<string>渥屋助理會在你掃描所選服務的配對 QR、於聊天中拍照附加，或允許網站使用相機時使用相機。</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>只有在你主動加入區域網路上的 woowtechbot、模型或 MCP 服務時，渥屋助理才會連到你選擇的裝置。</string>
 	<key>NSMicrophoneUsageDescription</key>

@@ -45,6 +45,7 @@ import WebKit
         for item in downloads.items where !item.phase.isActive { downloads.remove(item.id) }
         dialog?.finish(nil); dialog = nil; externalURL = nil
         webView.navigationDelegate = nil; webView.uiDelegate = nil
+        webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
     }
 

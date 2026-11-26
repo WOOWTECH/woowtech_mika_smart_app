@@ -1,0 +1,6 @@
+"CFBundleDisplayName" = "WOOW Assistant Bot";
+"NSMicrophoneUsageDescription" = "woowtech agent uses the microphone when you speak a message or allow a website to use it.";
+"NSSpeechRecognitionUsageDescription" = "woowtech agent uses on-device speech recognition to turn what you say into text in the chat draft.";
+"NSCameraUsageDescription" = "woowtech agent uses the camera when you scan the selected service's pairing QR, take a photo to attach in chat, or allow a website to use it.";
+"NSLocalNetworkUsageDescription" = "woowtech agent connects to a device on your local network only when you choose a local woowtechbot, model or MCP service.";
+"NSPhotoLibraryAddUsageDescription" = "woowtech agent saves a photo to your library only when you choose Save Image in the share menu of an attachment preview.";

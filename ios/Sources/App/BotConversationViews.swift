@@ -30,7 +30,7 @@ struct BotConversationList: View {
     private var drafts: [String] {
         workspace.state.chats.keys.filter { id in
             !archive.conversations.contains { $0.id.uuidString == id } &&
-            (id == chat.conversationID || !workspace.presentation(id).draft.isEmpty) &&
+            (id == chat.conversationID || workspace.presentation(id).hasSavedContent) &&
             (search.isEmpty || workspace.presentation(id).draft.localizedCaseInsensitiveContains(search) ||
                 workspace.presentation(id).title?.localizedCaseInsensitiveContains(search) == true)
         }.sorted { workspace.presentation($0).updatedAt > workspace.presentation($1).updatedAt }
@@ -58,7 +58,7 @@ struct BotConversationList: View {
                         Button(t("名稱與圖示", "Name & icon"), systemImage: "pencil") { editID = record.id.uuidString }
                         Button(record.pinnedAt == nil ? t("置頂", "Pin") : t("取消置頂", "Unpin"), systemImage: "pin") {
                             do { try archive.setPinned(id: record.id, expectedPinnedAt: record.pinnedAt, pinned: record.pinnedAt == nil) }
-                            catch { workspace.notice = t("變更尚未保存，請重試。", "Changes were not saved. Try again.") }
+                            catch { workspace.notice = .changesUnsaved }
                         }
                         Button(t("刪除對話", "Delete conversation"), systemImage: "trash", role: .destructive) { deleteID = record.id }
                     }
@@ -116,10 +116,7 @@ struct BotConversationList: View {
             }
             .alert(t("刪除這段對話？", "Delete this conversation?"), isPresented: Binding(get: { deleteID != nil }, set: { if !$0 { deleteID = nil } })) {
                 Button(t("刪除", "Delete"), role: .destructive) {
-                    if let id = deleteID, !chat.isSubmitting, chat.deleteConversation(id: id) {
-                        do { try workspace.forgetChat(id.uuidString) }
-                        catch { workspace.notice = t("對話已刪除，但圖示與草稿清除尚未保存。", "Conversation deleted; icon and draft cleanup was not saved.") }
-                    }
+                    if let id = deleteID { _ = chat.deleteBotConversation(id, workspace: workspace) }
                     deleteID = nil
                 }
                 Button(t("取消", "Cancel"), role: .cancel) { deleteID = nil }
@@ -135,6 +132,10 @@ struct BotConversationList: View {
                       excerpt: id == chat.conversationID ? chat.draft : workspace.presentation(id).draft,
                       date: workspace.presentation(id).updatedAt, pinned: false) }
             .buttonStyle(.plain).accessibilityIdentifier("bot.draft.\(id)")
+            .contextMenu {
+                Button(t("名稱與圖示", "Name & icon"), systemImage: "pencil") { editID = id }
+                Button(t("刪除草稿", "Delete draft"), systemImage: "trash", role: .destructive) { deleteID = UUID(uuidString: id) }
+            }
     }
     private func row(title: String, id: String, excerpt: String, date: Date, pinned: Bool) -> some View {
         HStack(spacing: 12) {
@@ -162,20 +163,36 @@ struct BotConversationList: View {
 
 struct BotAvatar: View {
     let avatar: BotConversationAvatar
-    static let colors: [Color] = [.orange, .cyan, .purple, .green, .pink, .indigo]
+    static let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan]
     var body: some View {
         GeometryReader { proxy in
             if let data = avatar.jpeg, let image = UIImage(data: data) {
                 Image(uiImage: image).resizable().scaledToFill().frame(width: proxy.size.width, height: proxy.size.height).clipShape(Circle())
             } else {
+                let size = proxy.size.width
                 ZStack {
-                    Circle().fill(Self.colors[avatar.color].opacity(0.18))
-                    Image(systemName: ["cpu", "antenna.radiowaves.left.and.right", "sparkles"][avatar.robot])
-                        .font(.system(size: proxy.size.width * 0.52, weight: .medium))
-                        .foregroundStyle(Self.colors[avatar.color])
-                    Image(systemName: ["face.smiling", "heart.fill", "star.fill"][avatar.face])
-                        .font(.system(size: proxy.size.width * 0.24)).offset(y: proxy.size.width * 0.25)
-                        .foregroundStyle(Self.colors[avatar.color]).background(.clear)
+                    Circle().fill(Self.colors[avatar.color])
+                    Capsule().fill(.white).frame(width: size * 0.045, height: size * 0.16).offset(y: -size * 0.24)
+                    Circle().fill(.white).frame(width: size * 0.075, height: size * 0.075).offset(y: -size * 0.33)
+                    if avatar.robot == 0 {
+                        RoundedRectangle(cornerRadius: size * 0.035).fill(.white)
+                            .frame(width: size * 0.74, height: size * 0.16).offset(y: size * 0.04)
+                    }
+                    RoundedRectangle(cornerRadius: size * [0.14, 0.06, 0.30][avatar.robot])
+                        .fill(.white).frame(width: size * 0.60, height: size * 0.49).offset(y: size * 0.035)
+                    HStack(spacing: size * 0.12) {
+                        Circle().frame(width: size * 0.085, height: size * 0.085)
+                        if avatar.face == 1 { Capsule().frame(width: size * 0.10, height: size * 0.04) }
+                        else { Circle().frame(width: size * 0.085, height: size * 0.085) }
+                    }.foregroundStyle(Self.colors[avatar.color]).offset(y: -size * 0.015)
+                    if avatar.face == 2 {
+                        Circle().fill(Self.colors[avatar.color]).frame(width: size * 0.075, height: size * 0.075).offset(y: size * 0.13)
+                    } else {
+                        Path { path in
+                            path.move(to: CGPoint(x: size * 0.41, y: size * 0.61))
+                            path.addQuadCurve(to: CGPoint(x: size * 0.59, y: size * 0.61), control: CGPoint(x: size * 0.50, y: size * 0.74))
+                        }.stroke(Self.colors[avatar.color], style: StrokeStyle(lineWidth: max(1, size * 0.035), lineCap: .round))
+                    }
                 }
             }
         }.accessibilityHidden(true)
@@ -201,8 +218,20 @@ struct BotConversationEditor: View {
                 TextField(t("對話名稱", "Conversation name"), text: $title).accessibilityIdentifier("bot.edit.name")
                 Section(t("圖示", "Icon")) {
                     Picker(t("樣式", "Style"), selection: $avatar.robot) { ForEach(0..<3) { Text("\($0 + 1)").tag($0) } }.pickerStyle(.segmented)
-                    Picker(t("顏色", "Color"), selection: $avatar.color) { ForEach(0..<6) { Text("\($0 + 1)").tag($0) } }.pickerStyle(.segmented)
-                    Picker(t("表情", "Expression"), selection: $avatar.face) { ForEach(0..<3) { Text(["☺", "♥", "★"][$0]).tag($0) } }.pickerStyle(.segmented)
+                    HStack {
+                        ForEach(0..<6) { color in
+                            Button { avatar.color = color } label: {
+                                Circle().fill(BotAvatar.colors[color]).frame(width: 30, height: 30)
+                                    .padding(4).overlay(Circle().stroke(avatar.color == color ? Color.primary : .clear, lineWidth: 2))
+                            }.buttonStyle(.plain).frame(maxWidth: .infinity)
+                                .accessibilityLabel(localizer.language == .english ? ["Blue", "Green", "Orange", "Purple", "Pink", "Cyan"][color] : ["藍色", "綠色", "橘色", "紫色", "粉紅色", "青色"][color])
+                                .accessibilityValue(avatar.color == color ? t("已選擇", "Selected") : "")
+                                .accessibilityIdentifier("bot.edit.color.\(color)")
+                        }
+                    }
+                    Picker(t("表情", "Expression"), selection: $avatar.face) {
+                        ForEach(0..<3) { Text(localizer.language == .english ? ["Smile", "Wink", "Surprised"][$0] : ["微笑", "眨眼", "驚訝"][$0]).tag($0) }
+                    }.pickerStyle(.segmented)
                     PhotosPicker(t("選擇照片", "Choose photo"), selection: $photo, matching: .images)
                     if avatar.jpeg != nil { Button(t("使用內建圖示", "Use built-in icon")) { avatar.jpeg = nil } }
                     Text(t("照片會裁成正方形，只用於這段對話。", "Photos are cropped to a square and used only for this conversation."))

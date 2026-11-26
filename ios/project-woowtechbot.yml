@@ -2,6 +2,11 @@ include:
   - project.yml
 targets:
   WoowAssistant:
+    sources:REPLACE:
+      - path: Sources/App
+        excludes:
+          - Resources/**/InfoPlist.strings
+      - path: Configuration/BotResources
     settings:
       base:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WOOWTECHBOT"
