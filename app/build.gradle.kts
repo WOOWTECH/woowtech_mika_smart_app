@@ -208,4 +208,5 @@ androidComponents {
 // Firebase is packaged only with the explicitly enabled WOOWTECH direct edition.
 dependencies {
     add("woowtechImplementation", "com.google.firebase:firebase-messaging:26.0.2")
+    add("woowtechImplementation", "com.google.android.gms:play-services-code-scanner:16.1.0")
 }

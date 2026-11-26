@@ -39,4 +39,8 @@
     <string name="bot_services_logged_out">Signed out on this phone.</string>
     <string name="bot_services_logout_offline">Local sign-in cleared. Server revocation could not be confirmed; revoke this session in the service when it is reachable.</string>
     <string name="bot_services_logging_out">Clearing sign-in…</string>
+    <string name="bot_services_scan_qr">Scan pairing QR</string>
+    <string name="bot_services_pair_confirm">Connect to this service?</string>
+    <string name="bot_services_qr_invalid">This QR is not a valid pairing link for this service.</string>
+    <string name="bot_services_qr_failed">Unable to scan. Check Google Play services and try again.</string>
 </resources>
