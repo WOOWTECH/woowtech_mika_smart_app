@@ -57,3 +57,25 @@ Fresh cold ready21:24:09.265569Z after `am stop-app`: PID absent, package stoppe
 Unique artificial attention event `a7d54a46-3d20-4793-a43e-76b10bf8c36a`, expiry21:35:02.360Z. Phone21:25:32.270253Z observed the unique exact service|bot|main-seed|event attention/SECRET tag and visible attention text. Real body tap resumed BotServiceActivity / expected Podman QA bot / composer / retained main conversation. Opening All conversations without switching showed the original long-reply main entry highlighted. [Body tap](evidence/woow22-push/corrected-podman-cold-tap.png), [highlighted main conversation](evidence/woow22-push/corrected-podman-cold-picker.png).
 
 PaaS21:25:44.405Z independently confirms sent/expected attention fingerprint/expiry/original live registration revision1. Original Podman post-tap metadata requested separately. No-process FCM wake, receipt and body navigation PASS; not force-stop, low-memory eviction, offline or natural completion. One event only; subsequent senders remain HOLD until a separate fresh ready.
+
+Podman21:30:41.541Z owner post-tap independently confirms active/main exact seed, original long-reply title and RESTORE-HAIKU-1126 in that thread, original live client, registered revision1, jobs0/idle/notifications. Cold acceptance is fully corroborated; original-site evidence commit3681f6b.
+
+## Corrected source0a78edb2 — lab43 permission receipt/navigation PASS
+
+Fresh Home-ready21:30:12.961070Z. Single artificial permission `fbcedd67-df52-4354-a333-c5b3a3a76452`, sender21:31:35.645Z / exact ACK21:31:36.659Z / persisted sent, expiry1795729295416. Phone21:32:25.531945Z exact service|bot|seed|event tag, attention/SECRET. After group expansion, actual body tap opened correct lab43 QA bot/composer. Picker highlighted 未命名對話 and not android-qa-device-1642; no manual thread switch. [Body](evidence/woow22-push/corrected-lab43-body.png), [picker](evidence/woow22-push/corrected-lab43-picker.png). Site post-tap metadata requested. Ordinary background artificial event; not model completion/cold.
+
+PaaS lab43 post-tap21:35:15.013Z independently confirms seed/task/original live client/registered rev1/identity/jobs0; relay21:35:15.828Z live/rev1/pending0. Lab43 acceptance complete.
+
+## Corrected source0a78edb2 — lab53 attention receipt/navigation PASS
+
+Fresh Home-ready21:34:42.319466Z. Unique artificial attention `c79e930d-688c-4316-9e16-e7d6d9f4d778`, sent21:35:37.884Z / exact ACK21:35:38.440Z / persisted sent, expiry21:45:37.659Z. Phone21:35:53.996292Z unique exact service|bot|seed|event tag, attention/SECRET. Actual group expansion and body tap opened BotServiceActivity / expected lab53 QA bot / composer. Picker highlighted android-qa-lab53-seed and not device-b76e869b, without manually switching threads. [Body](evidence/woow22-push/corrected-lab53-body.png), [picker](evidence/woow22-push/corrected-lab53-picker.png). Post-tap readonly metadata requested. Ordinary background artificial fixture, no model completion; lab provider login remains unavailable. Neither lab result represents formal PaaS461 deployment.
+
+## Corrected source0a78edb2 — additional HA no-process FCM wake PASS
+
+Separate cold ready21:38:43.160769Z after Home then am stop-app, PID absent/stopped=false. Polls stayed absent through21:39:24.880848Z and first saw11718 at21:39:25.604113Z. AMS process start21:39:24.940Z is FirebaseInstanceIdReceiver broadcast, between HA send21:39:24.704Z and exact ACK21:39:25.541Z. No manual launch; host polling is sampled, not a precise Google delivery clock.
+
+One artificial attention `fec0157f-3a73-4f4d-a9d7-8938798c856c`, expiry21:49:23.583Z. Phone21:39:38.285599Z exact full tag/attention SECRET, visible attention and actual body tap to original HA QA bot/composer. [Body](evidence/woow22-push/corrected-ha-cold-body.png). Single-seed tag/UI/server corroboration; no independent selected-thread-ID observation. Not force-stop/offline/model completion. Separate offline natural request follows only under fresh ready21:40:54.451018Z with WiFi0/mobile_data0/default network none; its result is not yet claimed.
+
+Final lab53 post-tap21:38:35.276Z confirms exact seed/task/notifications/idle, original live client, registered rev1/exact session/outbox0. Relay21:41:36.832Z confirms event sent/exact attention+expiry fingerprint/live revision1/pending0. Lab53 corrected-source acceptance complete.
+
+Additional HA cold post-tap21:40:53.263Z confirms seed/task/thread API/client/live registration rev1/outbox0; relay21:40:55.876Z confirms same event sent/attention fingerprint/live/pending0. Cold acceptance corroborated. Offline request had not been submitted when initial ready exceeded the sender's freshness window; fresh observation21:43:38.089907Z again confirmed Home/WiFi0/mobile_data0/default none, authorizing the same single, still-unsubmitted request. No duplicate request or notification.
