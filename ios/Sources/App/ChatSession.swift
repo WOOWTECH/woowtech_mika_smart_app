@@ -252,14 +252,15 @@ final class ChatSession: ObservableObject {
     @Published var baseURLDraft = ""
     @Published var modelDraft = ""
     @Published var keyDraft = ""
+    private var contentRevision = ChatTranscriptRevision()
     /// Changes only when transcript data changes, never on a layout pass.
-    private(set) var transcriptContentRevision: UInt64 = 0
+    var transcriptContentRevision: UInt64 { contentRevision.value }
     @Published private(set) var entries: [ChatEntry] = [] {
-        didSet { transcriptContentRevision &+= 1 }
+        didSet { contentRevision.entriesChanged() }
     }
     @Published private(set) var replyPreview: ChatReplyPreview? {
         didSet {
-            if replyPreview != oldValue { transcriptContentRevision &+= 1 }
+            if replyPreview != oldValue { contentRevision.replyPreviewChanged() }
         }
     }
     /// Photos and files waiting for the next prompt, in the order picked (Android's tray).
@@ -271,9 +272,12 @@ final class ChatSession: ObservableObject {
     private var attachmentImport: Task<Void, Never>?
     /// The App's file_create, set by the root view; without it chat offers no files.
     var fileTool: ChatFileTool?
-    /// Files the assistant made, as cards under the reply that made them.
-    @Published private(set) var createdFiles: [UUID: [ChatCreatedFile]] = [:]
-    /// A file is being made for the request on its way (the chat's step line).
+    /// Files the assistant made, as cards under the reply that made them. A card is new
+    /// transcript content when it comes and when it changes (ChatTranscriptRevision).
+    @Published private(set) var createdFiles: [UUID: [ChatCreatedFile]] = [:] {
+        didSet { contentRevision.createdFilesChanged() }
+    }
+    /// A file is being made for the request on its way (the working row says so).
     @Published private(set) var creatingFile = false
     /// Files made in the request on its way; its reply gets their cards.
     private var requestCreatedFiles: [ChatCreatedFile] = []

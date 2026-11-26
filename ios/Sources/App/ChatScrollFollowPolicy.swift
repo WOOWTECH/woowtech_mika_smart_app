@@ -81,6 +81,18 @@ struct ChatTranscriptPageBasis: Equatable {
     let requestRevision: Int
 }
 
+/// What renews the tail-scroll budget (ChatScrollFollowPolicy.observe(_:contentRevision:)): the
+/// session counts a change in what the transcript shows, never a measurement. A created file's
+/// card is part of its reply's row but is not an entry, so it counts on its own, when it comes and
+/// when it changes (saved, shared, removed). A chat that follows the tail then keeps the card in
+/// view, and a reader who scrolled up on purpose stays where they are.
+struct ChatTranscriptRevision {
+    private(set) var value: UInt64 = 0
+    mutating func entriesChanged() { value &+= 1 }
+    mutating func replyPreviewChanged() { value &+= 1 }
+    mutating func createdFilesChanged() { value &+= 1 }
+}
+
 /// Geometry is measured in the transcript ScrollView's visible coordinate space.
 /// Content growth and a reader's movement can happen in the same layout pass.
 /// The content's offset from the visible origin separates those two changes.

@@ -360,6 +360,100 @@ enum CheckChatScrollFollow {
         progressive.userRequestedLatest()
         expect(progressive.observe(sample(3320, 2600), contentRevision: 5))
 
+        // A created file's card is part of its reply's row, not an entry, so the session counts it
+        // as transcript content of its own (ChatSession.createdFiles). That is the model's word,
+        // never a measurement: each kind of change moves the revision.
+        var revision = ChatTranscriptRevision()
+        let unchanged = revision.value
+        revision.entriesChanged()
+        let afterReply = revision.value
+        revision.replyPreviewChanged()
+        let afterPreview = revision.value
+        revision.createdFilesChanged()
+        expect(Set([unchanged, afterReply, afterPreview, revision.value]).count == 4)
+
+        // 11/25 simulator run: in a long chat the reply's text showed and its file card stayed under
+        // the composer. Layout passes (lazy rows measuring again after each tail scroll) can use up
+        // the tail-scroll budget before the card's height arrives, or long before it changes.
+        // The budget's last scrolls: each is granted and followed by a small remeasure, then the next is refused.
+        func spendScrolls(_ policy: inout ChatScrollFollowPolicy, _ revision: ChatTranscriptRevision,
+                          height start: Double, scrolls: Int) -> Double {
+            var height = start
+            for _ in 0..<scrolls {
+                height += 4
+                expect(policy.observe(sample(height, 504), contentRevision: revision.value))
+                expect(!policy.observe(sample(height, 500), contentRevision: revision.value))
+            }
+            height += 4
+            expect(!policy.observe(sample(height, 504), contentRevision: revision.value)) // the budget is spent
+            return height
+        }
+        func longChatAfterReply() -> (ChatScrollFollowPolicy, ChatTranscriptRevision) {
+            var policy = ChatScrollFollowPolicy()
+            var revision = ChatTranscriptRevision()
+            policy.presentationChanged(to: sample(9000, 500), followsTail: true)
+            revision.entriesChanged() // the reply grows the content: a scroll to the tail
+            expect(policy.observe(sample(9120, 620), contentRevision: revision.value))
+            expect(!policy.observe(sample(9120, 500), contentRevision: revision.value)) // it landed
+            expect(spendScrolls(&policy, revision, height: 9120, scrolls: 2) == 9132)
+            expect(policy.followsTail)
+            return (policy, revision)
+        }
+        // Following: the card arrives, and the chat goes on to the end, with the card above the composer.
+        var (followsCard, followsCardRevision) = longChatAfterReply()
+        followsCardRevision.createdFilesChanged()
+        expect(followsCard.observe(sample(9242, 614), contentRevision: followsCardRevision.value)) // +110
+        expect(!followsCard.observe(sample(9242, 500), contentRevision: followsCardRevision.value)) // landed
+        expect(followsCard.followsTail && !followsCard.needsTailScroll)
+        // The card's own remeasures spend the budget. Later it turns into "Removed" and shrinks by 60:
+        // still the end of the chat, with no blank under it.
+        let cardHeight = spendScrolls(&followsCard, followsCardRevision, height: 9242, scrolls: 2)
+        followsCardRevision.createdFilesChanged()
+        expect(followsCard.observe(sample(cardHeight - 60, 444), contentRevision: followsCardRevision.value))
+        expect(!followsCard.observe(sample(cardHeight - 60, 500), contentRevision: followsCardRevision.value))
+        expect(followsCard.followsTail && !followsCard.needsTailScroll)
+        // A reader who scrolled up on purpose is not pulled down by a card that arrives or changes.
+        var (readsCard, readsCardRevision) = longChatAfterReply()
+        readsCard.beginDrag()
+        readsCard.userDraggedTowardEarlierContent()
+        expect(!readsCard.observe(sample(9132, 804), contentRevision: readsCardRevision.value)) // 300 points up
+        readsCard.endDrag()
+        expect(readsCard.settle(expectedRevision: readsCard.pendingSettleRevision!))
+        expect(!readsCard.followsTail)
+        readsCardRevision.createdFilesChanged()
+        expect(!readsCard.observe(sample(9242, 914), contentRevision: readsCardRevision.value)) // the card arrives below
+        expect(!readsCard.followsTail && !readsCard.needsTailScroll && !readsCard.canScrollToTail)
+        readsCardRevision.createdFilesChanged()
+        expect(!readsCard.observe(sample(9182, 854), contentRevision: readsCardRevision.value)) // "Removed"
+        expect(!readsCard.followsTail && !readsCard.needsTailScroll && !readsCard.canScrollToTail)
+        readsCard.beginLayoutTransition() // a header row coming or going does not hold or pull them either
+        expect(readsCard.pendingSettleRevision == nil && !readsCard.followsTail)
+        expect(!readsCard.observe(sample(9182, 854, 466), contentRevision: readsCardRevision.value))
+        expect(!readsCard.followsTail && !readsCard.needsTailScroll)
+
+        // Modeled on the same run (the numbers are illustrative): a header row (a step line, a
+        // receipt, a note) came above a long chat pinned to its tail, the viewport shrank 34 points
+        // and the content slid 22 points toward the earlier text. Geometry alone reads that as the
+        // reader scrolling away, as it did for the keyboard in native 281, and the reply and its
+        // card stay under 回到最新訊息. The view declares such a change like the composer's, and the
+        // chat goes on to the end once the layout is quiet.
+        var headerUndeclared = ChatScrollFollowPolicy()
+        headerUndeclared.presentationChanged(to: sample(9000, 500), followsTail: true)
+        expect(!headerUndeclared.observe(sample(9000, 522, 466), contentRevision: 1))
+        expect(!headerUndeclared.followsTail)
+        var headerDeclared = ChatScrollFollowPolicy()
+        headerDeclared.presentationChanged(to: sample(9000, 500), followsTail: true)
+        headerDeclared.beginLayoutTransition()
+        expect(!headerDeclared.observe(sample(9000, 522, 466), contentRevision: 1))
+        expect(headerDeclared.followsTail)
+        expect(!headerDeclared.observe(sample(9160, 682, 466), contentRevision: 2)) // the reply and its card
+        expect(!headerDeclared.observe(sample(9160, 700, 500), contentRevision: 2)) // the row goes
+        expect(headerDeclared.followsTail && !headerDeclared.canScrollToTail)
+        expect(headerDeclared.settle(expectedRevision: headerDeclared.pendingSettleRevision!))
+        expect(headerDeclared.followsTail && headerDeclared.needsTailScroll) // the catch-up brings the card up
+        expect(!headerDeclared.observe(sample(9160, 500), contentRevision: 2))
+        expect(headerDeclared.followsTail && !headerDeclared.needsTailScroll)
+
         // Bounded presentation never changes the archive/session. Walk both
         // directions to prove every absolute message index remains reachable.
         for count in [8, 80, 81, 1998, 2000, 2001, 2002] {

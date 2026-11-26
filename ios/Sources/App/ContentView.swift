@@ -946,8 +946,8 @@ private struct ChatView: View {
         createdFileDelivery = target
     }
 
-    /// Keyboard and composer resizing can move UIKit's content offset without
-    /// a reader gesture. Keep the existing follow intent until layout settles.
+    /// Keyboard and composer resizing, and a header row coming or going, can move UIKit's
+    /// content offset without a reader gesture. Keep the existing follow intent until layout settles.
     private func composerLayoutChanged() {
         // VoiceOver can scroll without the drag events that cancel this grace
         // period. Preserve its existing conservative reading protection.
@@ -992,6 +992,26 @@ private struct ChatView: View {
         }
     }
 
+    /// What the header rows show. A row that comes, goes or rewraps moves the transcript's top edge,
+    /// and a chat pinned to its tail reads that as the reader scrolling away (native 281's keyboard
+    /// did the same). So the view declares it as it does for the composer (composerLayoutChanged).
+    /// Every row of chatHeader is here; LearningChatNotes declares its own.
+    private struct HeaderRows: Equatable {
+        var fixtureNotice = false, profileReceipt = false, memoryReceipt = false
+        var unavailableServers: [String] = [], omittedTools = 0, mcpResults = 0
+        var mcpActivity: String?, skillStep: String?
+    }
+
+    private var headerRows: HeaderRows {
+        HeaderRows(fixtureNotice: session.isUITestMode,
+                   profileReceipt: session.profileReceipt != nil, memoryReceipt: session.memoryReceipt != nil,
+                   unavailableServers: session.mcpUnavailableServers, omittedTools: session.mcpOmitted,
+                   mcpResults: session.mcpSteps.count, mcpActivity: session.mcpActivity,
+                   skillStep: session.skillStep.map {
+                       localizer.text($0 == .find ? .chatSkillFind : $0 == .read ? .chatSkillRead : .chatSkillSave)
+                   })
+    }
+
     /// Notes, MCP activity and receipts above the transcript.
     @ViewBuilder private var chatHeader: some View {
         if session.isUITestMode {
@@ -1000,7 +1020,8 @@ private struct ChatView: View {
                 .accessibilityIdentifier("uitest.banner")
         }
 
-        LearningChatNotes(store: session.learning, openPendingSkills: openPendingSkills)
+        LearningChatNotes(store: session.learning, openPendingSkills: openPendingSkills,
+                          onLayoutChange: { composerLayoutChanged() })
 
         if !session.mcpUnavailableServers.isEmpty {
             // Like Android's task card note; the request went on with the other servers.
@@ -1024,9 +1045,6 @@ private struct ChatView: View {
             // Play's chat step line while a skill tool runs.
             Text(localizer.text(step == .find ? .chatSkillFind : step == .read ? .chatSkillRead : .chatSkillSave))
                 .font(.caption).accessibilityIdentifier("chat.skillStep")
-        }
-        if session.creatingFile {
-            Text(localizer.text(.chatFileCreating)).font(.caption).accessibilityIdentifier("chat.fileStep")
         }
         if session.profileReceipt != nil {
             Text(localizer.text(.chatReceiptProfile))
@@ -1110,6 +1128,13 @@ private struct ChatView: View {
         }
     }
 
+    /// What the working row says: a file being made, the vision model looking, or the plain wait.
+    /// A file is not a header row: that row would move the whole transcript for the moment it takes.
+    private var workingLabel: AppText {
+        if session.creatingFile { return .chatFileCreating }
+        return session.visionLooking ? .chatVisionLooking : .chatTurnWorking
+    }
+
     @ViewBuilder private var tailRows: some View {
         if let preview = session.replyPreview {
             // Like Play's DraftText: the reply grows in place, without a status line.
@@ -1123,7 +1148,7 @@ private struct ChatView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id(preview.id)
         } else if session.isSubmitting, session.webTask == nil, let started = session.requestStartedAt {
-            ChatWorkingRow(started: started, label: localizer.text(session.visionLooking ? .chatVisionLooking : .chatTurnWorking),
+            ChatWorkingRow(started: started, label: localizer.text(workingLabel),
                            tint: palette.accent,
                            ink: palette.ink, secondary: palette.secondaryInk)
         }
@@ -1574,6 +1599,7 @@ private struct ChatView: View {
 #endif
             }
             .onChange(of: keyboardDock.frameInWindow) { _, _ in composerLayoutChanged() }
+            .onChange(of: headerRows) { _, _ in composerLayoutChanged() }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps, owners: session.mcpStepOwners) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }
@@ -1746,7 +1772,23 @@ private struct ChatEmptyState: View {
 private struct LearningChatNotes: View {
     @ObservedObject var store: LearningStore
     var openPendingSkills: () -> Void = {}
+    /// A note came, went or rewrapped: that moves the transcript's top edge (ContentView.HeaderRows).
+    var onLayoutChange: () -> Void = {}
     @Environment(\.appLocalizer) private var localizer
+
+    /// What the rows show, with whether a memory note has its buttons.
+    private struct Rows: Equatable {
+        var learning = false
+        var notice: String?, error: String?
+        var memoryNotes: [String] = [], skillNotes: [String] = []
+    }
+
+    private var rows: Rows {
+        Rows(learning: store.isLearning, notice: store.notice, error: store.error,
+             memoryNotes: store.notes.map { "\(store.noteText($0, localizer: localizer))|\(store.canReviewMemory($0))|\($0.undoToken != nil)" },
+             skillNotes: store.skillNotes.map { skillNoteText($0) })
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if store.isLearning {
@@ -1791,6 +1833,7 @@ private struct LearningChatNotes: View {
                 }
             }
         }
+        .onChange(of: rows) { _, _ in onLayoutChange() }
     }
 
     private func skillNoteText(_ note: ChatSkillNote) -> String {

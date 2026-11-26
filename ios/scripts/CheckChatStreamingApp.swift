@@ -120,6 +120,17 @@ private final class SkillAndOrganizingClient: ReferenceDispatchBoundChatModelCli
         onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
+/// Asks for a PDF, then finishes once the host's result is in.
+private struct FileCreatingClient: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if messages.last?.content.hasPrefix("Host file_create result") == true { return #"{"action":"finish","answer":"The file is ready."}"# }
+        return #"{"action":"file_create","arguments":{"format":"pdf","file_name":"report","markdown":"Hello"}}"#
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
 private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
@@ -543,6 +554,34 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(session.entries.last?.content == "Skill answer.", "the answer arrived")
         try a.check(e.learning.notice == nil && e.learning.error == nil && !e.learning.isLearning,
                     "the memory organizing of the same reply finished without a notice")
+        return a.count
+    }
+    /// A created file's card is transcript content of its own: it comes with its reply and shrinks
+    /// when the person removes it, and a chat that follows the end follows both (ChatTranscriptRevision).
+    static func createdFileCardsAreTranscriptContent() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        _ = e.learning.updatePreferences { $0.autoRemember = false }
+        let session = e.session(FileCreatingClient())
+        let store = session.createdFileStore
+        session.fileTool = ChatFileTool(offer: "file_create offer", inStep: "file_create step",
+                                        accepts: { $0.contains(#""action":"file_create""#) }, limitResult: "limit",
+                                        make: { _, _, _ in
+            guard let file = try? store.save(Data("%PDF".utf8), name: "report.pdf", format: "pdf") else { return .failed(result: "not saved") }
+            return .created(file, result: "report.pdf is ready")
+        })
+        let before = session.transcriptContentRevision
+        await (try start(session, "Make me a PDF")).value
+        try a.check(session.entries.last?.content == "The file is ready.", "the reply arrived")
+        guard let reply = session.entries.last?.id, let card = session.createdFiles[reply]?.first else { throw Failure(name: "the reply has its card") }
+        try a.check(card.name == "report.pdf" && card.state == .ready, "the card waits under its reply")
+        try a.check(session.transcriptContentRevision != before, "the reply with its card is new content")
+        let shown = session.transcriptContentRevision
+        session.finishCreatedFile(card, as: .removed)
+        try a.check(session.createdFiles[reply]?.first?.state == .removed, "the card turned into Removed")
+        try a.check(session.transcriptContentRevision != shown, "a card that changes is new content")
+        let removed = session.transcriptContentRevision
+        session.finishCreatedFile(card, as: .removed)
+        try a.check(session.transcriptContentRevision == removed, "a card that did not change is not")
         return a.count
     }
     static func boundsFallbackAndSaveFailure() async throws -> Int {
@@ -1743,7 +1782,7 @@ private actor StreamMCP: MCPDiscovering {
             var groups = try await [ChatStreamingChecks.draftIsolation(), ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.leftScreenKeepsShownText(),
                 ChatStreamingChecks.requestsCarryTheLocalTime(), ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(),
-                ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
+                ChatStreamingChecks.createdFileCardsAreTranscriptContent(), ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredToolsApplyDirectly(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredRepliesSurviveLearningChanges(),
@@ -1777,6 +1816,7 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRequestsCarryTheLocalTime() async throws { let n = try await ChatStreamingChecks.requestsCarryTheLocalTime(); XCTAssertEqual(n, 4) }
     @MainActor func testSkillOutcomeWaitsForMemoryOrganizing() async throws { let n = try await ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(); XCTAssertEqual(n, 3) }
+    @MainActor func testCreatedFileCardsAreTranscriptContent() async throws { let n = try await ChatStreamingChecks.createdFileCardsAreTranscriptContent(); XCTAssertEqual(n, 6) }
     @MainActor func testLeftScreenKeepsShownText() async throws { let n = try await ChatStreamingChecks.leftScreenKeepsShownText(); XCTAssertEqual(n, 3) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
