@@ -39,4 +39,8 @@
     <string name="bot_services_logged_out">已在這支手機登出。</string>
     <string name="bot_services_logout_offline">已清除本機登入，但無法確認伺服器撤銷結果。服務恢復連線後，請在服務中撤銷此工作階段。</string>
     <string name="bot_services_logging_out">正在清除登入…</string>
+    <string name="bot_services_scan_qr">掃描配對 QR</string>
+    <string name="bot_services_pair_confirm">連線至此服務？</string>
+    <string name="bot_services_qr_invalid">此 QR 不是目前服務的有效配對連結。</string>
+    <string name="bot_services_qr_failed">無法掃描，請確認 Google Play 服務可用後重試。</string>
 </resources>

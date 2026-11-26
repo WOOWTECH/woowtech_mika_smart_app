@@ -44,6 +44,8 @@ class BotServiceActivity : ComponentActivity() {
     private var confirmLogout by mutableStateOf(false)
     private var confirmRemove by mutableStateOf(false)
     private var externalUrl by mutableStateOf<String?>(null)
+    private var pairing by mutableStateOf<Pair<BotService, String>?>(null)
+    private var scanning by mutableStateOf(false)
     private data class Download(val service: BotService, val url: String, val cookie: String?)
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -108,6 +110,10 @@ class BotServiceActivity : ComponentActivity() {
             var menu by remember { mutableStateOf(false) }
             TextButton(onClick = { menu = true }) { Text(stringResource(R.string.bot_services_more)) }
             DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_scan_qr)) }, enabled = service.enabled && !scanning, onClick = {
+                    menu = false
+                    scanPairing(service)
+                })
                 DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_reload)) }, onClick = { menu = false; retry() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.bot_services_share)) }, onClick = {
                     menu = false
@@ -162,6 +168,19 @@ class BotServiceActivity : ComponentActivity() {
             }) { Text(stringResource(R.string.bot_services_confirm)) } },
             dismissButton = { TextButton(onClick = { confirmLogout = false; confirmRemove = false }) { Text(stringResource(R.string.bot_services_cancel)) } },
         )
+        pairing?.let { (captured, url) -> AlertDialog(
+            onDismissRequest = { pairing = null },
+            title = { Text(stringResource(R.string.bot_services_pair_confirm)) },
+            text = { Text(captured.name + "\n" + captured.origin) },
+            confirmButton = { TextButton(onClick = {
+                pairing = null
+                if (current(captured) && activeService?.profileName == captured.profileName && webView != null) {
+                    BotWebSessions.clear(captured.profileName)
+                    webView?.loadUrl(url)
+                } else status = R.string.bot_services_qr_failed
+            }) { Text(stringResource(R.string.bot_services_connect)) } },
+            dismissButton = { TextButton(onClick = { pairing = null }) { Text(stringResource(R.string.bot_services_cancel)) } },
+        ) }
         externalUrl?.let { url -> AlertDialog(onDismissRequest = { externalUrl = null },
             title = { Text(stringResource(R.string.bot_services_external)) },
             text = { Text(runCatching { java.net.URI(url).host }.getOrNull().orEmpty()) },
@@ -172,6 +191,20 @@ class BotServiceActivity : ComponentActivity() {
             }) { Text(stringResource(R.string.bot_services_open)) } },
             dismissButton = { TextButton(onClick = { externalUrl = null }) { Text(stringResource(R.string.bot_services_cancel)) } },
         ) }
+    }
+
+    private fun scanPairing(service: BotService) {
+        if (scanning || !current(service)) return
+        scanning = true
+        runCatching { BotQrScanner.create().scan(this, { raw ->
+            scanning = false
+            if (!isDestroyed && raw != null && current(service) && activeService?.profileName == service.profileName) {
+                val validated = runCatching { BotPairingQr.validate(raw, service.policy) }.getOrNull()
+                if (validated == null) status = R.string.bot_services_qr_invalid
+                else pairing = service to validated
+            }
+        }, { scanning = false; if (!isDestroyed) status = R.string.bot_services_qr_failed }) }
+            .onFailure { scanning = false; status = R.string.bot_services_qr_failed }
     }
 
     @Suppress("SetJavaScriptEnabled")
@@ -314,6 +347,7 @@ class BotServiceActivity : ComponentActivity() {
         runCatching {
             val profile = ProfileStore.getInstance().getOrCreateProfile(service.profileName)
             val cookie = profile.cookieManager.getCookie(service.origin + "/api/auth/logout")
+            pairing = null
             runCatching { BotServices.beforeSessionCleared(service) }
             status = R.string.bot_services_logging_out
             if (remove) registry.remove(service.id) else registry.logout(service.id)
