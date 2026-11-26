@@ -28,4 +28,12 @@ Craft Anything CLI 0.6.1 was used for a static app map and a 390×844 browser wa
 - Podman unsent `UI22-DRAFT-NOT-SENT` survived remote service switching and light/dark change. It was cleared without sending. Existing main thread restored; Podman independently verified at 15:45:28Z that threadId/mainThreadId both remain `7cb1b6b6-8ee0-4af2-8d83-787369ff75d6`, busy=false.
 - No notification fixtures, model requests, global consent toggles, re-pairing or profile removal during this UI pass.
 
-Final native header refinements and return-to-history behavior require the final candidate rebuild/reinstall. Screenshots in `evidence/woow22-ui` currently describe the initial candidate. woow.22 is not yet published to GitHub Releases/in-app update.
+## Final candidate
+
+Source `9e0382d2`: signed release build and lint passed, 30 push core tests and 2 host-action tests passed. Final APK installed with matching SHA-256 (see `evidence/woow22-ui/build.json`). Final phone checks: four circular local-history controls, return from notification settings stays on history, System light/dark switching, light/dark service picker, and lab43/lab53 original chat/composer with no duplicate native header. Four discovery results and global registration state settled successfully again. System night mode restored to its original enabled state, auto-rotation restored, Wi-Fi and mobile-data settings unchanged.
+
+Final screenshots are prefixed `final-`; earlier images remain labeled by page. The exact historical cause of 3821 PENDING is still unproven. New-version FCM delivery tests remain HOLD. Activity/process destruction draft recovery is not independently proven by the live-view switch test.
+
+GitHub CI initially failed before Android compilation: the pinned Gradle public API asset download returned HTTP403. That job was retried; do not interpret local build success as all remote checks green. woow.22 remains a signed installed QA candidate, not yet published to GitHub Releases/in-app update.
+
+Backend evidence clarification (coordinator report): HA rc23 authenticated amd64 OCI manifest exists at digest `141b49b5f31db33e4b5de01b910dcb74ba4cef6deeae388f4da75be203451912`; GitHub tag/release and anonymous pull were not established by the 15:25Z check. Podman later deployed its separate rc23-1 derivative while preserving the original phone binding. Neither change authorizes automatic event sends.
