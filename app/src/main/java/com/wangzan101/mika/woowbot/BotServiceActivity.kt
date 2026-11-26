@@ -180,6 +180,12 @@ class BotServiceActivity : ComponentActivity() {
         try {
             // Must be the first call on this WebView. Never fall back to the default cookie profile.
             WebViewCompat.setProfile(view, service.profileName)
+            // WebView uses LayoutParams to resolve percentage-height HTML. The default
+            // WRAP_CONTENT can collapse the document even when Compose measures a viewport.
+            view.layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            )
             view.isSaveEnabled = false
             view.isSaveFromParentEnabled = false
             owners[view] = service
@@ -221,6 +227,16 @@ class BotServiceActivity : ComponentActivity() {
                 override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) { loading = true }
                 override fun onPageFinished(view: WebView, url: String?) {
                     loading = false
+                    if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) view.postDelayed({
+                        if (webView === view && current(service) && service.policy.allows(view.url.orEmpty())) {
+                            view.evaluateJavascript(BotViewportDiagnostics.script) { result ->
+                                // Fixed geometry-only script: no URL, text, input, cookie or storage reads.
+                                result.chunked(2800).forEachIndexed { index, chunk ->
+                                    android.util.Log.i("BotViewportQA", "part=" + index + " " + chunk)
+                                }
+                            }
+                        }
+                    }, 2000)
                     if (service.policy.allows(url.orEmpty())) runCatching { BotServices.onSessionMayHaveChanged(service) }
                 }
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {

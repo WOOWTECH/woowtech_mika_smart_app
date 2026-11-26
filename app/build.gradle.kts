@@ -27,6 +27,7 @@ android {
         // 关于页版本号后的 Beta 标记;出正式版时改成 false
         buildConfigField("boolean", "BETA", "true")
         buildConfigField("boolean", "WOOWTECHBOT_ENABLED", "false")
+        buildConfigField("boolean", "BOT_VIEWPORT_DIAGNOSTICS", "false")
     }
 
     // 沙箱程序只有 arm64 版本(jniLibs/arm64-v8a);APK 不限 ABI,别的设备照常安装、显示「此设备不支持沙箱」。
@@ -158,6 +159,7 @@ android {
             dimension = "brand"
             applicationId = "io.woowtech.agent"
             buildConfigField("boolean", "WOOWTECHBOT_ENABLED", "true")
+            buildConfigField("boolean", "BOT_VIEWPORT_DIAGNOSTICS", (providers.gradleProperty("botViewportDiagnostics").orNull == "true").toString())
             botFirebase?.let { config ->
                 for (key in listOf("google_app_id", "google_api_key", "gcm_defaultSenderId", "project_id"))
                     resValue("string", key, config.getProperty(key))

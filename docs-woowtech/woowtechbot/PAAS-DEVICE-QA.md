@@ -88,3 +88,29 @@ Mac 沒有對應 PaaS authorized_keys 的 SSH 金鑰，未新增 SSH 授權。�
 `dumpsys activity top` 顯示直向原生 WebView 範圍 `0,0–720,1334`，排除零尺寸容器；這不是 CSS viewport 數值。列表搜尋列出現在螢幕 y475–561 附近而底下大片留白，已交 PaaS 對照 root/visualViewport 高度計算；尚未定位根因。近期 logcat 篩選沒有取得 Chromium ERROR/CONSOLE，不代表沒有前端錯誤。
 
 截圖位於 [本輪證據目錄](evidence/20261126-device-additional/)。測試後已恢復原系統自動旋轉設定（accelerometer_rotation=1、user_rotation=0），lab53 已重新連線。未改商店版、未清任何 profile、未呼叫模型或發送推播。
+
+## PaaS 對照與受控手機幾何診斷
+
+PaaS 確認 lab43 新 thread `c566dd9c-8f21-495e-b76c-373dbc88a0ff` 建立於16:41:58，已命名 `android-qa-device-1642`，未發模型訊息。獨立 client Chrome 的四組橫直向 viewport，以及含 wv UA 的三組 viewport 均可見 composer，root 高度符合 viewport；這不是手機 WebView 驗收。診斷 sessions 已撤銷，手機 sessions 保留。
+
+WIF 臨時 Pod、ConfigMap、負向 KSA 已由 PaaS 再次確認不存在。bot build49555 成功、sealed 核可單787建立；relay PR786五項CI通過，候選建置進行中。尚無雙映像部署結果。
+
+新增 `-PbotViewportDiagnostics=true` 僅供明確啟用的 WOOWTECH 本機診斷包；所有預設建置為 false，其他渠道固定 false。固定 JS 只讀 bounding rect、computed CSS 高度鏈、viewport 與 feature 布林，不讀文字、輸入值、URL、cookie 或 storage，不新增 JS bridge 或遠端除錯。頁面完成後須仍為本服務同源、同一 WebView 才執行，logcat tag 為 BotViewportQA。本診斷不代表已找到或修復空白問題；測試後恢復一般包。
+
+## WebView 高度塌陷修復與真機前後比較（16:56–17:00）
+
+根因對照：原生容器有尺寸，但未指定 WebView LayoutParams 時，百分比 HTML 高度計算塌陷。修正只在 setProfile 後、loadUrl 前指定 MATCH_PARENT/MATCH_PARENT；未修改網站 CSS、session、權限或模型設定。
+
+| 同一 lab43 橫向測量（CSS px） | 修正前 | 修正後 |
+| --- | --- | --- |
+| inner / visualViewport | 800×227 | 800×227 |
+| html / body / root / app 高度 | 全0 | 全227 |
+| composer y / height / bottom | -60 / 44 / -16 | 167 / 44 / 211 |
+
+修正前 logcat 單行被截斷，但上述前段欄位完整；修正後使用分段 log，已重組為完整 JSON。診斷只取幾何欄位，證據見 [viewport-fix](evidence/20261126-viewport-fix/)。
+
+同簽章診斷包實測：lab43 橫向與直向、lab53 直向均顯示 composer。lab43 鍵盤彈出後輸入區可見且可打字；未送出的測試草稿 `android-qa-draft-viewport` 在切到 lab53 時未出現，切回 lab43 保留；測試後已用 UI 清除文字。未發模型訊息。這驗證本次草稿與登入切換，不宣稱全部 thread 權限或完整資料隔離已驗收。
+
+一般升級包使用3814並關閉診斷；安裝結果另記。歷史紀錄中較早的空白失敗仍保留作前後證據，現以本節修復結果為準。
+
+3814 一般包驗證完成：assembleWoowtechRelease 成功；產生的 BuildConfig 確認 BOT_VIEWPORT_DIAGNOSTICS=false。原憑證 SHA256 `806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8` 通過 apksigner；adb install -r 成功，appId10315 與 firstInstallTime 2026-11-09 13:12:33 保留。一般包重新開啟 lab43 不需配對且 composer 正常可見。交付 APK 與手機已安裝 APK SHA256 一致：`0769d54a3e34da51a9753aa0cde0d41b4defb148bc9e4c1659e9b3a15240aea6`。系統旋轉設定已恢復1/0，未送任何測試模型訊息。FCM 仍待後端部署與真手機收件驗收。

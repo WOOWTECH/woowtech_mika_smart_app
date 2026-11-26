@@ -1,10 +1,10 @@
 {
   "applicationId": "io.woowtech.agent",
-  "versionName": "0.1.37-woow.13",
-  "versionCode": 3813,
-  "sha256": "dc10178d19131961ef7b9cf1f93f572854fd6a3ec797f8ff4d26939a854bf4f9",
-  "installed_sha256": "dc10178d19131961ef7b9cf1f93f572854fd6a3ec797f8ff4d26939a854bf4f9",
-  "bytes": 79301203,
+  "versionName": "0.1.37-woow.14",
+  "versionCode": 3814,
+  "sha256": "0769d54a3e34da51a9753aa0cde0d41b4defb148bc9e4c1659e9b3a15240aea6",
+  "installed_sha256": "0769d54a3e34da51a9753aa0cde0d41b4defb148bc9e4c1659e9b3a15240aea6",
+  "bytes": 79304455,
   "appId": 10315,
   "firstInstallTime": "2026-11-09 13:12:33",
   "certificate_sha256": "806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8"

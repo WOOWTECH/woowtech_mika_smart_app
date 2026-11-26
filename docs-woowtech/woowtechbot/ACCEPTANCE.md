@@ -33,7 +33,7 @@
 1. 助理專用 Firebase 設定已包含於 3813 並覆蓋安裝；實際 FCM token 取得／更新、前景／背景／程序被回收後送達尚未驗證（見 [PaaS 真機紀錄](PAAS-DEVICE-QA.md)）。
 2. v1 session discovery 與真實 HTTP registration/revoke adapter 已接入 bootstrap，14 項 HTTP fixture 與 9 項既有推播測試通過。lab 尚未部署新 capability，真機正確維持 SERVER_NOT_READY；真服務註冊／撤銷待驗。
 3. WIF GCP 資源與精確 IAM 已實際建立且獨立唯讀核對通過，未建立 sender key。PaaS 已回報實際 STS／impersonation 與 FCM validateOnly 通過（詳見真機紀錄的來源與負向測試限制）；候選映像、中繼部署與真手機 FCM 送達仍待驗，不以 validateOnly 代替收件。
-4. lab43/lab53 已完成普通 client 配對並保留登入。WebView thread/composer 空白仍未解決；網頁草稿、完整子頁返回、遠端檔案傳輸、登出與服務移除的伺服器撤銷仍待驗。
+4. lab43/lab53 已完成普通 client 配對並保留登入。WebView thread/composer 空白已由明確 MATCH_PARENT 尺寸設定修復並真機前後對照；鍵盤與 lab43→lab53→lab43 測試草稿保留／未串入通過。完整子頁返回、遠端檔案傳輸、登出與服務移除的伺服器撤銷仍待驗。
 5. 未對所有既有原生功能做完整實機回歸；既有文件功能及本輪受影響的資料操作已做上述測試。
 
 ## 已知限制
