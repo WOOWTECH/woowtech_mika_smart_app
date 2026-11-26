@@ -30,3 +30,17 @@ Evidence: [native registration status](evidence/20261126-ha-fcm/registered.png),
 ## Post-tap server corroboration
 
 HA reported readonly verification at 13:07:24Z: exact QA bot/name, bot.threadId=5c288d5b-ade1-40ca-ab16-9f7a2477762b, seed present in tasks and messages endpoint 200, original phone client live and same registration registered. This corroborates the phone notification tag and visible QA destination; no separate phone-internal selected-thread ID was observed because this is a single-thread bot without picker. Background receipt and target navigation accepted with this explicit evidence limit. One artificial event only; further fixtures HOLD.
+
+## Cold process receipt (3820)
+
+Home then `cmd activity stop-app io.woowtech.agent` (not force-stop). At13:55:46.411832Z pidof empty and package stopped=false. One-second PID monitoring started13:56:01.788438Z absent; first PID9068 observed at Mac13:57:27.891779Z. Host/device clock differences and poll interval apply. Device AMS at21:57:28.048 local (13:57:28.048Z) records Start proc9068 for FirebaseInstanceIdReceiver, caller com.google.android.gms. This falls within HA send13:57:27.869Z and ACK13:57:28.776Z; no manual launch before receipt.
+
+New manual attention event810540c3-0559-4aa9-84bf-29a97050d29f matched complete active tag (same HA service/bot/seed). Actual notification body tap opened BotServiceActivity and correct HA origin/QA bot/composer. [Cold receipt tap evidence](evidence/20261126-ha-fcm/cold-after-tap.png). PaaS separately reported durable sent. HA post-tap seed metadata requested. This tests process absent while stopped=false, not force-stop, low-memory reclaim, offline delivery or natural completion. No model call in this step.
+
+## HA natural model completion — 2026-11-26
+
+Normal 3820 package remained installed throughout this test. HA reported normal message API sendId `a8ba5bb6-a371-43b9-a5a5-fbd0624c4ac6`, provider success at 14:02:12.705Z, and native done-path event `25a3d373-9484-4da6-a22b-6fb3f61efae9`. PaaS independently confirmed durable sent state and expected finished payload match at 14:04:08Z. These are server-side reports, separate from phone evidence.
+
+Phone active notification tag matched HA service, bot, seed and event. The completed notification was visible; first tap expanded its group, second tapped the actual body. BotServiceActivity then displayed the exact HA origin, QA bot android-qa-ha-20261126, composer and assistant response `android-qa-ha-natural-a8ba5bb6`. See [phone screenshot](evidence/20261126-ha-fcm/natural-after-tap.png). No Android-side model request, notification injection, update or reinstall occurred. Single-thread UI has no picker; no independent phone internal selected-thread-ID claim. This is Home-background natural model completion, separately from the earlier manual cold-process fixture.
+
+HA final readonly corroboration at 2026-11-26T14:07:59.029Z: bot.threadId equals seed, seed task exists and thread API responds; phone client session remains live, matching registration remains registered/revision1, outbox jobs=0. HA reported no further model or fixture requests. Evidence capture time for natural screenshot: 14:06:39.106256Z (not an instrumented tap timestamp). All further fixtures remain on hold.
