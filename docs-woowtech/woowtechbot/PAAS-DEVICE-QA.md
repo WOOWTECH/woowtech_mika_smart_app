@@ -1,6 +1,12 @@
 # PaaS 真機驗收紀錄（2026-11-26）
 
-## 最新狀態：真 FCM 已收件，精確 thread 與輪換待驗
+## 最新狀態：真 FCM 輪換、冷程序喚起與精確路由通過；專用登出驗收中
+
+3818 一般包已原簽章覆蓋安裝，diagnostics=false，30 項 core push 測試通過；交付 APK 與手機 hash 相符，firstInstallTime 保留，詳見 artifact.json。專用 android-qa-logout-lab53 新 profile 顯示未配對頁，原兩服務登入保留，登出驗收尚未列通過。
+
+3817 一般包事件 `c1af0598-4d29-407c-90da-705d5523859a`：Home 後執行 `cmd activity stop-app`，發送前 PID absent、stopped=false，未手動啟動。PaaS bot→relay POST 起始10:36:12.012Z、FCM接受ACK10:36:13.289Z；手機 AMS 10:36:12.789Z 由 Google Play services 的 FirebaseInstanceIdReceiver 啟動 PID21939。實際通知 tag 對應此事件，點本文進 lab43 QA bot/composer，picker 勾選「未命名對話」而非 device thread。PaaS metadata 確認該項為原 seed 129113b5-a24c-4062-a9af-b56ef4eb0005。此為無程序後真 FCM 喚起與一般包精確 lab43 seed 通過；不是 force-stop 或低記憶體回收測試。lab53 精確 seed 目前歸屬先前診斷包結果。
+
+以下為歷次過程紀錄，狀態以本節最新摘要為準。
 
 本節更新下方歷史紀錄。PaaS 回報 bot 0839、relay 0853 已部署，兩 lab enabled/ready、server/relay ACK，原手機 session 保留。
 
@@ -17,6 +23,16 @@
 PaaS 於 10:12:33 UTC 固定雙服務 revision1/ACK baseline 後，手機 UI opt-out 顯示 OFF。PaaS 10:13:22 UTC 確認雙 absent、舊 relay tombstone/revision2、tokenRemoved 與 ACK 全 true，原手機 session 有效。收到確認後才按 opt-in，手機先 PENDING 後 REGISTERED；真 token changed 仍待 PaaS 比對，不能以新註冊代替。
 
 無憑證的手機畫面證據見 [本輪 FCM 截圖](evidence/20261126-fcm/)。未保存通知欄其他 App 內容。
+
+10:14:16 UTC PaaS 比對完成：lab43、lab53 `changed=true`、新 registration/revision1、serverRelayACK=true，舊 tombstone/token 清除狀態保留。這是實際手機 UI deleteToken/重新取得後的輪換，不是合成 token 測試。
+
+輪換後第三筆 `be5a07e1-e536-45f7-a1a6-6a8e080f0b61`（lab43 seed、人工 attention）：Home 背景真收件，tag/service/bot/thread/event 對應正確；點擊本文進 BotServiceActivity、lab43 origin/QA bot/composer，跨服務路由通過。但未旋轉或 reload，立即開 sidebar thread picker 仍勾選 device thread，seed 未選；精確 thread 依然未通過。PaaS 獨立 client Chrome 用同一 deep-link 可 POST200 並選 seed，診斷 session 已撤，手機登入未動；下一步為本機顯式診斷包核對 target 是否在 Activity/WebView 初始化過程丟失，不修改 URL 格式。
+
+### 精確 thread 修復對照
+
+受控診斷事件 `22d4637c-e148-4763-b605-05e9e89466f3`：完整目標先載入（explicitTarget/threadPresent/targetQueryMatches 均 true），隨後 WebView 再初始化兩次，變成無 target、restore 舊頁。稍後 switchTask 雖發生，但 expectedTarget=false。診斷僅記布林與 HTTP method，不記 URL、headers、內容或憑證；先前即時觀察尚無 POST，完整後續 log 補上這項。
+
+BotServiceActivity 改為原位處理與既有 MainActivity 同組畫面 configuration changes，避免頁面尚在解析目標時被銷毀並還原舊頁。新事件 `43cf83ec-017b-4361-abfa-311e17540690`：只一次 activityCreate/initial，完整目標載入，POST expectedTarget=true；手機選單 seed 高亮、device 未高亮，composer 可見。橫轉直沒有重新初始化，維持 seed。此為診斷包通過，3817 一般包尚待覆蓋與驗證。系統自動旋轉已恢復原值1/0。
 
 本輪使用 POCO C85 / Android 15 上原簽章 `io.woowtech.agent`，初始版本 `0.1.37-woow.12`，後續升級至 `0.1.37-woow.13`。不變更商店版。以下是進行中的紀錄，不代表完整推播驗收通過。
 

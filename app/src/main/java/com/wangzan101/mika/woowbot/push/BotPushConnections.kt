@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 /** Only cookies in process memory; durable ledger remains identity-only. All profile reads run on main. */
 internal class BotPushConnections(private val registry: BotServiceRegistry, private val pending: () -> Set<BotPushBinding>) {
     private val sessions = ConcurrentHashMap<BotPushBinding, BotPushSession>()
+    private val retiringCredentials = ConcurrentHashMap<String, BotPushCredentials>()
     @Volatile private var eligible: Set<BotPushBinding> = emptySet()
     @Volatile private var epoch = -1L
     val api = BotPushHttpApi(BotPushOkHttpTransport(), { sessions[it] }, ::current) {
@@ -83,7 +84,22 @@ internal class BotPushConnections(private val registry: BotServiceRegistry, priv
     }
     /** Called synchronously before cookies are cleared. Existing snapshots retain the original cookie. */
     fun retiring(service: BotService) {
+        runCatching { capture(service) }.getOrNull()?.let { retiringCredentials[service.profileId] = it }
         BotPushRuntime.epoch.incrementAndGet()
         eligible = eligible.filterNot { it.serviceId == service.id }.toSet()
     }
+    suspend fun retiredBindings(service: BotService): Set<BotPushBinding> {
+        val recorded = pending().filter { it.serviceId == service.id }.toSet()
+        if (recorded.isEmpty()) return emptySet()
+        val cached = sessions.values.filter { it.credentials.serviceId == service.id &&
+            it.credentials.profileEpoch == service.profileId && it.credentials.origin == service.origin }
+            .map { it.binding }.toSet().intersect(recorded)
+        if (cached.isNotEmpty()) return cached
+        val credentials = retiringCredentials[service.profileId] ?: throw BotPushStaleException()
+        val session = api.discover(credentials)
+        if (session.binding !in recorded) return emptySet()
+        sessions[session.binding] = session
+        return setOf(session.binding)
+    }
+    fun forgetRetiring(service: BotService) { retiringCredentials.remove(service.profileId) }
 }

@@ -41,7 +41,8 @@
         <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
 
         <activity android:name=".woowbot.BotServicesActivity" android:exported="false" />
-        <activity android:name=".woowbot.BotServiceActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".woowbot.BotServiceActivity" android:exported="false" android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|density" />
         <activity android:name=".woowbot.push.BotPushSettingsActivity" android:exported="false" />
         <service android:name=".woowbot.push.BotPushRefreshJob" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />

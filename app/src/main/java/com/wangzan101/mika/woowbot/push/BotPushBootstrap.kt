@@ -27,6 +27,11 @@ object BotPushBootstrap {
             serverReady = connections::ready, prepare = connections::prepare, stillCurrent = connections::valid)
         BotServices.onSessionMayHaveChanged = { service -> connections.sessionHint(service); refresh(app) }
         BotServices.beforeSessionCleared = { service -> connections.retiring(service) }
+        BotServices.beforeRemoteLogout = { service ->
+            val complete = controller.retireBindings { connections.retiredBindings(service) }
+            if (complete) connections.forgetRetiring(service)
+            complete
+        }
         BotPushRuntime.controller = controller
         BotPushRuntime.notifications = BotPushNotifications(app, MainActivity::class.java, controller::accepts)
         refresh(app)

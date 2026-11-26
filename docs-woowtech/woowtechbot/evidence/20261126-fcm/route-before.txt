@@ -1,0 +1,7 @@
+--------- beginning of main
+11-26 18:24:28.252 19360 19360 I BotRouteQA: initial explicitTarget=true restored=false threadPresent=true
+11-26 18:24:28.747 19360 19360 I BotRouteQA: pageStart sameOrigin=true targetQueryMatches=true
+11-26 18:24:29.544 19360 19360 I BotRouteQA: initial explicitTarget=false restored=true threadPresent=false
+11-26 18:24:29.877 19360 19360 I BotRouteQA: initial explicitTarget=false restored=true threadPresent=false
+11-26 18:24:30.035 19360 19360 I BotRouteQA: pageStart sameOrigin=true targetQueryMatches=false
+11-26 18:24:31.524 19360 19415 I BotRouteQA: switchTask method=POST expectedTarget=false

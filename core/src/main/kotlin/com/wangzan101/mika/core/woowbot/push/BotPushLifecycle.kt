@@ -38,6 +38,20 @@ interface BotPushLedger {
  */
 class BotPushLifecycle(private val api: BotPushDeviceApi, private val ledger: BotPushLedger) {
     private val mutex = Mutex()
+    /** Logout must acknowledge device removal while its original session still authorizes DELETE. */
+    suspend fun revokeBindings(bindings: Set<BotPushBinding>): Boolean = mutex.withLock {
+        val recorded = ledger.read().toMutableSet()
+        var complete = true
+        for (binding in recorded.intersect(bindings)) {
+            try {
+                api.revoke(binding)
+                recorded.remove(binding)
+                ledger.write(recorded.toSet())
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (_: Exception) { complete = false }
+        }
+        complete
+    }
     var serverNotReady: Boolean = false
         private set
     suspend fun reconcile(token: String?, desired: Set<BotPushBinding>): Boolean = mutex.withLock {

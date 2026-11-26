@@ -82,6 +82,29 @@ class BotPushTest {
             if (failDelete) error("offline")
         }
     }
+    @Test fun logoutCleanupOnlyRevokesTheCapturedIdentityAndPreservesPeers() = runBlocking {
+        val api = Api(); val ledger = Ledger(); val lifecycle = BotPushLifecycle(api, ledger)
+        val old = BotPushBinding("service", "old")
+        val newer = BotPushBinding("service", "new")
+        val peer = BotPushBinding("other", "peer")
+        ledger.entries = setOf(old, newer, peer)
+        assertTrue(lifecycle.revokeBindings(setOf(old)))
+        assertEquals(listOf("delete:old"), api.calls)
+        assertEquals(setOf(newer, peer), ledger.entries)
+        assertTrue(lifecycle.revokeBindings(setOf(old)))
+        assertEquals(1, api.calls.size)
+    }
+    @Test fun failedLogoutCleanupRetainsLedgerUntilExplicitDeleteAcknowledgement() = runBlocking {
+        val api = Api(); val ledger = Ledger(); val lifecycle = BotPushLifecycle(api, ledger)
+        val old = BotPushBinding("service", "old")
+        ledger.entries = setOf(old)
+        api.failDelete = true
+        assertFalse(lifecycle.revokeBindings(setOf(old)))
+        assertEquals(setOf(old), ledger.entries)
+        api.failDelete = false
+        assertTrue(lifecycle.revokeBindings(setOf(old)))
+        assertTrue(ledger.entries.isEmpty())
+    }
     @Test fun rotationReplacesSameBindingAndOptOutRevokesAfterAmbiguousPut() = runBlocking {
         val api = Api(); val ledger = Ledger(); val lifecycle = BotPushLifecycle(api, ledger)
         val binding = BotPushBinding("service", "sessionA")

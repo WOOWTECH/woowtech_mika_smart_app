@@ -37,10 +37,10 @@ internal object BotWebTransfers {
     }
 
     fun revoke(service: BotService, cookie: String?): Boolean {
-        if (cookie.isNullOrEmpty()) return true
+        if (cookie.isNullOrEmpty()) return false
         val request = Request.Builder().url(service.origin + "/api/auth/logout")
             .header("Origin", service.origin).header("Cookie", cookie)
             .post(ByteArray(0).toRequestBody()).build()
-        return runCatching { client.newCall(request).execute().use { it.isSuccessful || it.code == 401 } }.getOrDefault(false)
+        return runCatching { client.newCall(request).execute().use { it.isSuccessful } }.getOrDefault(false)
     }
 }

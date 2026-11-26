@@ -57,6 +57,9 @@ class BotPushController(
      * Token callbacks are hints: fetch the current token under the lock, never register stale callback values.
      */
     suspend fun refresh(): Boolean = lock.withLock { reconcile() }
+    suspend fun retireBindings(resolve: suspend () -> Set<BotPushBinding>): Boolean = lock.withLock {
+        lifecycle.revokeBindings(resolve())
+    }
     suspend fun setOptIn(enabled: Boolean): Boolean = lock.withLock {
         check(prefs.edit().putBoolean("enabled", enabled).commit())
         reconcile()

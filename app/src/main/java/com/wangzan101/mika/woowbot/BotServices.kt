@@ -9,6 +9,8 @@ object BotServices {
     var onSessionMayHaveChanged: (BotService) -> Unit = {}
     /** Capture any needed revocation identity/cookie now, before this profile is retired. */
     var beforeSessionCleared: (BotService) -> Unit = {}
+    /** Use the retired profile's captured identity, before invalidating its server session. */
+    var beforeRemoteLogout: suspend (BotService) -> Boolean = { true }
     @Volatile private var registry: BotServiceRegistry? = null
     @Synchronized fun registry(context: Context): BotServiceRegistry {
         registry?.let { return it }

@@ -1,0 +1,5 @@
+3817 normal release; diagnostics=false.
+Before fixture: PID absent, package stopped=false; cmd activity stop-app, no manual launch.
+PaaS bot→relay POST UTC 2026-11-26T10:36:12.012Z; relay ACK UTC 10:36:13.289Z (not Google internal delivery timestamp).
+Event c1af0598-4d29-407c-90da-705d5523859a.
+11-26 18:36:12.789  1661  1712 I ActivityManager: Start proc 21939:io.woowtech.agent/u0a315 for broadcast {io.woowtech.agent/com.google.firebase.iid.FirebaseInstanceIdReceiver} caller=com.google.android.gms

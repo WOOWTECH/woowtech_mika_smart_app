@@ -74,6 +74,7 @@ class BotServiceActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityCreate restored=" + (savedInstanceState != null))
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
         setContent {
             MikaTheme {
@@ -176,6 +177,8 @@ class BotServiceActivity : ComponentActivity() {
     @Suppress("SetJavaScriptEnabled")
     private fun createWebView(service: BotService): WebView {
         check(BotServices.supportsIsolation())
+        val requestedBot = intent.getStringExtra(EXTRA_BOT)
+        val requestedThread = intent.getStringExtra(EXTRA_THREAD)
         val view = WebView(this)
         try {
             // Must be the first call on this WebView. Never fall back to the default cookie profile.
@@ -218,13 +221,26 @@ class BotServiceActivity : ComponentActivity() {
                     return true
                 }
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                    if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS && service.policy.allows(request.url.toString()) &&
+                        request.url.path?.matches(Regex("/api/bots/[^/]+/tasks/[^/]+")) == true) {
+                        android.util.Log.i("BotRouteQA", "switchTask method=" + request.method +
+                            " expectedTarget=" + (request.url.path == "/api/bots/$requestedBot/tasks/$requestedThread"))
+                    }
                     // Web content keeps its ordinary HTTPS dependencies. No native privilege is granted to them.
                     val scheme = request.url.scheme
                     val allowed = if (request.isForMainFrame) service.policy.allows(request.url.toString())
                         else scheme == "https" || service.policy.allows(request.url.toString())
                     return if (allowed) null else WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(byteArrayOf()))
                 }
-                override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) { loading = true }
+                override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                    loading = true
+                    if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) {
+                        val uri = runCatching { Uri.parse(url) }.getOrNull()
+                        android.util.Log.i("BotRouteQA", "pageStart sameOrigin=" + service.policy.allows(url.orEmpty()) +
+                            " targetQueryMatches=" + (requestedThread != null && uri?.getQueryParameter("thread") == requestedThread &&
+                            uri?.getQueryParameter("bot") == requestedBot))
+                    }
+                }
                 override fun onPageFinished(view: WebView, url: String?) {
                     loading = false
                     if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) view.postDelayed({
@@ -283,7 +299,10 @@ class BotServiceActivity : ComponentActivity() {
             val url = runCatching { BotWebTarget.url(service, intent.getStringExtra(EXTRA_BOT), intent.getStringExtra(EXTRA_THREAD)) }
                 .getOrElse { status = R.string.bot_services_navigation_blocked; BotWebTarget.url(service) }
             val explicitTarget = intent.hasExtra(EXTRA_BOT) || intent.hasExtra(EXTRA_THREAD)
-            if (explicitTarget || !BotWebSessions.restore(service, view)) view.loadUrl(url)
+            val restored = !explicitTarget && BotWebSessions.restore(service, view)
+            if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA",
+                "initial explicitTarget=$explicitTarget restored=$restored threadPresent=" + (requestedThread != null))
+            if (!restored) view.loadUrl(url)
             // Consume only after choosing the initial page so later recreation restores the current route.
             intent.removeExtra(EXTRA_BOT); intent.removeExtra(EXTRA_THREAD)
             return view
@@ -303,9 +322,14 @@ class BotServiceActivity : ComponentActivity() {
             pendingDownload = null
             runCatching { profile.cookieManager.removeAllCookies { profile.cookieManager.flush() } }
             runCatching { profile.webStorage.deleteAllData() }
-            scope.launch {
-                val revoked = withContext(Dispatchers.IO) { BotWebTransfers.revoke(service, cookie) }
-                status = if (revoked) R.string.bot_services_logged_out else R.string.bot_services_logout_offline
+            cleanupScope.launch {
+                // Retire locally immediately, then DELETE with the captured old cookie before logout.
+                // A failed DELETE keeps its ledger; logout still attempts server-side session revocation.
+                val pushCleared = runCatching { BotServices.beforeRemoteLogout(service) }.getOrDefault(false)
+                val revoked = BotWebTransfers.revoke(service, cookie)
+                withContext(Dispatchers.Main.immediate) {
+                    if (!isDestroyed) status = if (revoked && pushCleared) R.string.bot_services_logged_out else R.string.bot_services_logout_offline
+                }
             }
         }.onFailure { status = R.string.bot_services_action_error }
     }
@@ -342,9 +366,13 @@ class BotServiceActivity : ComponentActivity() {
             }
         }
     }
-    override fun onDestroy() { destroyWebView(); scope.cancel(); super.onDestroy() }
+    override fun onDestroy() {
+        if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityDestroy configChange=$isChangingConfigurations")
+        destroyWebView(); scope.cancel(); super.onDestroy()
+    }
 
     companion object {
+        private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private const val EXTRA_SERVICE = "woowbot.serviceId"
         private const val EXTRA_BOT = "woowbot.botId"
         private const val EXTRA_THREAD = "woowbot.threadId"
