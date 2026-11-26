@@ -13,7 +13,11 @@ class BotPushRefreshJob : JobService() {
     private var work: Job? = null
     override fun onStartJob(params: JobParameters): Boolean {
         work = CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            val complete = try { BotPushRuntime.controller?.refresh() ?: false }
+            val complete = try {
+                val refreshed = BotPushRuntime.controller?.refresh() ?: false
+                val drained = BotPushPendingInbox.drain(this@BotPushRefreshJob)
+                refreshed && drained
+            }
             catch (e: CancellationException) { throw e }
             catch (_: Exception) { false }
             withContext(Dispatchers.Main) { jobFinished(params, !complete) }

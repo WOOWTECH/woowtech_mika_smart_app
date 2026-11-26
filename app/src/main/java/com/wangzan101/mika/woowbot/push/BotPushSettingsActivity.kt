@@ -39,8 +39,6 @@ class BotPushSettingsActivity : ComponentActivity() {
                         Text(stringResource(R.string.bot_push_settings_title), style = MaterialTheme.typography.headlineSmall)
                         Text(stringResource(R.string.bot_push_settings_privacy))
                         Text(stringResource(if (controller?.configured != true) R.string.bot_push_not_configured else statusText(state)))
-                        // Always disclose current server gap, including when the user's preference is off.
-                        Text(stringResource(R.string.bot_push_server_not_ready), style = MaterialTheme.typography.bodyMedium)
                         Button(enabled = (controller?.configured == true || controller?.optedIn == true) && state != BotPushState.PENDING, onClick = {
                             if (controller?.optedIn == true) BotPushBootstrap.setOptIn(this@BotPushSettingsActivity, false)
                             else if (Build.VERSION.SDK_INT >= 33 && !BotPushBootstrap.permissionGranted(this@BotPushSettingsActivity))

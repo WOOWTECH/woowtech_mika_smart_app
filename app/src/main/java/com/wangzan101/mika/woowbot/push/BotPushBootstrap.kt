@@ -58,7 +58,8 @@ object BotPushBootstrap {
         scope.launch {
             val complete = runCatching { BotPushRuntime.controller?.setOptIn(enabled) ?: false }.getOrDefault(false)
             BotPushRuntime.notifications?.cancelStale()
-            if (!complete) runCatching { BotPushRefreshJob.schedule(context.applicationContext) }
+            val drained = runCatching { BotPushPendingInbox.drain(context) }.getOrDefault(false)
+            if (!complete || !drained) runCatching { BotPushRefreshJob.schedule(context.applicationContext) }
         }
     }
     fun refresh(context: Context) {
@@ -66,7 +67,8 @@ object BotPushBootstrap {
         scope.launch {
             val complete = runCatching { BotPushRuntime.controller?.refresh() ?: false }.getOrDefault(false)
             BotPushRuntime.notifications?.cancelStale()
-            if (!complete) runCatching { BotPushRefreshJob.schedule(context.applicationContext) }
+            val drained = runCatching { BotPushPendingInbox.drain(context) }.getOrDefault(false)
+            if (!complete || !drained) runCatching { BotPushRefreshJob.schedule(context.applicationContext) }
         }
     }
 }

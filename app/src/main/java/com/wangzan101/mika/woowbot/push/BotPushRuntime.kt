@@ -50,6 +50,9 @@ class BotPushController(
     fun accepts(serviceId: String) = optedIn && configured && serverReady() && permissionGranted() &&
         bindings().any { it.serviceId == serviceId }
 
+    fun acceptsIdentity(serviceId: String, identity: String) = accepts(serviceId) &&
+        bindings().any { it.serviceId == serviceId && it.authIdentity == identity }
+
     /** Call after permission result, login, foreground/network retry, and onNewToken.
      * Token callbacks are hints: fetch the current token under the lock, never register stale callback values.
      */

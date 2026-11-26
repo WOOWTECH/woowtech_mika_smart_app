@@ -2,7 +2,7 @@
 
 ## 交付狀態
 
-介面、服務容器與通知客戶端基礎已實作。原簽章 APK `0.1.37-woow.13`（3813）已在 POCO C85 / Android 15 覆蓋安裝並啟動。**這是待完成推播整合的候選版，不能視為整項需求驗收完成。** 未發布 GitHub release、未變更商店版部署。
+介面、服務容器與通知客戶端已實作。原簽章 APK `0.1.37-woow.16`（3816）已在 POCO C85 / Android 15 覆蓋安裝並啟動，手機 APK hash 與交付檔一致。真 FCM 前景／背景收件與服務導頁已實測；精確 thread 導頁仍未通過。**這是持續驗收的候選版，不能視為整項需求驗收完成。** 未發布 GitHub release、未變更商店版部署。
 
 基準：`2bb46820`；設計參考 `bc65d7b2`。僅 `woowtech` 直裝 flavor 啟用 `WOOWTECHBOT_ENABLED`。共用文件、草稿、服務／推播契約保留在既有共用模組，平台交付與 Firebase 依賴限定 Android 直裝 flavor。
 
@@ -30,9 +30,9 @@
 
 ## 尚未完成的必要驗收
 
-1. 助理專用 Firebase 設定已包含於 3813 並覆蓋安裝；實際 FCM token 取得／更新、前景／背景／程序被回收後送達尚未驗證（見 [PaaS 真機紀錄](PAAS-DEVICE-QA.md)）。
-2. v1 session discovery 與真實 HTTP registration/revoke adapter 已接入 bootstrap，14 項 HTTP fixture 與 9 項既有推播測試通過。lab 尚未部署新 capability，真機正確維持 SERVER_NOT_READY；真服務註冊／撤銷待驗。
-3. WIF GCP 資源與精確 IAM 已實際建立且獨立唯讀核對通過，未建立 sender key。PaaS 已回報實際 STS／impersonation 與 FCM validateOnly 通過（詳見真機紀錄的來源與負向測試限制）；候選映像、中繼部署與真手機 FCM 送達仍待驗，不以 validateOnly 代替收件。
+1. 真 FCM 前景／背景收件通過；精確 seed thread 導頁未通過，程序回收後收件尚未驗證。真 token 輪換正按 PaaS 固定 baseline、手機 opt-out/in 流程驗證（見 [PaaS 真機紀錄](PAAS-DEVICE-QA.md)）。
+2. 真實 HTTP registration/revoke 已接通，手機 REGISTERED、雙服務 server/relay ACK 已由 PaaS 核對；手機 opt-out 後兩邊 absent、舊 tombstone/token 清除通過，重新 opt-in 已回 REGISTERED，token changed 比對待回報。14 項 HTTP、9 項推播與5項 pending inbox core 測試通過。真 cookieOnly 手機流程仍未驗。
+3. WIF GCP 精確 IAM、部署 sender 的 STS／impersonation／validateOnly 由 PaaS 實測通過，bot/relay 已部署。兩筆真手機通知都是人工 fixture，未驗自然模型完成事件，不以 validateOnly 或人工事件代替該項。
 4. lab43/lab53 已完成普通 client 配對並保留登入。WebView thread/composer 空白已由明確 MATCH_PARENT 尺寸設定修復並真機前後對照；鍵盤與 lab43→lab53→lab43 測試草稿保留／未串入通過。完整子頁返回、遠端檔案傳輸、登出與服務移除的伺服器撤銷仍待驗。
 5. 未對所有既有原生功能做完整實機回歸；既有文件功能及本輪受影響的資料操作已做上述測試。
 

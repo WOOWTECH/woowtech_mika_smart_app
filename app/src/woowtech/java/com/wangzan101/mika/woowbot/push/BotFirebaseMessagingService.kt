@@ -7,7 +7,7 @@ import com.google.firebase.messaging.RemoteMessage
 class BotFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         if (message.notification != null) return
-        BotPushRuntime.notifications?.receive(message.data)
+        BotPushPendingInbox.offer(this, message.data, message.sentTime, message.ttl)
     }
     override fun onNewToken(token: String) {
         BotPushRuntime.epoch.incrementAndGet()

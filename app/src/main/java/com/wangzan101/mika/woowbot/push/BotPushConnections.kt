@@ -44,16 +44,31 @@ internal class BotPushConnections(private val registry: BotServiceRegistry, priv
         epoch = BotPushRuntime.epoch.get()
         eligible = emptySet() // Never treat an unverified cached session as authorization for a notification.
         val next = mutableSetOf<BotPushBinding>()
+        val recorded = pending()
+        var unresolvedRegistration = false
         for (service in registry.state.value.services.filter { it.enabled }) {
-            val credentials = withContext(Dispatchers.Main.immediate) { runCatching { capture(service) }.getOrNull() } ?: continue
+            val hasRegistration = recorded.any { it.serviceId == service.id }
+            val credentials = withContext(Dispatchers.Main.immediate) { runCatching { capture(service) }.getOrNull() }
+            if (credentials == null) {
+                if (hasRegistration) unresolvedRegistration = true
+                continue
+            }
             try {
                 val session = api.discover(credentials)
-                if (!valid() || !current(credentials)) continue
+                if (!valid() || !current(credentials)) {
+                    if (hasRegistration) unresolvedRegistration = true
+                    continue
+                }
                 sessions[session.binding] = session
                 if (session.ready) next.add(session.binding)
+                else if (hasRegistration) unresolvedRegistration = true
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (_: Exception) { /* Retain old identity+cookie only for cleanup; never substitute a new identity. */ }
+            catch (_: Exception) {
+                // Missing discovery is not a user request to revoke a previously registered service.
+                if (hasRegistration) unresolvedRegistration = true
+            }
         }
+        check(!unresolvedRegistration) { "Registered service discovery is temporarily unavailable" }
         if (valid()) eligible = next
         val retain = pending() + next
         sessions.keys.retainAll(retain)

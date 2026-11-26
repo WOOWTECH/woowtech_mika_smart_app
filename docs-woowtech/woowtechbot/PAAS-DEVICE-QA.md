@@ -1,5 +1,23 @@
 # PaaS 真機驗收紀錄（2026-11-26）
 
+## 最新狀態：真 FCM 已收件，精確 thread 與輪換待驗
+
+本節更新下方歷史紀錄。PaaS 回報 bot 0839、relay 0853 已部署，兩 lab enabled/ready、server/relay ACK，原手機 session 保留。
+
+- `cededf26-cc1d-41a1-a3d7-879ee3fd2524`：3814 前景收到 lab53 seed 的 finished 通知。首次點擊只觀察 MainActivity，未確認點中本文，不先判定導頁 bug。
+- `38db46c7-730c-4e57-88b2-50c8f6d43515`：3815 Home 背景、未 force-stop，收到 lab53 seed 的 permission 通知。展開群組後精確點擊本文，進 BotServiceActivity/lab53 QA bot/composer；但「所有對話」高亮 device-b76e869b，精確 seed thread 未通過。
+- 兩筆皆為人工六欄 data-only fixture，沒有模型呼叫。FCM 接受為 PaaS 回報，手機實收以對應 notification tag/channel 核對；不列為自然模型完成。
+- 3815 增加持久 pending inbox，等待冷程序身份發現完成；限制原始 TTL 最長600秒、容量、profile/identity 與去重。5項新 core 測試連同 HTTP14、push9，共28項通過。背景收件通過，系統回收程序後收件尚未驗。
+- 3815 通知設定已顯示 REGISTERED，移除舊固定 SERVER_NOT_READY 提示。3816 修正 discovery 失敗、cookie 缺失或途中改變時，保留既有 ledger 並重試，避免誤觸 DELETE；最後 assemble 成功，安裝與雙服務保留待補。
+- PaaS 合成 token 的 DELETE/登出 cascade 測試不等於手機驗收。手機輪換須依序：3816 雙 REGISTERED → PaaS 固定 baseline/ACK → UI opt-out → 雙 absent/舊 tombstone/token 清除 → opt-in → changed 布林與新 ACK。尚未執行本輪 opt-out。
+- 0839 成品確認 `/?thread=<id>&bot=<id>` 格式正確，參數被一次性消費後網址回根路徑是預期；精確 thread 切換仍在定位。
+
+3816 最終補編譯成功，原簽章覆蓋安裝成功、firstInstallTime 保留；手機與交付檔 SHA256 均為 `f16a55f10ff8e9cb4878e48862a74e22a122e0b44a258a6192d4ffe4c24bbb1b`，六個必要 DEX 類別檢查通過。通知頁實見 REGISTERED。
+
+PaaS 於 10:12:33 UTC 固定雙服務 revision1/ACK baseline 後，手機 UI opt-out 顯示 OFF。PaaS 10:13:22 UTC 確認雙 absent、舊 relay tombstone/revision2、tokenRemoved 與 ACK 全 true，原手機 session 有效。收到確認後才按 opt-in，手機先 PENDING 後 REGISTERED；真 token changed 仍待 PaaS 比對，不能以新註冊代替。
+
+無憑證的手機畫面證據見 [本輪 FCM 截圖](evidence/20261126-fcm/)。未保存通知欄其他 App 內容。
+
 本輪使用 POCO C85 / Android 15 上原簽章 `io.woowtech.agent`，初始版本 `0.1.37-woow.12`，後續升級至 `0.1.37-woow.13`。不變更商店版。以下是進行中的紀錄，不代表完整推播驗收通過。
 
 ## 測試範圍
