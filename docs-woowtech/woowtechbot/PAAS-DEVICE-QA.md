@@ -1,10 +1,16 @@
 # PaaS 真機驗收紀錄（2026-11-26）
 
-## 最新狀態：真 FCM 輪換、冷程序喚起與精確路由通過；專用登出驗收中
+## 最新狀態：真 FCM 輪換、冷程序喚起與精確路由通過；專用登出驗收通過
 
-3818 一般包已原簽章覆蓋安裝，diagnostics=false，30 項 core push 測試通過；交付 APK 與手機 hash 相符，firstInstallTime 保留，詳見 artifact.json。專用 android-qa-logout-lab53 新 profile 顯示未配對頁，原兩服務登入保留，登出驗收尚未列通過。
+3818 一般包已原簽章覆蓋安裝，diagnostics=false，30 項 core push 測試通過；交付 APK 與手機 hash 相符，firstInstallTime 保留，詳見 artifact.json。專用 android-qa-logout-lab53 新 profile 顯示未配對頁，原兩服務登入保留，登出與後端撤銷已通過（見下方核對），未測真正 cookieOnly 手機流程。
 
 3817 一般包事件 `c1af0598-4d29-407c-90da-705d5523859a`：Home 後執行 `cmd activity stop-app`，發送前 PID absent、stopped=false，未手動啟動。PaaS bot→relay POST 起始10:36:12.012Z、FCM接受ACK10:36:13.289Z；手機 AMS 10:36:12.789Z 由 Google Play services 的 FirebaseInstanceIdReceiver 啟動 PID21939。實際通知 tag 對應此事件，點本文進 lab43 QA bot/composer，picker 勾選「未命名對話」而非 device thread。PaaS metadata 確認該項為原 seed 129113b5-a24c-4062-a9af-b56ef4eb0005。此為無程序後真 FCM 喚起與一般包精確 lab43 seed 通過；不是 force-stop 或低記憶體回收測試。lab53 精確 seed 目前歸屬先前診斷包結果。
+
+3818 專用登出：獨立 profile `android-qa-logout-lab53` / serviceId `0443073a-d3d3-40ec-a190-24880be70b63`。PaaS 10:53:10.419967Z 固定 client/cookieOnly=false、server+relay revision1 ACK baseline 後，手機只操作該服務「登出服務」，最終顯示「已在這支手機登出」。通知頁短暫 PENDING 後回 REGISTERED。未按全域 OFF/deleteToken，原兩 profile 未登出。PaaS 10:54:58.018893Z 核對 session revoked、server absent、relay tombstone/tokenRemoved 全 true、revision1→2、pending事件0；原43/53的session/server/relay全部保留registered/revision1。
+
+3818 一般包後續事件 `69381ac3-40d5-400a-8987-014a38b24f47`：PaaS 10:55:40.144Z 發送、10:55:41.258Z FCM接受ACK。手機 Home 背景 active tag 完整匹配原lab53/service/bot/seed/event，attention/SECRET；展開群組後精確點本文進 BotServiceActivity/原lab53/QA bot/composer。未點選thread，所有對話中seed灰底active、device無底，正常包精確seed通過。PaaS 10:58:39.439Z 只讀 messages=0 metadata 另確認 bot.threadId 正是 seed、device 未選中，沒有讀取訊息內容。此為人工fixture，不是自然模型完成。
+
+後續僅移除已登出的專用本機服務；沒有可用cookie時App保守提示無法確認遠端撤銷，未把空cookie當成功。遠端撤銷證據來自前一步PaaS核對。此項不代替「仍有有效session時直接移除」驗收。
 
 以下為歷次過程紀錄，狀態以本節最新摘要為準。
 

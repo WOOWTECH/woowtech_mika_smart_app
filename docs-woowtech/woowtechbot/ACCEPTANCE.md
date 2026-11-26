@@ -2,7 +2,7 @@
 
 ## 交付狀態
 
-介面、服務容器與通知客戶端已實作。原簽章 APK `0.1.37-woow.18`（3818）已在 POCO C85 / Android 15 覆蓋安裝並啟動，手機 APK hash 與交付檔一致。真 FCM 前景／背景收件與服務導頁已實測；精確 lab43 seed 已在3817一般包通過，lab53 seed 已在受控診斷包通過。**這是持續驗收的候選版，不能視為整項需求驗收完成。** 未發布 GitHub release、未變更商店版部署。
+介面、服務容器與通知客戶端已實作。原簽章 APK `0.1.37-woow.18`（3818）已在 POCO C85 / Android 15 覆蓋安裝並啟動，手機 APK hash 與交付檔一致。真 FCM 前景／背景收件與服務導頁已實測；精確 lab43 seed 已在3817一般包通過，lab53 seed 已在3818一般包通過。**這是持續驗收的候選版，不能視為整項需求驗收完成。** 未發布 GitHub release、未變更商店版部署。
 
 基準：`2bb46820`；設計參考 `bc65d7b2`。僅 `woowtech` 直裝 flavor 啟用 `WOOWTECHBOT_ENABLED`。共用文件、草稿、服務／推播契約保留在既有共用模組，平台交付與 Firebase 依賴限定 Android 直裝 flavor。
 
@@ -30,10 +30,10 @@
 
 ## 尚未完成的必要驗收
 
-1. 真 FCM 前景／背景收件、跨服務導頁與真 token 輪換通過；3817一般包 lab43 精確 seed 與 stop-app 後無程序 FCM 喚起通過；lab53 seed 為診斷包通過，低記憶體回收尚未驗證（見 [PaaS 真機紀錄](PAAS-DEVICE-QA.md)）。
+1. 真 FCM 前景／背景收件、跨服務導頁與真 token 輪換通過；3817一般包 lab43 精確 seed 與 stop-app 後無程序 FCM 喚起通過；lab53 seed 在3818一般包通過，低記憶體回收尚未驗證（見 [PaaS 真機紀錄](PAAS-DEVICE-QA.md)）。
 2. 真實 HTTP registration/revoke 已接通，手機 REGISTERED、雙服務 server/relay ACK 已由 PaaS 核對；手機 opt-out 後兩邊 absent、舊 tombstone/token 清除通過，重新 opt-in 已回 REGISTERED，兩邊 token changed=true 與新 ACK 核對通過，輪換後 lab43 再收件通過。14 項 HTTP、11 項推播與5項 pending inbox core 測試通過。真 cookieOnly 手機流程仍未驗。
 3. WIF GCP 精確 IAM、部署 sender 的 STS／impersonation／validateOnly 由 PaaS 實測通過，bot/relay 已部署。本輪真手機通知都是人工 fixture，未驗自然模型完成事件，不以 validateOnly 或人工事件代替該項。
-4. lab43/lab53 已完成普通 client 配對並保留登入。WebView thread/composer 空白已由明確 MATCH_PARENT 尺寸設定修復並真機前後對照；鍵盤與 lab43→lab53→lab43 測試草稿保留／未串入通過。完整子頁返回、遠端檔案傳輸、登出與服務移除的伺服器撤銷仍待驗。
+4. lab43/lab53 已完成普通 client 配對並保留登入。WebView thread/composer 空白已由明確 MATCH_PARENT 尺寸設定修復並真機前後對照；鍵盤與 lab43→lab53→lab43 測試草稿保留／未串入通過。完整子頁返回、遠端檔案傳輸、3818專用profile登出之server/relay撤銷及原兩服務保留通過；已登出項目移除通過，但有效session直接移除尚未單獨驗。
 5. 未對所有既有原生功能做完整實機回歸；既有文件功能及本輪受影響的資料操作已做上述測試。
 
 ## 已知限制
