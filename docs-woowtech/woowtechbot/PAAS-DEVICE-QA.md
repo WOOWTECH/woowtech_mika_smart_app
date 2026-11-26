@@ -32,6 +32,19 @@ Mac 沒有對應 PaaS authorized_keys 的 SSH 金鑰，未新增 SSH 授權。�
 
 1. 排除已登入後的 thread／composer 空白問題；不得將可見 bot 標題等同完整對話可用。
 2. 在兩個指定 QA bot 驗證 thread、草稿、返回、重新開啟與登出隔離。
-3. Firebase Console 仍待使用者登入；專案 ID、Android app 設定尚未確認。
+3. Firebase 專案與 Android 設定已完成，見下節；發送端身份與中繼尚未部署。
 4. 受限推播 capability、session 綁定與 relay 尚未接通；不得把普通 `via=cookie` 配對當成真正 `cookieOnly` 驗收。
 5. 前景／背景／冷啟動的真實 FCM、token 輪換及伺服器撤銷仍待驗證。
+
+## Firebase 設定（2026-11-26 後續）
+
+使用者明確選定新建獨立專案，並指定透過本機 Chrome MCP port 12306 操作已登入的 Console。
+
+- 專案名稱：WOOWTECH Assistant；project ID：`woowtech-assistant`。
+- Android app：`io.woowtech.agent`，暱稱 `WOOWTECH Assistant Android Direct`。
+- Console 確認 Firebase Cloud Messaging API (V1) 已啟用；舊版 API 停用。
+- 建立時未啟用 Analytics 或 Gemini，保留 Spark 方案。
+- 自有 `google-services.json` 下載後移至 repo 外私有目錄（0600），已由 `tools/woowtechbot/firebase_config.py` 驗證並轉成外部 properties。未提交 API key、服務帳戶私鑰或 FCM token。
+- 指定 `WOOWTECHBOT_FIREBASE_PROPERTIES` 執行 `:app:generateWoowtechReleaseResValues` 成功；確認四個必要資源存在且 project ID 正確，未輸出 API key。這只驗證建置設定，尚未重包／替換手機 APK。
+- 未建立 sender 私鑰；已向 PaaS 協調 workload identity 或專用發送身份的安全部署方式。
+- 新的後端規格使用 `/api/woowtech/android-push/device`，不能向舊 `/api/push/device` 送擴充欄位。capability 缺席時維持 SERVER_NOT_READY。完整 HTTP adapter、受限 cookieOnly 測試及真實 FCM 尚未完成。
