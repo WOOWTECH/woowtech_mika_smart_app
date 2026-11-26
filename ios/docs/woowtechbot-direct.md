@@ -165,3 +165,11 @@ authenticated PaaS/HA sessions, remote AI completion and iOS remote push have
 not passed acceptance. Push additionally requires iOS Firebase/APNs setup;
 the app continues to show its unavailable status. No archive or upload was
 performed, and the separate standard build 293 release gate is still pending.
+
+The same source also builds successfully for physical iOS with Apple Development
+signing. Its signature is valid and the provisioning profile includes the test
+iPad. `WOOW-Assistant-Bot-294-development.ipa` is a local development package,
+not an installed or accepted physical-device release. `build-device.json` and
+`development-package.json` record its signing checks and hashes. The device
+executable SHA256 is
+`4b479ccaf6ab5bf2c673e7ba022d44861f46a4cda12af74d44057540771b7bab`.
