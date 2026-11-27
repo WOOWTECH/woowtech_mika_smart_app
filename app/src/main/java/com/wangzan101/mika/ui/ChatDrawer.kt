@@ -508,13 +508,14 @@ fun ChatWithDrawer(
     /** WOOWTECH direct-only full-page history controls; the parent owns these destinations. */
     onBotServices: () -> Unit = {},
     onBotNotifications: () -> Unit = {},
+    onBotAddService: () -> Unit = onBotServices,
     onBotFiles: (() -> Unit)? = null,
     content: @Composable (openDrawer: () -> Unit) -> Unit,
 ) {
     if (botUiEnabled(LocalContext.current)) {
         BotUiHistoryHost(vm, conversations, conversationChanges, onPlans, onMemory, onBrowser,
             onMcpServers, onComputerAccess, onScreens, onSettings, onAbout, updateAvailable,
-            onBotServices, onBotNotifications, onBotFiles, reopen, onReopened, externalOpenRevision, content)
+            onBotServices, onBotNotifications, onBotAddService, onBotFiles, reopen, onReopened, externalOpenRevision, content)
         return
     }
     val drawer = rememberDrawerState(DrawerValue.Closed)

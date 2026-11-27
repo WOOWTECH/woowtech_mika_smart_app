@@ -5,4 +5,15 @@
         <item name="android:windowBackground">@color/mika_bg</item>
     </style>
     <color name="mika_bg">#F7F7F8</color>
+    <!-- Translucent host for the bottom sheets (services, notifications): the sheet draws its own scrim and motion. -->
+    <style name="Theme.Mika.Sheet" parent="Theme.Mika">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Mika.NoWindowMotion</item>
+    </style>
+    <style name="Animation.Mika.NoWindowMotion" parent="@android:style/Animation">
+        <item name="android:windowEnterAnimation">@null</item>
+        <item name="android:windowExitAnimation">@null</item>
+    </style>
 </resources>

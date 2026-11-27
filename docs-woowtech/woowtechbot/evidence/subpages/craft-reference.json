@@ -1,0 +1,72 @@
+{
+  "tool": "Craft Anything CLI 0.6.1",
+  "reference": "local design/woowtechbot-preview plus user screenshots 20261127 083949\u2013084140",
+  "records": [
+    {
+      "id": "ev_14019b176f23603fecaae0cf66f73f04bbf3749ed6f031d17717ce39a0a88db5",
+      "operation": "js_app_map",
+      "coverage": {
+        "examined": 8,
+        "next_offset": 8,
+        "status": "partial",
+        "total": 21
+      },
+      "limitations": [
+        {
+          "code": "lexer_fallback",
+          "message": "1 source(s) were too large, too deep or too broken to parse; their facts come from a token scan (no functions, windows or aliases)."
+        },
+        {
+          "code": "static_only",
+          "message": "Static reading only: code built at run time (eval, computed requires, remote content) is invisible; IPC pairs need literal channel names."
+        },
+        {
+          "code": "paged_modules",
+          "message": "Only one page of module summaries is included; tools that take this evidence need every module, so pass the input path to them or use offset=0 with a limit above modules_total."
+        }
+      ],
+      "aborted": null
+    },
+    {
+      "id": "ev_c01692bd7038bbc7b7351e739321b6b3454eecd16669105f97c6b128b867cfcf",
+      "operation": "web_walkthrough_record",
+      "coverage": {
+        "examined": 2,
+        "status": "complete",
+        "total": 2
+      },
+      "limitations": [
+        {
+          "code": "controlled_run",
+          "message": "This is one controlled run of scripted steps; different steps or timing would show different behaviour."
+        },
+        {
+          "code": "values_not_kept",
+          "message": "Request/response bodies are reduced to outlines, cookies and auth headers are dropped, and declared secrets are redacted in every encoding."
+        }
+      ],
+      "aborted": null
+    },
+    {
+      "id": "ev_4af3b1feebeef4eb413ec2c23973c8a17c49da840464b33df3ed4b108a7482e3",
+      "operation": "web_walkthrough_record",
+      "coverage": {
+        "examined": 3,
+        "status": "complete",
+        "total": 3
+      },
+      "limitations": [
+        {
+          "code": "controlled_run",
+          "message": "This is one controlled run of scripted steps; different steps or timing would show different behaviour."
+        },
+        {
+          "code": "values_not_kept",
+          "message": "Request/response bodies are reduced to outlines, cookies and auth headers are dropped, and declared secrets are redacted in every encoding."
+        }
+      ],
+      "aborted": null
+    }
+  ],
+  "limits": "Browser reference inspection only; does not establish native visual or interaction parity. Requested light browser media does not itself change the reference app explicit midnight skin."
+}
