@@ -34,7 +34,8 @@ Row (`.ui-menu-row`): min 30, padding 6 × 8, gap 8, radius 6, 14/18 text, 16 ic
 Motion `pop-in`: 0.2 s `cubic-bezier(.22, 1, .36, 1)`, opacity 0→1, scale .96→1, 6 px rise; `pop-out` is the reverse.
 
 **Sheet** (settings dialog on a phone): 12 below the status bar, 16 top corners, a 32 × 4 grabber 8 from the top, 44 header with a centred
-16 / 600 title and a close button, cards with 12 corners. Motion `sheet-in`: 0.26 s, opacity plus a 32 px rise; scrim fades in over 0.2 s.
+16 / 600 title and a close button, cards with 12 corners. Motion `sheet-in`: 0.26 s, opacity plus a 32 px rise; scrim fades in over 0.2 s (`.glass-scrim`: `#0000008c` on Midnight, `#0000002e` on Daylight).
+Settings cards carry a 0.5 px edge (`--settings-edge`: ink at 9 % Midnight / 10 % Daylight); round header buttons are 40 px circles on the card colour.
 Switch: 32 × 20, knob 16 two in, 0.15 s; on = ink track with a page-coloured knob.
 
 ## Components (all in `app/src/main/java/com/wangzan101/mika/ui`)
@@ -57,9 +58,13 @@ Switch: 32 × 20, knob 16 two in, 0.15 s; on = ink track with a page-coloured kn
 | Switch assistant / service | full page with a Material app bar | bottom sheet, cards, manage sheet and add dialog in the same family |
 | Bot notifications | full page of buttons | bottom sheet: switch row, system settings, per-service status |
 | Name and icon | app bar “✕ name ✓”, outlined field, numbered colour dots | design's page: round ✓ ✕ top right, 68 dp tile with pencil, centred name, icon card (robot / upload, three styles, eleven colours, face) |
-| Find / files / dialogs | Material fields and text buttons | search pill, card rows, popover-surface dialogs |
+| Chat header | full-width capsule touching both screen edges | 8 dp side margin, round buttons (40 dp circle in a 48 dp target), capsule hugs its content and sits in the middle |
+| Find / files / dialogs | Material fields and text buttons | search pill, card rows, popover-surface dialogs with ink-coloured buttons (destructive stays red) |
 
 Activities `BotServicesActivity` and `BotPushSettingsActivity` use the translucent `Theme.Mika.Sheet`, so the sheet rises over the screen that opened it.
+Full-screen dialogs (name and icon, find, files, the in-service sheets) call `NoDialogDim()`: the platform dim left a darker band under the status bar.
+Popover windows are created with `clippingEnabled = false`; otherwise the system slid the whole window inwards when its transparent shadow room
+reached the screen edge and the menu ended up 8 dp away from its button.
 
 ## Data
 
