@@ -1,5 +1,6 @@
 package com.wangzan101.mika.ui.theme
 
+import com.wangzan101.mika.BuildConfig
 import android.content.Context
 import android.provider.Settings
 import android.view.View
@@ -9,9 +10,12 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -86,8 +90,13 @@ fun ComponentActivity.systemBarsFor(dark: Boolean) {
 /** 深浅色按设置里的外观([appearanceDark]);同时把 Material 组件(弹窗、输入框、底部面板)的颜色对上。 */
 @Composable
 fun MikaTheme(dark: Boolean = appearanceDark(), reduceMotion: Boolean = false, content: @Composable () -> Unit) {
-    val colors = if (dark) DarkColors else LightColors
-    val scheme = if (dark) DarkScheme else LightScheme
+    val colors = if (BuildConfig.PLAY_EDITION) { if (dark) WoowDarkColors else WoowLightColors }
+        else if (dark) DarkColors else LightColors
+    val scheme = remember(colors) { scheme(colors) }
+    // Play edition dialogs share the workspace popover radius; other flavors keep Material's shapes.
+    val shapes = remember(colors) {
+        if (BuildConfig.PLAY_EDITION) Shapes(extraLarge = RoundedCornerShape(colors.menuRadius.dp)) else Shapes()
+    }
     val layoutDirection = if (LocalContext.current.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
         LayoutDirection.Rtl
     } else {
@@ -98,7 +107,7 @@ fun MikaTheme(dark: Boolean = appearanceDark(), reduceMotion: Boolean = false, c
         LocalMikaColors provides colors,
         LocalReduceMotion provides reduceMotion,
     ) {
-        MaterialTheme(colorScheme = scheme) {
+        MaterialTheme(colorScheme = scheme, shapes = shapes) {
             CompositionLocalProvider(LocalContentColor provides colors.ink, content = content)
         }
     }
@@ -112,7 +121,7 @@ private fun scheme(c: MikaColors): ColorScheme {
         background = c.bg, onBackground = c.ink,
         surface = c.surface, onSurface = c.ink, surfaceVariant = c.fill, onSurfaceVariant = c.ink2,
         surfaceContainerLowest = c.surface, surfaceContainerLow = c.surface, surfaceContainer = c.surface,
-        surfaceContainerHigh = c.surface, surfaceContainerHighest = c.surface, surfaceTint = c.surface,
+        surfaceContainerHigh = c.menu, surfaceContainerHighest = c.surface, surfaceTint = c.surface,
         outline = c.ink3, outlineVariant = c.hair,
         error = c.bad, onError = c.onAccent,
     )

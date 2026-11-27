@@ -42,6 +42,7 @@ object MikaIcons {
     val Close = stroke("close", "M6 6 l12 12 M18 6 L6 18", width = 2f)
     val Search = stroke("search", "M4 11 a7 7 0 1 0 14 0 a7 7 0 1 0 -14 0", "M20 20 l-4 -4")
     /** 刷新:差一点闭合的圆,右上角一个箭头。 */
+    val WorkspaceSwitch = stroke("workspace-switch", "M4 7h16", "M16 3l4 4-4 4", "M20 17H4", "M8 13l-4 4 4 4")
     val Refresh = stroke("refresh", "M19.5 12 a7.5 7.5 0 1 1 -2.2 -5.3", "M19.5 4.5 v4 h-4")
     val Trash = stroke("trash", "M4 7 h16 M9 7 V4.5 h6 V7", "M6.5 7 l1 13 h9 l1 -13")
     /** 语音转文字:一支话筒。 */

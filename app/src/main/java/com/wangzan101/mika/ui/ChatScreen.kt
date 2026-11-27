@@ -181,6 +181,8 @@ fun ChatScreen(
     voice: VoiceSource? = null,
     /** 「还不能语音输入」里的「去选」。 */
     openSpeechModel: () -> Unit = {},
+    /** Optional direct model destination for the WOOWTECH composer panel. */
+    onBotModels: () -> Unit = openSettings,
 ) {
     val ui by vm.ui.collectAsState()
     val others by vm.otherRunning.collectAsState()
@@ -201,7 +203,9 @@ fun ChatScreen(
     }
     val frame = live ?: lastFrame.takeIf { ui.pip.visible && ui.pip.mode == PipMode.Done }
     val webContent = if (ui.pip.mode == PipMode.Done) lastFrameWasWeb else webLive
-    var input by rememberChatDraft()
+    val botUi = botUiEnabled(LocalContext.current)
+    val botUiId = if (botUi) vm.botUiConversationId() else null
+    var input by if (botUiId != null) rememberBotUiDraft(botUiId) else rememberChatDraft()
     var voiceHolding by remember { mutableStateOf(false) }
     var editRequest by remember { mutableIntStateOf(0) }
     var composerHeight by rememberSaveable { mutableIntStateOf(0) }
@@ -341,7 +345,9 @@ fun ChatScreen(
             ?: kept?.let { ChatCopy.KEPT_PAGE to ChatCopy.Tone.Ok }
             ?: ChatTokensCopy.conversationSubtitle(endedRuns, runMetrics)?.let { it to null }
         Column(Modifier.behindMenu(menuOpen) { lift.value }.onSizeChanged { topHeight = it.height }) {
-            TopBar(
+            if (botUiEnabled(context)) {
+                BotUiChatHeader(vm, ui, sub?.first, onOpenDrawer)
+            } else TopBar(
                 ChatCopy.APP_TITLE,
                 left = MikaIcons.Menu, leftLabel = stringResource(R.string.chat_menu), onLeft = onOpenDrawer,
                 // 别的对话里还有任务在跑(并行时):菜单上一个小圆点,侧栏「进行中」里能切过去
@@ -366,7 +372,21 @@ fun ChatScreen(
             hasHistory = ui.exchanges.isNotEmpty(),
             onSend = { if (vm.send(input, check)) input = "" },
             onStop = vm::cancel,
-            attachPanel = if (ui.attachEnabled && ui.composer == ComposerMode.Idle) ({
+            attachPanel = if (botUi) ({
+                Column(Modifier.fillMaxSize()) {
+                    Row {
+                        androidx.compose.material3.TextButton(onClick = onBotModels) {
+                            Icon(MikaIcons.Spark, null); Text(stringResource(R.string.settings_model))
+                        }
+                        androidx.compose.material3.TextButton(onClick = openSpeechModel) {
+                            Icon(MikaIcons.Mic, null); Text(stringResource(R.string.bot_ui_voice))
+                        }
+                    }
+                    if (ui.attachEnabled && ui.composer == ComposerMode.Idle) {
+                        AttachPanelHost(ui.attachments, onPicked = vm::attach, onToggle = vm::toggleAttachment, modifier = Modifier.weight(1f))
+                    }
+                }
+            }) else if (ui.attachEnabled && ui.composer == ComposerMode.Idle) ({
                 AttachPanelHost(ui.attachments, onPicked = vm::attach, onToggle = vm::toggleAttachment)
             }) else null,
             attachments = ui.attachments,
@@ -605,6 +625,7 @@ private fun ExchangeStatus.isActive() =
 internal fun UserBubble(text: String, conversationId: String?, note: String? = null, key: String = "") {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val bubbleShape = if (botUiEnabled(context)) RoundedCornerShape(18.dp) else MikaShapes.UserBubble
     val paged = remember(text) { AttachedPage.parse(text) }
     val quoted = remember(text) { QuoteMessage.parse(paged.words) }
     val attached = remember(text) { AttachmentMessage.parse(quoted.words) }
@@ -630,8 +651,8 @@ internal fun UserBubble(text: String, conversationId: String?, note: String? = n
                 CompositionLocalProvider(LocalTextSelectionColors provides TextSelectionColors(colors.accent, colors.onAccent.copy(alpha = 0.35f))) {
                     MessageArea(
                         key, QuoteMessage.From.You, words, "selectable-user",
-                        Modifier.widthIn(max = max).background(colors.accent, MikaShapes.UserBubble),
-                        lifted = { LiftedMessage(MikaShapes.UserBubble, colors.accent) { UserBubbleText(words) } },
+                        Modifier.widthIn(max = max).background(if (botUiEnabled(context)) { if (colors.isDark) Color(0xFF5A5A5A) else Color(0xFF1C1C1C) } else colors.accent, bubbleShape),
+                        lifted = { LiftedMessage(bubbleShape, if (botUiEnabled(context)) { if (colors.isDark) Color(0xFF5A5A5A) else Color(0xFF1C1C1C) } else colors.accent) { UserBubbleText(words) } },
                     ) { UserBubbleText(words) }
                 }
             }
@@ -642,7 +663,7 @@ internal fun UserBubble(text: String, conversationId: String?, note: String? = n
 
 @Composable
 private fun UserBubbleText(words: String) {
-    Text(words, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = BubbleText, color = MikaTheme.colors.onAccent)
+    Text(words, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = BubbleText, color = if (botUiEnabled(LocalContext.current)) Color(0xFFF5F5F5) else MikaTheme.colors.onAccent)
 }
 
 /** 长按抬起的那条消息:[color] 底、带阴影;太长时(最高半屏)只露开头,下面裁掉。 */
@@ -1198,6 +1219,7 @@ internal fun Composer(
     onVoiceHolding: (Boolean) -> Unit = {},
 ) {
     val c = MikaTheme.colors
+    val botUi = botUiEnabled(LocalContext.current)
     val vh = rememberVoiceHold(voice, onVoiceText)
     val vState = voiceState(vh)
     val voiceHolding = vh?.holding == true
@@ -1294,8 +1316,16 @@ internal fun Composer(
                 VoiceFloat(vh, vState, title, backdrop, reduceMotion)
             }
             Box(Modifier.fillMaxWidth()) {
-            GlassBar(Modifier.fillMaxWidth().keepsKeyboard(), backdrop) {
-                if (attachPanel != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (botUi) 8.dp else 0.dp)) {
+            if (botUi && attachPanel != null) {
+                val label = if (panel == Panel.Open) AttachCopy.CLOSE else AttachCopy.ADD
+                Box(Modifier.size(48.dp).background(c.surface, CircleShape).clip(CircleShape)
+                    .clickable(enabled = !importing, onClickLabel = label, onClick = togglePanel), contentAlignment = Alignment.Center) {
+                    Icon(MikaIcons.Plus, label, Modifier.size(MikaSize.Icon).graphicsLayer { rotationZ = turn }, tint = c.ink)
+                }
+            }
+            GlassBar(Modifier.weight(1f).keepsKeyboard(), backdrop, shape = if (botUi) RoundedCornerShape(27.dp) else MikaShapes.Pill) {
+                if (!botUi && attachPanel != null) {
                     val label = if (panel == Panel.Open) AttachCopy.CLOSE else AttachCopy.ADD
                     Box(
                         Modifier.size(MikaSize.IconButton).clip(CircleShape)
@@ -1333,7 +1363,7 @@ internal fun Composer(
                 }
                 val canSend = AttachTray.canSend(text, attachments, importing)
                 // 键盘出来以后长按输入框留给系统选字;话筒按住才听,点一下只提示按住
-                if (fieldFocused && vh != null) {
+                if ((fieldFocused || (botUi && !canSend && !busy)) && vh != null) {
                     val hint = stringResource(R.string.voice_hold_to_talk)
                     Box(
                         Modifier.size(MikaSize.IconButton).testTag("composer-mic").holdToTalk(vh) { vh.toast = hint },
@@ -1352,17 +1382,21 @@ internal fun Composer(
                         Icon(MikaIcons.Stop, stringResource(R.string.chat_stop), Modifier.size(26.dp), tint = c.bg)
                     }
                 }
-                if (!busy || canSend) {
+                if (botUi && !canSend && !busy && vh == null) {
+                    BotUiButton(MikaIcons.Mic, stringResource(R.string.bot_ui_voice), onClick = onPickSpeech)
+                }
+                if ((!busy || canSend) && (!botUi || canSend)) {
                     Box(
                         Modifier.size(MikaSize.IconButton)
-                            .background(if (canSend) c.accent else c.greySoft, CircleShape)
+                            .background(if (canSend) { if (botUi) c.ink else c.accent } else c.greySoft, CircleShape)
                             .clip(CircleShape)
                             .clickable(enabled = canSend, onClickLabel = stringResource(R.string.chat_send)) { panel = Panel.Closed; onSend() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(MikaIcons.Up, stringResource(R.string.chat_send), Modifier.size(20.dp), tint = if (canSend) c.onAccent else c.ink3)
+                        Icon(MikaIcons.Up, stringResource(R.string.chat_send), Modifier.size(20.dp), tint = if (canSend) { if (botUi) c.bg else c.onAccent } else c.ink3)
                     }
                 }
+            }
             }
             if (vh != null) VoiceBarCover(vh, vState, reduceMotion, Modifier.matchParentSize())
             }
