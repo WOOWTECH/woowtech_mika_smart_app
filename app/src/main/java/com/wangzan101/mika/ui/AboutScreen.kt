@@ -55,10 +55,11 @@ import com.wangzan101.mika.ui.theme.MikaType
 private enum class AboutSheet { Feedback, Diagnostics }
 
 /**
- * WOOWTECH Play edition (woowtech flavor): no GitHub entries (source code, guide, GitHub issue). The repo documents
- * the direct-download APK, which is not distributed through Google Play. The licenses page stays.
+ * Play editions (BuildConfig.PLAY_EDITION: woowtech, apporoplay flavors): no GitHub entries (source code, guide,
+ * GitHub issue). The repo documents the direct-download APK, which is not distributed through Google Play. The
+ * licenses page stays.
  */
-private val SHOW_GITHUB = BuildConfig.FLAVOR != "woowtech"
+private val SHOW_GITHUB = !BuildConfig.PLAY_EDITION
 
 /**
  * 关于 Mika:顶上图标、名字、一句话介绍、版本(Beta 标记、构建编号);下面是

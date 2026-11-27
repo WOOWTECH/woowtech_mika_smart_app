@@ -472,7 +472,7 @@ Besides the phone, you have a Linux sandbox (Alpine with Python 3 and Node). Use
 - Use only `mika phone` to reach the task's virtual display from a command. Do not try to read other apps' data or reach the internet when the network is off.
 - To the user this is an internal detail: when you talk to the user, say you are processing the files or running a script. Do not mention a sandbox, Linux, Alpine or PRoot.
 
-==== tools (81) ====
+==== tools (82) ====
 ## wait
 Wait briefly for an app to load or an animation to finish.
 {"type":"object","properties":{"seconds":{"type":"number","description":"0.2-10 seconds.","minimum":0.2,"maximum":10},"reason":{"type":"string","description":"Optional short note on why you are calling this, in the user's language; shown to the user as the step label."}},"required":["seconds"],"additionalProperties":false}
@@ -802,6 +802,10 @@ Write a text file under /workspace (parent directories are created). Only /works
 ## search_files
 Search file contents under /workspace or /opt/mika/skills with a regular expression. Returns up to 100 matches with file, line number and the line text.
 {"type":"object","properties":{"pattern":{"type":"string","description":"Regular expression to search for."},"path":{"type":"string","description":"Directory or file to search (default /workspace)."},"glob":{"type":"string","description":"Optional file name filter, e.g. *.csv or **/*.py."},"reason":{"type":"string","description":"Optional short note on why you are calling this, in the user's language; shown to the user as the step label."}},"required":["pattern"],"additionalProperties":false}
+
+## create_document
+Generate a local HTML, PDF or CSV document from known source content. Never invent missing source content; ask when source or table selection is ambiguous. document contains title and sections: heading(text, level 1-6), paragraph(text), bulletList/orderedList(items: string[]), table(columns: string[], rows: string[][]). Text is literal, not markup. Max 250000 characters, 200 sections, 12 columns and 1000 rows per table. CSV exports one table, with formula protection (apostrophe prefix); disclose this to the user. Then call share_file with the returned path to show an attachment for preview/save/share. No external transmission occurs.
+{"type":"object","properties":{"format":{"type":"string","enum":["html","pdf","csv"]},"document":{"type":"object","properties":{"title":{"type":"string","description":"Document title, 1-200 characters."},"sections":{"type":"array","minItems":1,"maxItems":200,"items":{"type":"object","properties":{"type":{"type":"string","description":"Section type","enum":["heading","paragraph","bulletList","orderedList","table"]},"text":{"type":"string","description":"Literal heading or paragraph text"},"level":{"type":"integer","description":"Heading level","minimum":1,"maximum":6},"items":{"type":"array","description":"List items","maxItems":1000,"items":{"type":"string"}},"columns":{"type":"array","description":"Table column labels","maxItems":12,"items":{"type":"string"}},"rows":{"type":"array","maxItems":1000,"items":{"type":"array","description":"Row cells, including empty strings","maxItems":12,"items":{"type":"string"}}}},"required":["type"],"additionalProperties":false}}},"required":["title","sections"],"additionalProperties":false},"tableIndex":{"type":"integer","description":"CSV only: zero-based index among table sections; required when multiple tables exist.","minimum":0,"maximum":199},"reason":{"type":"string","description":"Optional short note on why you are calling this, in the user's language; shown to the user as the step label."}},"required":["format","document"],"additionalProperties":false}
 
 ## share_file
 Save a file from /workspace to the phone's Download/Mika folder (at most 100 MB) and show it to the user as a file card. Use it to hand results to the user.

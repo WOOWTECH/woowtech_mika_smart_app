@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">Tinggi</string>
     <string name="model_reasoning_xhigh">Sangat tinggi</string>
     <string name="model_reasoning_max">Maksimum</string>
+    <string name="viewer_save_as">Simpan salinan</string>
+    <string name="viewer_saved">File disimpan</string>
+    <string name="viewer_save_cancelled">Penyimpanan dibatalkan</string>
+    <string name="viewer_save_failed">Tidak dapat menyimpan file. Periksa ruang penyimpanan dan coba lagi.</string>
 </resources>

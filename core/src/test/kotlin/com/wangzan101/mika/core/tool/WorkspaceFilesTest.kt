@@ -47,7 +47,7 @@ class WorkspaceFilesTest {
     @Test fun fileToolsAreOfferedWithoutCommandsOrScripts() = runTest {
         val d = dispatcher()
         val offered = d.offeredNow().map { it.name }.toSet()
-        assertTrue(offered.toString(), offered.containsAll(setOf("read_file", "write_file", "search_files", "share_file")))
+        assertTrue(offered.toString(), offered.containsAll(setOf("read_file", "write_file", "search_files", "create_document", "share_file")))
         assertFalse(offered.toString(), "run_command" in offered || "run_bundled_script" in offered)
         assertFalse(d.scriptsOffered())
         assertEquals("unknown_tool", d.execute(call("run_command", buildJsonObject { put("command", "ls") })).content.s("error"))
@@ -58,6 +58,28 @@ class WorkspaceFilesTest {
         // 直接下载版的沙箱照旧:命令和文件工具都有
         val full = toolDispatcher(web = FakeWebPort(), sandbox = FakeSandbox(), workspace = { "conv" })
         assertTrue(full.definitions().any { it.name == "run_command" })
+    }
+
+    @Test fun createsAndDeliversDocumentsWithoutRunningCodeOrPreparingRuntime() = runTest {
+        val d = dispatcher()
+        val doc = kotlinx.serialization.json.Json.parseToJsonElement("""{"title":"上架文件","sections":[{"type":"table","columns":["項目","內容"],"rows":[["中文","<script>&"],["公式","=1+1"]]}]}""")
+        for (format in listOf("html", "csv")) {
+            val created = d.execute(call("create_document", buildJsonObject { put("format", format); put("document", doc) })).content
+            assertEquals(created.toString(), "true", created.s("ok"))
+            val path = created.s("path")
+            val file = File(sb.workspaceDir("conv"), path.removePrefix("/workspace/"))
+            assertTrue(file.isFile)
+            if (format == "html") assertTrue(file.readText().contains("&lt;script&gt;&amp;"))
+            if (format == "csv") assertTrue(file.readText().contains("'=1+1"))
+            val shared = d.execute(call("share_file", buildJsonObject { put("path", path) })).content
+            assertEquals(shared.toString(), "true", shared.s("ok"))
+            assertEquals(file.canonicalFile, sb.shared.last().first.canonicalFile)
+        }
+        assertEquals(2, sb.shared.size)
+        assertTrue(sb.runs.isEmpty())
+        assertEquals(0, sb.waits)
+        assertEquals(0, sb.prepares)
+        assertFalse(d.offeredNow().any { it.name.startsWith("phone_") || it.name.startsWith("root_") })
     }
 
     @Test fun attachedPhotoReachesTheModelAsAnImage() = runTest {

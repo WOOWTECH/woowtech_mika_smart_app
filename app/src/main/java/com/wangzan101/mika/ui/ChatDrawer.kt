@@ -543,6 +543,12 @@ fun ChatWithDrawer(
     externalOpenRevision: Int = 0,
     content: @Composable (openDrawer: () -> Unit) -> Unit,
 ) {
+    if (botUiEnabled(LocalContext.current)) {
+        BotUiHistoryHost(vm, conversations, conversationChanges, onPlans, onMemory, onBrowser,
+            onMcpServers, onComputerAccess, onScreens, onSettings, onAbout,
+            reopen = reopen, onReopened = onReopened, externalOpenRevision = externalOpenRevision, content = content)
+        return
+    }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var handledOpenRevision by rememberSaveable { mutableIntStateOf(externalOpenRevision) }

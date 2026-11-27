@@ -31,12 +31,35 @@ import com.wangzan101.mika.core.assembly.toolDispatcher
 private var seq = 0
 private fun call(name: String, args: JsonObject) = Part.ToolCall("c${++seq}", name, args.toString())
 private fun JsonObject.s(k: String) = this[k]!!.jsonPrimitive.content
-private val SANDBOX_NAMES = setOf("run_command", "run_bundled_script", "read_file", "write_file", "search_files", "share_file")
+private val SANDBOX_NAMES = setOf("run_command", "run_bundled_script", "read_file", "write_file", "search_files", "create_document", "share_file")
 
 class ToolDispatcherSandboxTest {
     private val sb = FakeSandbox()
     private fun dispatcher(vision: Boolean = false) = toolDispatcher(FakeScreen(), vision, sandbox = sb, workspace = { "conv1" })
     private val ws get() = sb.workspaceDir("conv1")
+
+    @Test fun documentCreatesUniqueFileThenExportsAttachment() = runTest {
+        val args = kotlinx.serialization.json.Json.parseToJsonElement("""{"format":"html","document":{"title":"中文報告","sections":[{"type":"paragraph","text":"實測 <script>"}]}}""").jsonObject
+        val d = dispatcher()
+        val first = d.execute(call("create_document", args)).content
+        assertEquals("true", first.s("ok"))
+        val second = d.execute(call("create_document", args)).content
+        assertTrue(first.s("path") != second.s("path"))
+        val file = File(ws, first.s("path").removePrefix("/workspace/"))
+        assertTrue(file.readText().contains("&lt;script&gt;"))
+        assertTrue(sb.shared.isEmpty())
+        val saved = d.execute(call("share_file", buildJsonObject { put("path", first.s("path")) })).content
+        assertEquals("true", saved.s("ok"))
+        assertEquals(file.canonicalFile, sb.shared.single().first.canonicalFile)
+    }
+
+    @Test fun documentRefusesLowStorage() = runTest {
+        sb.free = 0
+        val args = kotlinx.serialization.json.Json.parseToJsonElement("""{"format":"html","document":{"title":"x","sections":[{"type":"paragraph","text":"x"}]}}""").jsonObject
+        val result = dispatcher().execute(call("create_document", args)).content
+        assertEquals("storage_low", result.s("error"))
+        assertFalse(File(ws, "documents").exists())
+    }
 
     @Test fun toolsOfferedWhenDeviceSupported() = runTest {
         assertTrue(toolDispatcher(FakeScreen()).definitions().none { it.name in SANDBOX_NAMES })

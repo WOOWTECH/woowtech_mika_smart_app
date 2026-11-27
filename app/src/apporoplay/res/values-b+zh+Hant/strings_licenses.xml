@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant Google Play 版：授權頁的繁體中文（上游這頁寫死簡體中文）。每個上游 Licenses.ENTRIES 條目一組，名稱和
+  Apporo 的 BrandLicenses.kt 相同。商店版的 BrandLicenses.kt（src/apporoplay/java）不列 PRoot、talloc、scrcpy、Alpine Linux，
+  也不加 ML Kit 和執行環境套件：此版本沒有沙箱執行環境、手機操作和跨 App OCR。這幾條仍保留，兩份 BrandLicenses.kt
+  都能編譯；萬一顯示，內容寫明此版本不包含。
+-->
+<resources>
+    <string name="woow_lic_mika">本 App 以開源專案 Mika（Copyright 2026 wangzan101，https://github.com/wangzan101/Mika）為基礎，由 WOOW TECH CO., LTD. 修改與發行。授權條款全文見本頁頂端；修改內容見原始碼儲存庫的 docs-apporo/RESEARCH.zh-TW.md，上游的 NOTICE 隨原始碼保留。</string>
+    <string name="woow_lic_proot">Google Play 版不包含此元件：此版本沒有執行 Python、Node 等程式的環境。</string>
+    <string name="woow_lic_talloc">Google Play 版不包含此元件（只有 PRoot 會用到）。</string>
+    <string name="woow_lic_commons_compress">Apache 壓縮封存處理函式庫。Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_codec">Apache Commons Compress 的相依套件。Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_io">Apache Commons Compress 的相依套件。Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_lang">Apache Commons Compress 的相依套件。Copyright 2001-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_kotlin_name">Kotlin 標準函式庫</string>
+    <string name="woow_lic_kotlin">kotlin-stdlib 2.1.20 等，以及 JetBrains annotations 23.0.0。https://kotlinlang.org/</string>
+    <string name="woow_lic_coroutines">版本 1.9.0。https://github.com/Kotlin/kotlinx.coroutines</string>
+    <string name="woow_lic_serialization">版本 1.7.3。https://github.com/Kotlin/kotlinx.serialization</string>
+    <string name="woow_lic_opentelemetry">詳細 Trace 的 OTLP 訊息定義。https://opentelemetry.io/</string>
+    <string name="woow_lic_protobuf">詳細 Trace 的 Protobuf 編碼。https://protobuf.dev/</string>
+    <string name="woow_lic_okhttp">版本 4.12.0，用來連線模型 API。https://square.github.io/okhttp/</string>
+    <string name="woow_lic_okio">版本 3.6.0，OkHttp 的相依套件。https://github.com/square/okio/</string>
+    <string name="woow_lic_androidx_name">AndroidX（含 Jetpack Compose）</string>
+    <string name="woow_lic_androidx">Compose 1.7.6、Material3 1.3.1、Activity 1.9.3、Lifecycle 2.8.3、Core 1.13.1、WebKit 1.12.1 等介面與系統元件庫。https://developer.android.com/jetpack/androidx</string>
+    <string name="woow_lic_guava_name">Guava ListenableFuture（由 AndroidX 引入）</string>
+    <string name="woow_lic_guava">listenablefuture 1.0。https://github.com/google/guava</string>
+    <string name="woow_lic_scrcpy">Google Play 版不包含此元件：此版本不會操作其他 App。</string>
+    <string name="woow_lic_alpine_license">各套件各自的授權條款</string>
+    <string name="woow_lic_alpine">Google Play 版不包含此元件：此版本沒有執行程式的環境。</string>
+    <string name="woow_lic_xz">版本 1.10，XZ 封存格式支援函式庫。https://tukaani.org/xz/java.html</string>
+    <string name="woow_lic_commonmark">版本 0.30.1（含表格、刪除線擴充），把回答裡的 Markdown 解析成結構後顯示。Copyright (c) 2015, Atlassian Pty Ltd. https://github.com/commonmark/commonmark-java</string>
+    <string name="woow_lic_mlkit_name">Google ML Kit 文字辨識</string>
+    <string name="woow_lic_mlkit_license">Google APIs 服務條款與 ML Kit 服務條款</string>
+    <string name="woow_lic_mlkit">Google Play 版不包含此元件：此版本不會辨識其他 App 畫面上的文字。</string>
+    <!-- 執行環境裡的一個套件：版本，接著是首頁網址（可能沒有）。商店版沒有執行環境套件。 -->
+    <string name="woow_lic_runtime_package">版本 %1$s。%2$s</string>
+</resources>

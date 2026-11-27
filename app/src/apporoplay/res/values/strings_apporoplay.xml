@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant Google Play edition (apporoplay flavor): strings that differ from the direct-download Apporo
+  edition because this edition has no phone control, accessibility service, sandbox, cross-app OCR,
+  "Connect a computer" or GitHub links. Same keys as the other Google Play edition flavor overrides, in Apporo's
+  wording, with info@apporo.ai for feedback.
+-->
+<resources>
+    <!-- Settings › Privacy policy in the Play edition (MainActivity); served by tools/apporo-relay-worker. -->
+    <string name="play_privacy_policy_url" translatable="false">https://assistant-relay.apporo.ai/privacy/play</string>
+
+    <!-- About: the Play edition has no GitHub entries (AboutScreen); feedback goes by email. -->
+    <string name="about_tagline">Chat, browse the web and keep useful information in one place</string>
+    <string name="about_data_note">What you send, including pages the assistant reads in the built-in browser, is processed by the AI provider you choose. If you report an AI response, that response is sent to Apporo for review. Keep passwords and verification codes out of conversations.</string>
+    <string name="about_feedback_sub">Copy diagnostics · info@apporo.ai</string>
+    <string name="about_feedback_sheet_sub">Copy diagnostics, then email them to info@apporo.ai.</string>
+    <string name="diagnostics_copy_sub">Version, device and setup state, to include in your email</string>
+
+    <!-- Chat: the Play examples (ChatCopy.examples) need only the chat and the built-in browser. -->
+    <string name="chat_empty_prompt">What would you like help with?</string>
+    <string name="chat_example_follow">Draft a friendly email inviting my team to Friday’s planning meeting.</string>
+    <string name="chat_example_group_summary">Find a recent article about smart buildings in the built-in browser and summarize three key points.</string>
+    <string name="chat_example_jobs">Search the web for facility manager jobs and compare five of them for me.</string>
+    <string name="chat_example_multi_step">Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.</string>
+    <string name="chat_example_alarms">Remember that I prefer short answers with the key point first.</string>
+    <string name="chat_example_ai_apps">What preferences have I asked you to remember?</string>
+    <string name="drawer_phone_not_ready">Chat, browser, and memory are available</string>
+
+    <!-- Settings: no autonomous mode, computing environment, repair page or in-app updates. -->
+    <string name="settings_all_ready_detail">Model ready · Chat and browser available</string>
+    <string name="settings_memory_sub">Memories, skills, and website sign-ins</string>
+    <string name="settings_advanced_sub">Network proxy &amp; MCP servers</string>
+    <string name="settings_during_work_sub">Keep screen on &amp; step limit</string>
+    <string name="net_proxy_row_sub">For model requests, account sign-in, MCP servers and the in-app browser</string>
+    <string name="net_proxy_hint">Used for Apporo Assistant’s own connections (chat, model lists, account sign-in, MCP servers) and the in-app browser. Addresses on this phone or your local network (localhost, 192.168.x.x, 10.x.x.x, names ending in .local) always connect directly. It may include user:password@, stored encrypted on this phone. Leave empty for a direct connection.</string>
+    <string name="net_proxy_container_only">https:// proxies aren’t used for Apporo Assistant’s connections, which stay direct. Use http:// or socks5:// instead.</string>
+    <string name="settings_pace_foot">Task speed settings apply only to supported tasks. This edition does not operate other apps.</string>
+    <string name="plans_footer">Create plans for supported chat, web, and memory tasks. This edition cannot operate other apps on your phone.</string>
+
+    <!-- No cross-app access or phone control in this edition (zh-Hant: strings_apporo_wording.xml). -->
+    <string name="task_app_blocked">This edition cannot read or operate “%1$s” outside its own browser. Share the information here or use the built-in browser instead.</string>
+    <string name="task_app_access_unavailable">Cross-app access is unavailable in this edition. Chat, browser, and memory tasks are still available.</string>
+    <string name="err_app_unavailable">Cross-app access unavailable in this edition</string>
+    <string name="task_no_phone_helper_usb">This edition does not support phone control. Ask for help in chat or use the built-in browser instead.</string>
+    <string name="phone_success_note">This edition does not control other apps. USB and Wireless debugging are not needed.</string>
+    <string name="phone_usage_note">This edition does not control other apps. Chat, the built-in browser, and memory remain available.</string>
+    <string name="fail_usb_stopped_body">This edition cannot start phone control with a USB command.</string>
+    <string name="phone_usb_body">This edition cannot start phone control with a USB command.</string>
+    <string name="phone_usb_again_body">This edition cannot start phone control with a USB command.</string>
+    <string name="phone_success_note_usb">This edition does not control other apps. USB debugging is not needed.</string>
+    <string name="phone_usage_note_usb">This edition does not control other apps. Chat, the built-in browser, and memory remain available.</string>
+    <string name="phone_root_start_sub">This edition cannot start phone control with root.</string>
+    <string name="rec_boot">Automatic phone control recovery is unavailable in this edition</string>
+    <string name="rec_boot_body">This edition does not enable Wireless debugging or automatically control other apps.</string>
+    <string name="rec_auto_wireless_body">This edition does not automatically enable Wireless debugging.</string>
+    <string name="rec_restarted_at">A previous edition recorded an automatic accessibility restart at %1$s.</string>
+    <string name="rec_setting_unavailable">Automatic Wireless debugging recovery is unavailable in this edition.</string>
+    <string name="rec_needs_pairing">This edition does not support Wireless debugging pairing or USB phone control.</string>
+</resources>

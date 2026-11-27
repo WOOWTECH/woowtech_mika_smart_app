@@ -7,5 +7,5 @@ import com.wangzan101.mika.BuildConfig
  * edition, but a payment always asks first, even in autonomous mode (see [RunApproval]).
  */
 internal object PlayApprovalPolicy {
-    val paymentsAlwaysAsk: Boolean get() = BuildConfig.FLAVOR == "woowtech"
+    val paymentsAlwaysAsk: Boolean get() = BuildConfig.PLAY_EDITION
 }

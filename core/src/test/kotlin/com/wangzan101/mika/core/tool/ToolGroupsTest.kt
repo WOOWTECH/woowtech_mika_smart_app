@@ -38,7 +38,7 @@ class ToolGroupsTest {
     private val chatOnly = listOf(
         "wait", "ask_user", "request_confirmation", "end_not_done",
         "phone_list_apps", "phone_launch_app", "phone_set_alarm", "phone_set_timer", "phone_add_calendar_event",
-        "web_navigate", "web_read_page", "run_command",
+        "web_navigate", "web_read_page", "run_command", "create_document",
     )
 
     @Test fun chatOnlyGetsBaseAndEntries() {
@@ -48,7 +48,7 @@ class ToolGroupsTest {
         // 入口收着时用短说明,参数和全文一样
         val now = d.offeredNow().associateBy { it.name }
         val full = d.definitions().associateBy { it.name }
-        for (e in listOf("phone_launch_app", "phone_list_apps", "phone_set_alarm", "phone_set_timer", "phone_add_calendar_event", "web_navigate", "web_read_page", "run_command")) {
+        for (e in listOf("phone_launch_app", "phone_list_apps", "phone_set_alarm", "phone_set_timer", "phone_add_calendar_event", "web_navigate", "web_read_page", "run_command", "create_document")) {
             assertEquals(Prompts.entry(e), now.getValue(e).description)
             assertEquals(full.getValue(e).parametersJsonSchema, now.getValue(e).parametersJsonSchema)
             assertTrue(e, now.getValue(e).description.length < full.getValue(e).description.length)

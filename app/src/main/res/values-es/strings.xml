@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">Alto</string>
     <string name="model_reasoning_xhigh">Muy alto</string>
     <string name="model_reasoning_max">Máximo</string>
+    <string name="viewer_save_as">Guardar una copia</string>
+    <string name="viewer_saved">Archivo guardado</string>
+    <string name="viewer_save_cancelled">Guardado cancelado</string>
+    <string name="viewer_save_failed">No se pudo guardar el archivo. Comprueba el espacio de almacenamiento e inténtalo de nuevo.</string>
 </resources>

@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">Высокая</string>
     <string name="model_reasoning_xhigh">Очень высокая</string>
     <string name="model_reasoning_max">Максимальная</string>
+    <string name="viewer_save_as">Сохранить копию</string>
+    <string name="viewer_saved">Файл сохранён</string>
+    <string name="viewer_save_cancelled">Сохранение отменено</string>
+    <string name="viewer_save_failed">Не удалось сохранить файл. Проверьте свободное место и повторите попытку.</string>
 </resources>

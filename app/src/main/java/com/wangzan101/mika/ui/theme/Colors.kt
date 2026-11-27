@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
  * 实色只用在强调(主按钮、选中、开关、用户消息)和状态(成功、需要你、出错);图标块一律中性。
  */
 @Immutable
-class MikaColors(
+data class MikaColors(
     /** 页面背景。 */
     val bg: Color,
     /** 卡片、分组。 */
@@ -61,6 +61,17 @@ class MikaColors(
     /** 图表的网格线。 */
     val grid: Color,
     val isDark: Boolean,
+    /**
+     * woowtechbot surfaces (Direct WOOWTECH). Every other brand keeps the shared tokens above, so these default to them.
+     * panel = sheets, menu = popovers and dialogs, control = round buttons and chips, inset = recessed fields.
+     */
+    val panel: Color = bg,
+    val menu: Color = surface,
+    val menuHover: Color = fill,
+    val menuActive: Color = fill,
+    val control: Color = fill,
+    val inset: Color = surface,
+    val raisedHover: Color = fill,
 )
 
 val LightColors = MikaColors(
@@ -131,3 +142,51 @@ val DarkColors = MikaColors(
 
 /** 没有包在 [MikaTheme] 里时(比如界面测试)按浅色。 */
 val LocalMikaColors = staticCompositionLocalOf { LightColors }
+
+/** Apporo's Play edition keeps its brand accent (gold) on the shared workspace surfaces. */
+private val ApporoAccent = com.wangzan101.mika.BuildConfig.FLAVOR == "apporoplay"
+
+/**
+ * Play editions (WOOWTECH and Apporo), aligned with the direct-download WOOWTECH edition. Values are the woowtechbot website's own tokens
+ * (measured from the production stylesheet 0.1.169, 2026-11-27): on phones only Midnight has a dedicated set
+ * (page #141414, popover #2c2c2e, card #242426, hairline #3a3a3c); Daylight keeps its desktop values.
+ */
+val WoowLightColors = LightColors.copy(
+    bg = Color(0xFFFCFCFC), surface = Color(0xFFEFEFEF), fill = Color(0xFFE3E3E3),
+    ink = Color(0xFF1C1C1C), ink2 = Color(0xAD1C1C1C), ink3 = Color(0xA61C1C1C),
+    hair = Color(0x3D1C1C1C), edge = Color(0x1F1C1C1C),
+    accent = if (ApporoAccent) LightColors.accent else Color(0xFF0B69CC), accentSoft = Color(0xFFE4E4E4),
+    onAccent = if (ApporoAccent) LightColors.onAccent else Color.White,
+    answer = Color(0xFFEFEFEF), glass = Color(0xFFE3E3E3), glassEdge = Color(0x1F1C1C1C),
+    ok = Color(0xFF007A44), bad = Color(0xFFCD2834),
+    panel = Color(0xFFF5F5F5), menu = Color(0xFFFFFFFF), menuHover = Color(0x0F1C1C1C), menuActive = Color(0x141C1C1C),
+    control = Color(0xFFE3E3E3), inset = Color(0xFFE9E9E9), raisedHover = Color(0xFFD8D8D8),
+)
+val WoowDarkColors = DarkColors.copy(
+    bg = Color(0xFF141414), surface = Color(0xFF242426), fill = Color(0xFF2C2C2E),
+    ink = Color(0xFFF5F5F5), ink2 = Color(0xA8F5F5F5), ink3 = Color(0x91F5F5F5),
+    hair = Color(0xFF3A3A3C), edge = Color(0x0FF5F5F5),
+    accent = if (ApporoAccent) DarkColors.accent else Color(0xFF7FC0FF), accentSoft = Color(0xFF2C2C2E),
+    onAccent = if (ApporoAccent) DarkColors.onAccent else Color(0xFF141414),
+    answer = Color(0xFF242426), glass = Color(0xFF2C2C2E), glassEdge = Color(0xFF3A3A3C),
+    ok = Color(0xFF38D591), bad = Color(0xFFFF5667),
+    panel = Color(0xFF1C1C1E), menu = Color(0xFF2C2C2E), menuHover = Color(0x0FF5F5F5), menuActive = Color(0x14F5F5F5),
+    control = Color(0xFF2C2C2E), inset = Color(0xFF1C1C1E), raisedHover = Color(0xFF3A3A3C),
+)
+
+/**
+ * The website's settings dialogs ([data-settings-look]) use their own palette on every width: page #121212, cards #1f1f1f,
+ * 9% ink edges. Native sheets that mirror those dialogs (services, notifications) wrap their content in this set.
+ */
+val WoowSheetDarkColors = WoowDarkColors.copy(
+    bg = Color(0xFF121212), surface = Color(0xFF1F1F1F), fill = Color(0xFF282828),
+    hair = Color(0xFF383838), edge = Color(0x17F5F5F5),
+    accentSoft = Color(0xFF202020), onAccent = Color(0xFF121212),
+    answer = Color(0xFF1F1F1F), glass = Color(0xFF282828), glassEdge = Color(0xFF383838),
+    panel = Color(0xFF121212), menu = Color(0xFF1F1F1F), control = Color(0xFF282828),
+    inset = Color(0xFF1B1B1B), raisedHover = Color(0xFF2C2C2C),
+)
+val WoowSheetLightColors = WoowLightColors.copy(surface = Color(0xFFFFFFFF), menu = Color(0xFFFFFFFF), edge = Color(0x1A1C1C1C))
+
+/** Popover and dialog corner radius: 22 on phone Midnight, 12 elsewhere (--radius-menu). */
+val MikaColors.menuRadius get() = if (isDark) 22 else 12

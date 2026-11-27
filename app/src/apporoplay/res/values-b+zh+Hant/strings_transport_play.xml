@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="model_self_hosted_note">127.0.0.1 是這支手機；其他裝置上的服務請使用 HTTPS 網址。</string>
+    <string name="mcp_servers_help_text">連接外部 MCP 伺服器後，可選擇允許助理使用的工具。手機以外的伺服器須使用 HTTPS；只有同一支手機的伺服器可以另行允許 HTTP。存取權杖只保存在本機。</string>
+</resources>
