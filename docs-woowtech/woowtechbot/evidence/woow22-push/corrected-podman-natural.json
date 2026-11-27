@@ -1,0 +1,23 @@
+{
+  "source": "0a78edb2",
+  "versionCode": 3822,
+  "sendId": "poco22fix-natural-f99b4a02-28dd-44a3-a60e-60edd50d911b",
+  "eventId": "67356475-2967-44b0-8845-2c57e5e52e4c",
+  "phoneTagObservedAtUtc": "2026-11-26T22:00:08.471534Z",
+  "relayReadAtUtc": "2026-11-26T22:01:36.214Z",
+  "postTapReadAtUtc": "2026-11-26T22:05:30.644Z",
+  "expiresAtUtc": "2026-11-26T22:09:40.955Z",
+  "receipt": "PASS",
+  "bodyNavigation": "PASS",
+  "mainSeed": "PASS",
+  "markerCompliance": "FAIL",
+  "modelRetry": false,
+  "artificialNotify": false,
+  "classification": "ordinary background natural done",
+  "screenshots": [
+    "corrected-podman-natural-portrait.png",
+    "corrected-podman-natural-picker.png"
+  ],
+  "followup": "HOLD",
+  "backendEvidenceCommit": "9e77874"
+}
