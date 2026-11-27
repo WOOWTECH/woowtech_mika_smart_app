@@ -89,10 +89,18 @@ Firebase project `woowtech-assistant` (795023111689), iOS app
 `io.woowtech.assistant.bot`, Apple team `W4UWZ8NP2P`. Use this bundle's own APNs
 configuration. Do not reuse a topic-restricted key belonging to Smart/Apporo.
 
+Owner decision on 2026-11-27: iOS push goes through Firebase (FCM to APNs). The
+backends reuse their existing Android FCM HTTP v1 sender and add the iOS device
+registration below; they never call APNs directly or hold an Apple key (the APNs
+key is uploaded to this Firebase iOS app by the owner).
+
 An Android data-only message is insufficient for visible iOS background delivery.
-The server should send a standard APNs alert through FCM with generic localized
-title/body, default sound as appropriate, correct alert push-type/priority, a
-bounded expiration, and no chat contents. FCM data contains one `woowtechbot`
+The server sends a standard APNs alert through FCM with fixed text only, the same
+as Android's notification: title `WOOWTECH Bot`; body `機器人已完成，請開啟查看。`
+for `finished` and `機器人需要您的注意，請開啟查看。` for `permission` and
+`attention`. Default sound, `apns-push-type: alert`, priority 10, a bounded
+expiration, no `mutable-content`, and no chat contents: nothing of a conversation
+passes through Apple or Google. FCM data contains one `woowtechbot`
 string: JSON of exactly `v`, `serviceId`, `botId`, `threadId`, `eventId`, `reason`.
 `v` is the string `"1"`; reason is `finished`, `permission`, or `attention`.
 Routing identifiers follow the bounded client contract. No URL or action command.
@@ -102,7 +110,10 @@ server-side identity revocation and generic notification content are essential.
 The app validates an explicit tap against the current authenticated registration
 and only opens the saved service origin with bot/thread query parameters. It does
 not automatically execute approvals, sign-in or tools. A notification service
-extension and silent background processing are not required for this alert path.
+extension and silent background processing are not required for this alert path;
+an extension that writes the text on the phone (for example with the bot's name)
+would be a later app change, announced to the backends before they set
+`mutable-content`.
 
 ## Required acceptance per deployment
 
