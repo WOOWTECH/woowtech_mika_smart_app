@@ -87,6 +87,15 @@ POCO (720 × 1600, 320 dpi, portrait), debug build, dev package `io.woowtech.age
 | `09-chat-header` / `10-chat-menu` | header with side margins and a centred capsule, its menu |
 | `11-name-and-icon` / `12-name-and-icon-card` | the design's name page, icon card open |
 | `13-find` / `14-files` / `15-delete-confirmation` | same-family pages and dialog |
+| `dark/16-service-manage-sheet` / `dark/17-in-service-switcher` | the two sheets inside a service (test service `https://example.com`, removed afterwards) |
+| `dark/18-logout-confirmation` / `dark/19-remove-confirmation` / `dark/20-service-removed` | the service screen's dialogs on the shared dialog style (removal in red) and the page after removal |
+
+Motion, measured from `screenrecord` frames (60 fps) after the entrance fix: the gear popover's first frame on screen is at
+37 % opacity and 97 % width and reaches 100 % about 120 ms later; a warm reopen starts at 63 %; the services sheet's scrim
+starts at 42 % and settles after about 150 ms. Before the fix the first visible frame was already complete (100 % for the
+popover, 84 % for the sheet), because the window appeared 300 to 700 ms after the tap.
+
+`BotUiConversationDeviceTest` (3 tests) passes on the POCO.
 
 Unit tests: `BotUiProfileTest` 7, `BotUiHistoryTest` 3, all pass. CI on the pull request: all jobs pass, including the APK job.
 

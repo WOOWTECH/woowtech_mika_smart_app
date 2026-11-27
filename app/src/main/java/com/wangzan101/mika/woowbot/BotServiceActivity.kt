@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.wangzan101.mika.ui.BotUiCard
@@ -20,6 +21,7 @@ import com.wangzan101.mika.ui.BotUiCardDivider
 import com.wangzan101.mika.ui.BotUiSettingsRow
 import com.wangzan101.mika.ui.BotUiSheet
 import com.wangzan101.mika.ui.NoDialogDim
+import com.wangzan101.mika.ui.components.MikaDialog
 import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.appearanceDark
 import com.wangzan101.mika.ui.theme.systemBarsFor
@@ -207,7 +209,8 @@ class BotServiceActivity : ComponentActivity() {
                 }
             }
         }
-        if (confirmLogout || confirmRemove) AlertDialog(
+        // Same dialog family as the rest of the app: popover surface, ink pill buttons, removal in red.
+        if (confirmLogout || confirmRemove) MikaDialog(
             onDismissRequest = { confirmLogout = false; confirmRemove = false },
             title = { Text(stringResource(if (confirmRemove) R.string.bot_services_remove else R.string.bot_services_logout)) },
             text = { Text(stringResource(R.string.bot_services_logout_help)) },
@@ -215,10 +218,10 @@ class BotServiceActivity : ComponentActivity() {
                 val remove = confirmRemove
                 confirmLogout = false; confirmRemove = false
                 logout(registry, service, remove)
-            }) { Text(stringResource(R.string.bot_services_confirm)) } },
+            }) { Text(stringResource(R.string.bot_services_confirm), color = if (confirmRemove) MikaTheme.colors.bad else Color.Unspecified) } },
             dismissButton = { TextButton(onClick = { confirmLogout = false; confirmRemove = false }) { Text(stringResource(R.string.bot_services_cancel)) } },
         )
-        pairing?.let { (captured, url) -> AlertDialog(
+        pairing?.let { (captured, url) -> MikaDialog(
             onDismissRequest = { pairing = null },
             title = { Text(stringResource(R.string.bot_services_pair_confirm)) },
             text = { Text(captured.name + "\n" + captured.origin) },
@@ -231,7 +234,7 @@ class BotServiceActivity : ComponentActivity() {
             }) { Text(stringResource(R.string.bot_services_connect)) } },
             dismissButton = { TextButton(onClick = { pairing = null }) { Text(stringResource(R.string.bot_services_cancel)) } },
         ) }
-        externalUrl?.let { url -> AlertDialog(onDismissRequest = { externalUrl = null },
+        externalUrl?.let { url -> MikaDialog(onDismissRequest = { externalUrl = null },
             title = { Text(stringResource(R.string.bot_services_external)) },
             text = { Text(runCatching { java.net.URI(url).host }.getOrNull().orEmpty()) },
             confirmButton = { TextButton(onClick = {

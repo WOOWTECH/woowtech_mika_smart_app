@@ -167,12 +167,14 @@ private fun AddServiceDialog(registry: BotServiceRegistry, onDone: () -> Unit) {
     )
 }
 
+/** A message and the way back to the local assistant, on the page colour with the app's pill button. */
 @Composable
 internal fun BotUnavailableScreen(message: Int, onBack: () -> Unit) {
-    Surface(Modifier.fillMaxSize()) {
+    val c = MikaTheme.colors
+    Surface(Modifier.fillMaxSize(), color = c.bg) {
         Column(Modifier.safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(stringResource(message))
-            Button(onClick = onBack) { Text(stringResource(R.string.bot_services_local)) }
+            Text(stringResource(message), color = c.ink, fontSize = 16.sp, lineHeight = 24.sp)
+            BotUiPillButton(stringResource(R.string.bot_services_local), onClick = onBack, primary = true, fill = false)
         }
     }
 }
