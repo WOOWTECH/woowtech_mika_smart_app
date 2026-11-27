@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,10 +86,10 @@ private class PopoverPosition(
     ): IntOffset {
         val w = popupContentSize.width - 2 * room
         val h = popupContentSize.height - 2 * room
-        val left = when (placement) {
-            PopoverPlacement.AboveStart, PopoverPlacement.BelowStart -> anchorBounds.left
-            PopoverPlacement.BelowEnd -> anchorBounds.right - w
-        }.coerceIn(margin, (windowSize.width - w - margin).coerceAtLeast(margin))
+        // "Start" is the left edge in left-to-right layouts and the right edge in right-to-left ones (Arabic ships).
+        val alignLeft = (placement != PopoverPlacement.BelowEnd) == (layoutDirection == LayoutDirection.Ltr)
+        val left = (if (alignLeft) anchorBounds.left else anchorBounds.right - w)
+            .coerceIn(margin, (windowSize.width - w - margin).coerceAtLeast(margin))
         val top = when (placement) {
             PopoverPlacement.AboveStart -> anchorBounds.top - gap - h
             else -> anchorBounds.bottom + gap
@@ -121,11 +122,14 @@ internal fun BotUiPopover(
     }
     val rise = with(density) { 6.dp.roundToPx() }
     val reduce = MikaTheme.reduceMotion
+    val origin = if (LocalLayoutDirection.current == LayoutDirection.Rtl) {
+        TransformOrigin(1f - placement.origin.pivotFractionX, placement.origin.pivotFractionY)
+    } else placement.origin
     val enter = if (reduce) EnterTransition.None else fadeIn(tween(PopMs, easing = PopEasing)) +
-        scaleIn(tween(PopMs, easing = PopEasing), initialScale = .96f, transformOrigin = placement.origin) +
+        scaleIn(tween(PopMs, easing = PopEasing), initialScale = .96f, transformOrigin = origin) +
         slideInVertically(tween(PopMs, easing = PopEasing)) { rise }
     val exit = if (reduce) ExitTransition.None else fadeOut(tween(PopMs, easing = PopEasing)) +
-        scaleOut(tween(PopMs, easing = PopEasing), targetScale = .96f, transformOrigin = placement.origin) +
+        scaleOut(tween(PopMs, easing = PopEasing), targetScale = .96f, transformOrigin = origin) +
         slideOutVertically(tween(PopMs, easing = PopEasing)) { rise }
     val shape = RoundedCornerShape(c.menuRadius.dp)
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
