@@ -16,6 +16,9 @@ class BotPushTest {
         assertNull(BotPushContract.parse(data + ("title" to "private content")))
         assertNull(BotPushContract.parse(data + ("v" to "2")))
         assertNull(BotPushContract.parse(data + ("reason" to "execute")))
+        for (reason in listOf("failed", "permission", "attention")) {
+            assertEquals(target().copy(reason = reason), BotPushContract.parse(data + ("reason" to reason)))
+        }
         for (id in listOf("", "../a", "https://evil", "a b", "x".repeat(129))) {
             assertNull(BotPushContract.parse(data + ("serviceId" to id)))
         }

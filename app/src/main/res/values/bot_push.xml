@@ -4,6 +4,7 @@
     <string name="bot_push_title">WOOWTECH Bot</string>
     <string name="bot_push_action">A bot needs your attention. Open to review.</string>
     <string name="bot_push_done">A bot has finished. Open to review.</string>
+    <string name="bot_push_failed">A bot couldn\'t finish. Open to review.</string>
     <string name="bot_push_settings_title">Bot notifications</string>
     <string name="bot_push_settings_privacy">Notifications contain only a generic alert. Open the service to review details.</string>
     <string name="bot_push_not_configured">Notifications are unavailable in this build. This app’s own Firebase configuration has not been supplied.</string>

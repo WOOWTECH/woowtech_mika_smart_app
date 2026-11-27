@@ -26,7 +26,8 @@ class BotPushNotifications(
         val target = BotPushContract.parse(data) ?: return
         if (!accepts(target.serviceId) || !manager.areNotificationsEnabled()) return
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        val channel = if (target.reason == "finished") DONE else ACTION
+        // A failed run ends like a finished one, so it shares the results channel; its text says it did not finish.
+        val channel = if (target.reason == "finished" || target.reason == "failed") DONE else ACTION
         manager.createNotificationChannels(listOf(
             NotificationChannel(ACTION, tr(R.string.bot_push_channel_action), NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(DONE, tr(R.string.bot_push_channel_done), NotificationManager.IMPORTANCE_DEFAULT),
@@ -44,7 +45,11 @@ class BotPushNotifications(
         val notification = Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(tr(R.string.bot_push_title))
-            .setContentText(tr(if (target.reason == "finished") R.string.bot_push_done else R.string.bot_push_action))
+            .setContentText(tr(when (target.reason) {
+                "finished" -> R.string.bot_push_done
+                "failed" -> R.string.bot_push_failed
+                else -> R.string.bot_push_action
+            }))
             .addExtras(android.os.Bundle().apply { putString(SERVICE_EXTRA, target.serviceId) })
             .setVisibility(Notification.VISIBILITY_SECRET)
             .setContentIntent(tap).setAutoCancel(true).build()

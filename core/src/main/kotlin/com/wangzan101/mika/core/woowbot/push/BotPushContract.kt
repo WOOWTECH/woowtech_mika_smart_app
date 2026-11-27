@@ -3,7 +3,8 @@ package com.wangzan101.mika.core.woowbot.push
 /** Proposed WOOWTECH bot v1 data-only payload. No URLs, names or message content. */
 object BotPushContract {
     const val DEVICE_PATH = "/api/push/device"
-    val kinds = setOf("finished", "permission", "attention")
+    // "failed" (owner 2026-11-27): a run that ended in an error, for example a used-up model quota. Older apps ignore it.
+    val kinds = setOf("finished", "failed", "permission", "attention")
     private val id = Regex("[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
     private val fields = setOf("v", "serviceId", "botId", "threadId", "eventId", "reason")
     fun validId(value: String) = id.matches(value)
