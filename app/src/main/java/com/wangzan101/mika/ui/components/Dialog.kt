@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,6 +26,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.wangzan101.mika.R
 import com.wangzan101.mika.ui.MarkdownText
 import com.wangzan101.mika.ui.theme.MikaTheme
+import com.wangzan101.mika.ui.theme.menuRadius
 import com.wangzan101.mika.ui.theme.MikaType
 
 /**
@@ -42,6 +44,8 @@ fun MikaDialog(
     properties: DialogProperties = DialogProperties(),
 ) {
     val c = MikaTheme.colors
+    // Play edition dialogs sit on the workspace popover surface; their two buttons are 6 % / 10 % ink pills on it.
+    val direct = com.wangzan101.mika.BuildConfig.PLAY_EDITION
     AlertDialog(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
@@ -64,13 +68,13 @@ fun MikaDialog(
         confirmButton = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (dismissButton != null) {
-                    DialogAction(Modifier.weight(1f), c.fill) { dismissButton() }
+                    DialogAction(Modifier.weight(1f), if (direct) c.ink.copy(alpha = .06f) else c.fill, direct) { dismissButton() }
                 }
-                DialogAction(Modifier.weight(1f), c.accentSoft) { confirmButton() }
+                DialogAction(Modifier.weight(1f), if (direct) c.ink.copy(alpha = .1f) else c.accentSoft, direct) { confirmButton() }
             }
         },
-        shape = RoundedCornerShape(26.dp),
-        containerColor = c.surface,
+        shape = RoundedCornerShape(if (direct) c.menuRadius.dp else 26.dp),
+        containerColor = c.menu,
         titleContentColor = c.ink,
         textContentColor = c.ink2,
         tonalElevation = 0.dp,
@@ -79,12 +83,17 @@ fun MikaDialog(
 }
 
 @Composable
-private fun DialogAction(modifier: Modifier, background: Color, content: @Composable () -> Unit) {
+private fun DialogAction(modifier: Modifier, background: Color, inkLabels: Boolean = false, content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
     Box(
         modifier.heightIn(min = 44.dp).background(background, shape).clip(shape),
         contentAlignment = Alignment.Center,
-    ) { content() }
+    ) {
+        // The website's dialog buttons read in ink; destructive ones keep their own error colour. Text buttons take their
+        // label colour from the scheme's primary, so only this button is given a scheme whose primary is the ink colour.
+        if (inkLabels) MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = MikaTheme.colors.ink)) { content() }
+        else content()
+    }
 }
 
 /** 通知型弹窗的正文和回答使用同一套 Markdown 排版，不把原始标记直接交给用户。 */
