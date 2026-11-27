@@ -246,3 +246,34 @@ authenticated access to the backend source/deployments, this bundle's APNs
 credentials in Firebase, and a connected/unlocked/trusted physical iPad.
 The backend repository currently redirects command-line access to Cloudflare
 Access login. The proposed iOS contract has not been verified on any deployment.
+
+## Direct UI alignment (Android woow.22 / preview06) on 2026-11-27
+
+The Direct palette (midnight `#121212`, daylight `#fcfcfc`, accent `#7fc0ff` /
+`#0b69cc`), the four circular history controls, the search card, the shortcut
+menu and a native services/notifications presentation are compiled only with
+`WOOWTECHBOT`. The remote website keeps its own header and themes. When a page
+has the app's sidebar slot (`[data-look="app"] [data-sidebar-top-slot]`), an
+isolated `WKContentWorld.defaultClient` script adds two circular controls whose
+links are `woowtech-ui://services` and `woowtech-ui://notifications`. The
+navigation delegate accepts exactly those two addresses, only from a link the
+user activated in the main frame of the saved origin (`BotWorkspaceAction`,
+two unit tests); there is no JavaScript bridge, and the script reads no cookie,
+storage or page content. While the controls are installed the native toolbar is
+hidden; sign-in pages and pages without the slot keep the native toolbar.
+The injection's own completion value is not delivered by `evaluateJavaScript` on
+the iOS 27 simulator (`Optional(())`), so readiness is probed separately with
+`callAsyncJavaScript`. The services sheet gained the current service's tools
+(local assistant, downloads, pairing, share address) to replace the hidden menu.
+
+Verified on candidate 18 (simulator iPhone, light and dark) and on the physical
+iPad (development-signed build, explicit push profile): history, services sheet,
+sign-in page with native toolbar, signed-in fixture page with injected controls and
+hidden toolbar, services sheet from the injected button, notifications sheet,
+downloads and local-assistant return paths (iPad: services and notifications
+buttons). The fixture server now serves the sidebar structure only after
+sign-in, as the real site does. The earlier push UI test failure at step 42
+was the UI driver's `toggle` step not registering on this simulator, not the app:
+a coordinate tap switches the push toggle, saves it and shows "Push is off".
+Not verified: real woowtechbot pages, real camera QR, authenticated pairing,
+push delivery, the Android sub-page popovers (still in progress on Android).

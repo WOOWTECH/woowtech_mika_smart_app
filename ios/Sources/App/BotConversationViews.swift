@@ -15,6 +15,7 @@ struct BotConversationList: View {
     let new: () -> Void
     let select: (BotLocalDestination) -> Void
     @State private var search = ""
+    @FocusState private var searchFocused: Bool
     @State private var showsServices = false
     @State private var editID: String?
     @State private var deleteID: UUID?
@@ -38,6 +39,9 @@ struct BotConversationList: View {
 
     var body: some View {
         NavigationStack {
+          VStack(spacing: 0) {
+            header
+            searchHeader
             List {
                 if !archive.available {
                     Text(t("對話暫時無法讀取，原檔保留。", "Conversations cannot be read yet; the original file is preserved."))
@@ -66,44 +70,22 @@ struct BotConversationList: View {
                 if records.isEmpty && drafts.isEmpty && !search.isEmpty { Text(t("沒有符合的對話", "No matching conversations")) }
             }
             .listStyle(.plain).scrollContentBackground(.hidden).background(palette.background)
-            .searchable(text: $search, prompt: t("搜尋名稱或訊息", "Search names or messages"))
-            .navigationTitle(t("對話", "Conversations")).navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { select(.settings) } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel(t("設定", "Settings")).accessibilityIdentifier("bot.history.settings")
-                }
-                ToolbarItem(placement: .principal) {
-                    Menu {
-                        Button(t("本機助理", "Local assistant"), systemImage: "iphone", action: close)
-                        ForEach(workspace.services.filter(\.enabled)) { service in
-                            Button(service.name, systemImage: "server.rack") { workspace.selectedService = service.id }
-                        }
-                        Button(t("管理服務", "Manage services"), systemImage: "slider.horizontal.3") { showsServices = true }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(t("本機助理", "Local assistant")).font(.headline).lineLimit(1)
-                            Image(systemName: "chevron.down").font(.caption)
-                        }.fixedSize(horizontal: true, vertical: false)
-                    }
-                    .accessibilityIdentifier("bot.serviceSwitcher")
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { select(.notifications) } label: { Image(systemName: "bell") }
-                        .accessibilityLabel(t("通知", "Notifications")).accessibilityIdentifier("bot.history.notifications")
-                    Button(action: new) { Image(systemName: "plus") }
-                        .disabled(chat.isSubmitting).accessibilityLabel(t("新增對話", "New conversation"))
-                        .accessibilityIdentifier("bot.history.new")
-                }
-            }
+            .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                HStack(spacing: 0) {
-                    tool("MCP", "MCP", "wrench.and.screwdriver", .tools)
-                    tool("記憶／技能", "Memory / skills", "brain", .memory)
-                    tool("瀏覽器", "Browser", "globe", .browser)
-                    tool("檔案", "Files", "folder", .files)
-                    tool("關於", "About", "info.circle", .about)
-                }.padding(.vertical, 12).background(.bar)
+                HStack(spacing: 12) {
+                    Menu {
+                        tool("MCP", "MCP", "wrench.and.screwdriver", .tools)
+                        tool("記憶／技能", "Memory / skills", "brain", .memory)
+                        tool("瀏覽器", "Browser", "globe", .browser)
+                        tool("檔案", "Files", "folder", .files)
+                        tool("關於", "About", "info.circle", .about)
+                    } label: { BotRoundIcon(symbol: "square.grid.2x2") }
+                    .accessibilityLabel(t("快捷功能", "Shortcuts"))
+                    .accessibilityIdentifier("bot.history.shortcuts")
+                    Text(localizer.text(chat.chatStatusMessage == .chatStatusUnconfigured ? .chatSendBlockedTitle : .drawerStatusReady))
+                        .font(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
+                    Spacer(minLength: 0)
+                }.padding(.horizontal, 16).padding(.vertical, 8).background(palette.background)
             }
             .sheet(isPresented: $showsServices) {
                 BotServicesView(workspace: workspace, localizer: localizer) { id in
@@ -121,8 +103,53 @@ struct BotConversationList: View {
                 }
                 Button(t("取消", "Cancel"), role: .cancel) { deleteID = nil }
             }
+          }
+          .toolbar(.hidden, for: .navigationBar)
+          .background(palette.background)
+          .tint(palette.accent)
         }
         .accessibilityIdentifier("bot.history")
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Button { select(.settings) } label: { BotRoundIcon(symbol: "gearshape") }
+                .accessibilityLabel(t("設定", "Settings")).accessibilityIdentifier("bot.history.settings")
+            Menu {
+                Button(t("本機助理", "Local assistant"), systemImage: "iphone", action: close)
+                ForEach(workspace.services.filter(\.enabled)) { service in
+                    Button(service.name, systemImage: "server.rack") { workspace.selectedService = service.id }
+                }
+                Button(t("管理服務", "Manage services"), systemImage: "slider.horizontal.3") { showsServices = true }
+            } label: { BotRoundIcon(symbol: "arrow.left.arrow.right") }
+            .accessibilityLabel(t("服務", "Services")).accessibilityIdentifier("bot.serviceSwitcher")
+            Spacer(minLength: 8)
+            Button { select(.notifications) } label: { BotRoundIcon(symbol: "bell") }
+                .accessibilityLabel(t("通知", "Notifications")).accessibilityIdentifier("bot.history.notifications")
+            Button(action: new) { BotRoundIcon(symbol: "plus") }
+                .disabled(chat.isSubmitting).opacity(chat.isSubmitting ? 0.45 : 1)
+                .accessibilityLabel(t("新增對話", "New conversation")).accessibilityIdentifier("bot.history.new")
+        }.buttonStyle(.plain).padding(.horizontal, 16).frame(height: 64)
+    }
+    private var searchHeader: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text(t("對話", "Conversations")).font(.headline)
+                Spacer()
+                Button(t("返回對話", "Back to chat"), action: close).font(.subheadline)
+                    .accessibilityIdentifier("bot.history.back")
+            }
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").foregroundStyle(palette.secondaryInk)
+                TextField(t("搜尋名稱或訊息", "Search names or messages"), text: $search)
+                    .focused($searchFocused).submitLabel(.search).onSubmit { searchFocused = false }
+                    .accessibilityIdentifier("bot.history.search")
+                if !search.isEmpty {
+                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .accessibilityLabel(t("清除搜尋", "Clear search"))
+                }
+            }.padding(12).background(palette.surface, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(.horizontal, 20).padding(.bottom, 8).foregroundStyle(palette.ink)
     }
 
     private func draftRow(_ id: String) -> some View {
@@ -139,7 +166,7 @@ struct BotConversationList: View {
     }
     private func row(title: String, id: String, excerpt: String, date: Date, pinned: Bool) -> some View {
         HStack(spacing: 12) {
-            BotAvatar(avatar: workspace.presentation(id).avatar).frame(width: 46, height: 46)
+            BotAvatar(avatar: workspace.presentation(id).avatar).frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     Text(title).font(.headline).lineLimit(1)
@@ -148,16 +175,31 @@ struct BotConversationList: View {
                     Text(date, style: .date).font(.caption2).foregroundStyle(.secondary)
                 }
                 Text(excerpt.isEmpty ? t("尚未傳送訊息", "No messages yet") : excerpt)
-                    .lineLimit(2).font(.subheadline).foregroundStyle(.secondary)
+                    .lineLimit(1).font(.subheadline).foregroundStyle(palette.secondaryInk)
             }
-            if id == chat.conversationID { Image(systemName: "checkmark.circle.fill").foregroundStyle(palette.accent) }
-        }.padding(.vertical, 8).contentShape(Rectangle())
+        }.padding(10).foregroundStyle(palette.ink)
+            .background(id == chat.conversationID ? palette.glass : .clear, in: RoundedRectangle(cornerRadius: 24))
+            .contentShape(Rectangle())
+            .accessibilityAddTraits(id == chat.conversationID ? .isSelected : [])
     }
     private func tool(_ zh: String, _ en: String, _ icon: String, _ destination: BotLocalDestination) -> some View {
         Button { select(destination) } label: {
-            VStack(spacing: 6) { Image(systemName: icon).font(.title3); Text(t(zh, en)).font(.caption2).lineLimit(1).minimumScaleFactor(0.7) }
-                .frame(maxWidth: .infinity)
+            Label(t(zh, en), systemImage: icon)
         }.accessibilityIdentifier("bot.tool.\(destination)")
+    }
+}
+
+struct BotRoundIcon: View {
+    let symbol: String
+    @Environment(\.colorScheme) private var scheme
+    private var palette: MikaVisualPalette { .init(scheme) }
+    var body: some View {
+        Image(systemName: symbol).font(.system(size: 19, weight: .regular))
+            .foregroundStyle(palette.ink).frame(width: 42, height: 42)
+            .background(palette.surface, in: Circle())
+            .overlay(Circle().strokeBorder(palette.hair, lineWidth: 0.7))
+            .frame(width: 48, height: 48).contentShape(Circle())
+            .accessibilityHidden(true)
     }
 }
 

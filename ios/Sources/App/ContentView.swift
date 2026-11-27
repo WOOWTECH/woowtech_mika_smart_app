@@ -52,7 +52,7 @@ struct ContentView: View {
         #if WOOWTECHBOT
         .fullScreenCover(isPresented: Binding(get: { botWorkspace.selectedService != nil }, set: { if !$0 { botWorkspace.selectedService = nil } })) {
             if let id = botWorkspace.selectedService, let web = botWorkspace.session(id) {
-                BotServiceScreen(web: web, chat: session, localizer: localizer,
+                BotServiceScreen(web: web, chat: session, notifications: notifications, localizer: localizer,
                     close: { botWorkspace.selectedService = nil }, attach: { url in
                         let attached = await attachDownload(url)
                         if attached { botWorkspace.selectedService = nil }
@@ -70,10 +70,7 @@ struct ContentView: View {
             case .search: BotConversationSearch(chat: session, localizer: localizer)
             case .files: BotConversationFiles(chat: session, localizer: localizer)
             case .notifications:
-                NavigationStack {
-                    TaskNotificationSettingsView(store: notifications)
-                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button(localizer.text(.commonDone)) { botSheet = nil } } }
-                }
+                BotNotificationSettingsView(store: notifications, localizer: localizer)
             }
         }
         .alert(botText("提示", "Notice"), isPresented: Binding(get: { botWorkspace.notice != nil }, set: { if !$0 { botWorkspace.notice = nil } })) {
@@ -560,6 +557,17 @@ struct MikaVisualPalette {
         Color(red: red / 255, green: green / 255, blue: blue / 255)
     }
 
+    #if WOOWTECHBOT
+    var background: Color { dark ? rgb(18, 18, 18) : rgb(252, 252, 252) }
+    var surface: Color { dark ? rgb(31, 31, 31) : rgb(239, 239, 239) }
+    var ink: Color { dark ? rgb(245, 245, 245) : rgb(28, 28, 28) }
+    var secondaryInk: Color { ink.opacity(dark ? 168.0 / 255 : 173.0 / 255) }
+    var accent: Color { dark ? rgb(127, 192, 255) : rgb(11, 105, 204) }
+    var assistant: Color { surface }
+    var glass: Color { dark ? rgb(40, 40, 40) : rgb(227, 227, 227) }
+    var disabledControl: Color { glass }
+    var hair: Color { dark ? rgb(56, 56, 56) : ink.opacity(61.0 / 255) }
+    #else
     var background: Color { dark ? rgb(14, 14, 16) : rgb(247, 247, 248) }
     var surface: Color { dark ? rgb(26, 26, 29) : .white }
     var ink: Color { dark ? rgb(242, 242, 244) : rgb(28, 28, 30) }
@@ -569,6 +577,7 @@ struct MikaVisualPalette {
     var glass: Color { surface.opacity(184.0 / 255) }
     var disabledControl: Color { rgb(118, 118, 128).opacity((dark ? 56.0 : 31.0) / 255) }
     var hair: Color { dark ? .white.opacity(20.0 / 255) : .black.opacity(18.0 / 255) }
+    #endif
     var scrim: Color { .black.opacity(0.32) }
 }
 

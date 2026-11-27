@@ -7,6 +7,22 @@ import SwiftUI
 struct MikaSettingsPalette {
     let scheme: ColorScheme
 
+    #if WOOWTECHBOT
+    private var direct: MikaVisualPalette { .init(scheme) }
+    var page: Color { direct.background }
+    var surface: Color { direct.surface }
+    var ink: Color { direct.ink }
+    var secondary: Color { direct.secondaryInk }
+    var hint: Color { ink.opacity(scheme == .dark ? 145.0 / 255 : 166.0 / 255) }
+    var border: Color { ink.opacity(scheme == .dark ? 15.0 / 255 : 31.0 / 255) }
+    var tile: Color { direct.glass }
+    var ok: Color { scheme == .dark ? Color(red: 56/255, green: 213/255, blue: 145/255) : Color(red: 0, green: 122/255, blue: 68/255) }
+    var warn: Color { scheme == .dark ? .orange : Color(red: 184/255, green: 110/255, blue: 0) }
+    var bad: Color { scheme == .dark ? Color(red: 1, green: 86/255, blue: 103/255) : Color(red: 205/255, green: 40/255, blue: 52/255) }
+    var fill: Color { direct.glass }
+    var hair: Color { direct.hair }
+    var greySoft: Color { direct.glass }
+    #else
     var page: Color { scheme == .dark ? Color(red: 14/255, green: 14/255, blue: 16/255) : Color(red: 247/255, green: 247/255, blue: 248/255) }
     var surface: Color { scheme == .dark ? Color(red: 26/255, green: 26/255, blue: 29/255) : .white }
     var ink: Color { scheme == .dark ? Color(red: 242/255, green: 242/255, blue: 244/255) : Color(red: 28/255, green: 28/255, blue: 30/255) }
@@ -24,6 +40,8 @@ struct MikaSettingsPalette {
     /// Android hair (unchosen radio marks) and greySoft (neutral pills).
     var hair: Color { scheme == .dark ? .white.opacity(20/255) : .black.opacity(18/255) }
     var greySoft: Color { Color(red: 118/255, green: 118/255, blue: 128/255).opacity(scheme == .dark ? 56/255 : 31/255) }
+
+    #endif
 
     func color(for tone: MikaSettingsTone) -> Color {
         switch tone {

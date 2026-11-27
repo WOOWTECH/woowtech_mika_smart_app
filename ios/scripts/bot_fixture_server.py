@@ -54,14 +54,22 @@ class Handler(BaseHTTPRequestHandler):
         identity = SESSIONS.get(self.token(), "Signed out")
         query = parse_qs(path.query)
         target = html.escape("bot=" + query.get("bot", [""])[0][:128] + " thread=" + query.get("thread", [""])[0][:128])
+        # Like the real woowtechbot app, the sidebar (and the slot the native workspace controls
+        # attach to) exists only after sign-in; the sign-in page has none, so the native toolbar
+        # fallback stays visible there.
+        shell_open, shell_close = ("", "")
+        if identity != "Signed out":
+            shell_open = ('<div data-look="app"><aside id="sidebar"><header data-sidebar-top-slot>'
+                          '<button type="button" id="original">New conversation</button></header></aside><main>')
+            shell_close = "</main></div>"
         self.send('''<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>iOS service fixture</title><style>body{font:18px system-ui;padding:16px;background:#fafafa;color:#111}button,a,textarea{display:block;font:inherit;padding:14px;margin:12px 0;box-sizing:border-box;max-width:100%}textarea{width:100%;height:90px}</style>
-<h1>iOS service fixture</h1><p>Independent website storage test</p><p>Session: ''' + html.escape(identity) + '''</p>
+<title>iOS service fixture</title><style>:root[data-skin="midnight"]{--color-ink:#f5f5f5;--color-card:#1f1f1f;--color-hairline:#383838;--color-app:#121212}:root[data-skin="daylight"]{--color-ink:#1c1c1c;--color-card:#efefef;--color-hairline:#c6c6c6;--color-app:#fcfcfc}body{font:18px system-ui;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));background:var(--color-app,#fafafa);color:var(--color-ink,#111)}button,a,textarea{display:block;font:inherit;padding:14px;margin:12px 0;box-sizing:border-box;max-width:100%}textarea{width:100%;height:90px}</style>
+''' + shell_open + '''<h1>iOS service fixture</h1><p>Independent website storage test</p><p>Session: ''' + html.escape(identity) + '''</p>
 <form method="post" action="/pair"><button name="identity" value="iOS A">Sign in as iOS A</button><button name="identity" value="iOS B">Sign in as iOS B</button></form>
 <label>Web draft<textarea aria-label="Web draft" id="draft"></textarea></label>
 <a href="/note.txt" download="ios-bot-note.txt">Download test note</a>
 <a href="https://example.com/">External link</a><p>''' + target + '''</p>
-<input type="file" aria-label="Attach file"><script>const input=document.getElementById('draft');input.value=localStorage.getItem('fixture.draft')||'';input.oninput=()=>localStorage.setItem('fixture.draft',input.value);</script></html>''')
+<input type="file" aria-label="Attach file">''' + shell_close + '''<script>const input=document.getElementById('draft');input.value=localStorage.getItem('fixture.draft')||'';input.oninput=()=>localStorage.setItem('fixture.draft',input.value);</script></html>''')
 
     def do_POST(self):
         path = urlsplit(self.path).path

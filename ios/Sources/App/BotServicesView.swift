@@ -6,7 +6,10 @@ struct BotServicesView: View {
     @ObservedObject var workspace: BotWorkspaceStore
     @ObservedObject private var push = BotPushController.shared
     let localizer: AppLocalizer
+    var actions: BotServiceActions? = nil
     let open: (UUID) -> Void
+    @Environment(\.colorScheme) private var scheme
+    private var palette: MikaVisualPalette { .init(scheme) }
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var address = ""
@@ -20,6 +23,17 @@ struct BotServicesView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let actions {
+                    Section(actions.name) {
+                        Button(t("本機助理", "Local assistant"), systemImage: "iphone", action: actions.local)
+                            .accessibilityIdentifier("bot.serviceTools.local")
+                        Button(t("下載項目", "Downloads"), systemImage: "arrow.down.circle", action: actions.downloads)
+                            .accessibilityIdentifier("bot.serviceTools.downloads")
+                        Button(t("掃描配對 QR", "Scan pairing QR"), systemImage: "qrcode.viewfinder", action: actions.pairing)
+                            .accessibilityIdentifier("bot.serviceTools.pairing")
+                        ShareLink(item: actions.url) { Label(t("分享服務網址", "Share service address"), systemImage: "square.and.arrow.up") }
+                    }
+                }
                 Section {
                     Label(t("本機助理可獨立使用", "Local assistant works independently"), systemImage: "iphone")
                     Text(t("每個服務各自保存登入狀態。請在服務原本的頁面完成配對或登入。", "Each service has its own sign-in data. Pair or sign in on the service's original page."))
@@ -74,22 +88,10 @@ struct BotServicesView: View {
                         catch { showError() }
                     }.accessibilityIdentifier("bot.add.save")
                 }
-                Section(t("服務通知", "Service notifications")) {
-                    Toggle(t("允許服務推播", "Allow service push"), isOn: Binding(get: { push.optedIn }, set: { enabled in
-                        push.setOptIn(enabled)
-                    })).accessibilityIdentifier("bot.push.enabled")
-                    Text(push.status.text(localizer))
-                        .font(.footnote).accessibilityIdentifier("bot.push.status")
-                    Text(t("PaaS、Home Assistant add-on、Podman 各自配對與註冊。通知只提示開啟查看，不會執行核准或操作。", "Pair and register PaaS, Home Assistant add-on and Podman separately. Notifications invite you to open the service; they do not approve or execute actions."))
-                        .font(.footnote).foregroundStyle(.secondary)
-                    Button(t("重新檢查推播", "Check push again")) { push.schedule() }
-                        .accessibilityIdentifier("bot.push.retry")
-                    Button(t("開啟通知設定", "Open notification settings")) {
-                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
-                    }.accessibilityIdentifier("bot.push.settings")
-                }
+                BotPushSettingsSection(localizer: localizer)
                 if let error { Section { Text(error).foregroundStyle(.red).accessibilityIdentifier("bot.services.error") } }
             }
+            .scrollContentBackground(.hidden).background(palette.background).tint(palette.accent)
             .disabled(!workspace.available || busy)
             .navigationTitle(t("woowtechbot 服務", "woowtechbot services"))
             .navigationBarTitleDisplayMode(.inline)
