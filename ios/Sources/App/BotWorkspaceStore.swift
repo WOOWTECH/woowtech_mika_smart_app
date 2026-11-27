@@ -110,6 +110,13 @@ struct BotWorkspaceSnapshot: Codable {
         try change { try $0.registry.add(record) }; return record.id
     }
 
+    /// Opening or switching to a service lands on its bot list, behind the transition page (owner 2026-11-27).
+    func openService(_ id: UUID, manage: Bool = false) {
+        manageOnOpen = manage
+        session(id)?.openList()
+        selectedService = id
+    }
+
     func session(_ id: UUID) -> BotWebSession? {
         guard available, let record = services.first(where: { $0.id == id && $0.enabled }) else { return nil }
         if let current = sessions[id], current.service.profileID == record.profileID { return current }
@@ -200,7 +207,7 @@ struct BotWorkspaceSnapshot: Codable {
                 $0.openedEvents = Array($0.openedEvents.suffix(256))
             }
         } catch { notice = .notificationUnsaved; return false }
-        web.open(url); selectedService = record.id; return true
+        web.openTarget(url); selectedService = record.id; return true
     }
 }
 

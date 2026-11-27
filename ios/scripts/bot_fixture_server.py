@@ -9,7 +9,9 @@ import argparse
 import html
 import ipaddress
 import json
+import pathlib
 import secrets
+import time
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
@@ -17,6 +19,10 @@ from urllib.parse import parse_qs, urlsplit
 SESSIONS = {}
 REVOKED = []
 NOTE = b"WOOW iOS isolated service download fixture\n"
+# --list-workspace: a signed-in session gets the website's phone workspace (bot_list_fixture.html, the same structure and
+# timeline as Android's tools/woowtechbot-ui/list-fixture.html), which logs what it did to /test/list-events.
+LIST_PAGE = None
+LIST_EVENTS = []
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -51,7 +57,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send("", 302, headers={"Location": "https://example.com/forbidden-download.txt"})
         if path.path == "/test/audit":
             return self.send(json.dumps({"active": sorted(SESSIONS.values()), "revoked": REVOKED}), content_type="application/json")
+        if path.path == "/test/list-events":
+            events = list(LIST_EVENTS)
+            if "reset" in parse_qs(path.query):
+                LIST_EVENTS.clear()
+            return self.send(json.dumps(events), content_type="application/json")
         identity = SESSIONS.get(self.token(), "Signed out")
+        if LIST_PAGE is not None and identity != "Signed out":
+            LIST_EVENTS.append({"server_ms": int(time.time() * 1000), "what": "page"})
+            return self.send(LIST_PAGE)
         query = parse_qs(path.query)
         target = html.escape("bot=" + query.get("bot", [""])[0][:128] + " thread=" + query.get("thread", [""])[0][:128])
         # Like the real woowtechbot app, the sidebar (and the slot the native workspace controls
@@ -73,6 +87,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if path == "/test/list-event":
+            size = int(self.headers.get("Content-Length", "0"))
+            if size > 512 or len(LIST_EVENTS) > 2000:
+                return self.send("too large", 413)
+            try:
+                event = json.loads(self.rfile.read(size).decode())
+            except ValueError:
+                return self.send("invalid event", 400)
+            LIST_EVENTS.append({"server_ms": int(time.time() * 1000), **{k: event.get(k) for k in ("what", "open", "selected", "ms")}})
+            return self.send("", 204)
         if path == "/api/auth/logout":
             identity = SESSIONS.pop(self.token(), None)
             if identity:
@@ -95,7 +119,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, default=8767)
+    parser.add_argument("--list-workspace", action="store_true",
+                        help="serve the phone bot-list workspace (bot_list_fixture.html) to signed-in sessions")
     args = parser.parse_args()
+    if args.list_workspace:
+        LIST_PAGE = (pathlib.Path(__file__).resolve().parent / "bot_list_fixture.html").read_text()
     address = ipaddress.ip_address(args.host)
     if not address.is_private or address.is_loopback or address.is_link_local:
         parser.error("Use a private LAN interface, not loopback or link-local")

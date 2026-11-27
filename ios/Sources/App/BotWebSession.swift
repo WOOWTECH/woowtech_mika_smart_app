@@ -3,18 +3,38 @@ import AssistantBrowser
 import AssistantPersistence
 import Combine
 import SwiftUI
+import UIKit.UIGestureRecognizerSubclass
 import WebKit
+
+/// What the transition page says while a service opens: its bot list, a push target's conversation, or a reload.
+enum BotTransitionText { case list, chat, reload }
 
 @MainActor final class BotWebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WKHTTPCookieStoreObserver {
     let service: BotServiceRecord
     let webView: WKWebView
     let downloads: BrowserDownloadManager
-    @Published private(set) var loading = true
+    @Published private(set) var loading = false
     @Published private(set) var failed = false
     @Published var externalURL: URL?
     @Published var dialog: BotWebDialog?
     @Published private(set) var workspaceControlsReady = false
     @Published var presentationAction: BotWorkspaceAction?
+    /// Owner 2026-11-27: no connecting screen and no bare bar with the address while a service opens; a transition page
+    /// covers them (nil once the page shows). Opening or switching to a service lands on its bot list (`landOnList`): the
+    /// phone website always starts on the selected bot's chat with its list closed, so the list is opened once with the
+    /// site's own button. A push target and a reload keep the page the website shows.
+    @Published private(set) var cover: BotTransitionText?
+    /// Restarts the screen's polling of the page whenever a transition begins.
+    @Published private(set) var transitionID = 0
+    private(set) var landOnList = false
+    private(set) var started = false
+    /// Main-frame documents committed in this web view; a transition only reads pages committed after `transitionFrom`.
+    private var pageCommits = 0
+    private var transitionFrom = 0
+    private var finishedAt: Date?
+    /// The first touch on the page after the reveal stops the list from being reopened against the user.
+    var touchedAt = Date.distantPast
+    var sceneActive = true
     private var valid = true
     private var downloadUntil = Date.distantPast
 
@@ -35,15 +55,81 @@ import WebKit
         super.init()
         webView.configuration.websiteDataStore.httpCookieStore.add(self)
         webView.navigationDelegate = self; webView.uiDelegate = self
-        open(service.policy.url)
     }
 
     func open(_ url: URL) {
         guard valid, service.policy.allows(url) else { return }
+        started = true
         failed = false; loading = true; workspaceControlsReady = false; downloadUntil = .distantPast
         webView.load(URLRequest(url: url))
     }
-    func retry() { open(service.policy.url) }
+    /// Opening the service, switching to it or reconnecting it: its root loads behind the transition page (a kept page
+    /// too, which would otherwise show whatever it was left on) and the bot list opens.
+    func openList() { begin(.list, list: true); open(service.policy.url) }
+    /// A push target keeps the conversation the website opens for it.
+    func openTarget(_ url: URL) { begin(.chat, list: false); open(url) }
+    func retry() { begin(.reload, list: false); open(service.policy.url) }
+    private func begin(_ text: BotTransitionText, list: Bool) {
+        landOnList = list; cover = text; transitionFrom = pageCommits; transitionID += 1
+    }
+
+    /// While the transition page is up the page is asked every 0.2 s what it shows (structure only). It goes when the bot
+    /// list is open, or the page is a sign-in page or not a woowtechbot workspace, or after 20 s. For 2.5 s after that the
+    /// list is opened again if the website closes it by itself (until the first touch). After a sign-in page, or a
+    /// workspace still starting or connecting at 20 s, the list is still opened once, when the workspace appears.
+    func runTransition(dark: Bool, localizer: AppLocalizer) async {
+        let id = transitionID, started = Date()
+        var openSeen = 0
+        var emptySince: Date?
+        var settleFrom: Date?
+        var last: String?
+        while valid, transitionID == id, cover != nil || landOnList {
+            do { try await Task.sleep(for: cover != nil || settleFrom != nil ? .milliseconds(200) : .seconds(1)) } catch { return }
+            guard valid, transitionID == id, sceneActive else { continue }
+            let now = Date()
+            if let settleFrom, touchedAt > settleFrom || now.timeIntervalSince(settleFrom) > 2.5 { landOnList = false; break }
+            if failed || now.timeIntervalSince(started) > 600 { landOnList = false; cover = nil; break }
+            if cover != nil, now.timeIntervalSince(started) > 20 {
+                cover = nil; if last != "boot" && last != "connecting" { landOnList = false }
+            }
+            guard pageCommits > transitionFrom else { continue }
+            await refreshWorkspaceAppearance(dark: dark, localizer: localizer)
+            let shown = await workspaceList(open: landOnList)
+            // A reload or another opening began meanwhile: its own poll decides from now on.
+            guard transitionID == id else { return }
+            if let shown { last = shown }
+            if shown != "app" { emptySince = nil }
+            switch shown {
+            case "form": cover = nil
+            case "none": if let finishedAt, now.timeIntervalSince(finishedAt) > 4 { landOnList = false; cover = nil }
+            // The app without bots in its list and without its loading screen (an onboarding page, say) shows after 5 s.
+            case "app":
+                if let emptySince { if now.timeIntervalSince(emptySince) > 5 { landOnList = false; cover = nil } } else { emptySince = now }
+            case "wide", "closed": landOnList = false; cover = nil
+            case "opening": openSeen = 0
+            case "open":
+                if !landOnList { cover = nil }
+                else { openSeen += 1; if openSeen >= 2, settleFrom == nil { cover = nil; settleFrom = now } }
+            default: break
+            }
+        }
+    }
+
+    private static let listTemplate: String? = {
+        guard let url = Bundle.main.url(forResource: "workspace-list", withExtension: "js") else { return nil }
+        return try? String(contentsOf: url, encoding: .utf8)
+    }()
+    /// Runs the fixed list script (structure only; its one action is the site's own list button) on the service's own
+    /// shown page; nil when the page changed or went away meanwhile.
+    private func workspaceList(open: Bool) async -> String? {
+        guard valid, let template = Self.listTemplate, let url = webView.url, service.policy.allows(url) else { return nil }
+        let page = pageCommits
+        // Parenthesised: the script starts with a block comment over several lines, which would end a bare `return`.
+        let body = "return (" + template.replacingOccurrences(of: "__WOOW_OPEN__", with: open ? "true" : "false") + "\n);"
+        let result = try? await webView.callAsyncJavaScript(body, arguments: [:], in: nil, contentWorld: .defaultClient)
+        guard valid, pageCommits == page, webView.url == url else { return nil }
+        return result as? String
+    }
     func invalidate() {
         webView.configuration.websiteDataStore.httpCookieStore.remove(self)
         valid = false; workspaceControlsReady = false; presentationAction = nil
@@ -72,13 +158,15 @@ import WebKit
         let pre = Self.prePaintColor
         webView.backgroundColor = pre
         webView.scrollView.backgroundColor = pre
+        let page = pageCommits
         // This isolated script changes presentation only; the page cannot call
         // native methods or read any native data through it.
         // Inject (idempotent), then ask separately whether complete controls are installed:
         // the injection's own completion value is not delivered reliably through this API.
         _ = try? await webView.evaluateJavaScript(script, in: nil, in: .defaultClient)
         let probe = try? await webView.callAsyncJavaScript(Self.controlsInstalledProbe, arguments: [:], in: nil, contentWorld: .defaultClient)
-        guard valid, !Task.isCancelled, !loading, webView.url == url else { return }
+        // An answer counts only for the page it was asked on.
+        guard valid, !Task.isCancelled, !loading, webView.url == url, pageCommits == page else { return }
         let ready = (probe as? Bool) == true || (probe as? NSNumber)?.boolValue == true
         if workspaceControlsReady != ready { workspaceControlsReady = ready }
     }
@@ -142,8 +230,14 @@ import WebKit
         downloads.accept(download, from: url)
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { loading = true; failed = false; workspaceControlsReady = false }
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        pageCommits += 1; finishedAt = nil
+        // A sign-in page was shown; the next page is the workspace, whose list opens behind the transition page. On the
+        // commit, not the start: a download or an empty answer never commits and leaves the shown page as it is.
+        if cover == nil, landOnList { begin(.list, list: true); transitionFrom = pageCommits - 1 }
+    }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        loading = false
+        loading = false; finishedAt = Date()
         if BotPushController.shared.optedIn { BotPushController.shared.schedule() }
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { fail(error) }
@@ -190,11 +284,26 @@ struct BotWebDialog: Identifiable {
     let finish: (String?) -> Void
 }
 
+/// Notes each touch on the page without taking it (it fails at once), like Android's initial-pass pointer input.
+private final class BotTouchRecorder: UIGestureRecognizer {
+    var touched: () -> Void = {}
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { touched(); state = .failed }
+}
+
 private struct BotWebSurface: UIViewRepresentable {
     let session: BotWebSession
-    func makeUIView(context: Context) -> UIView { UIView() }
+    func makeUIView(context: Context) -> UIView {
+        let container = UIView()
+        let recorder = BotTouchRecorder(target: nil, action: nil)
+        recorder.cancelsTouchesInView = false; recorder.delaysTouchesBegan = false; recorder.delaysTouchesEnded = false
+        container.addGestureRecognizer(recorder)
+        return container
+    }
     func updateUIView(_ container: UIView, context: Context) {
         let web = session.webView
+        for case let recorder as BotTouchRecorder in container.gestureRecognizers ?? [] {
+            recorder.touched = { [weak session] in session?.touchedAt = Date() }
+        }
         container.accessibilityIdentifier = "bot.surface.\(session.service.id)"
         container.backgroundColor = BotWebSession.prePaintColor
         web.isOpaque = false
@@ -240,53 +349,46 @@ struct BotServiceScreen: View {
     private func t(_ zh: String, _ en: String) -> String { localizer.language == .english ? en : zh }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // The page colour fills the status-bar and home-indicator strips around the website (Android: the Scaffold's colour).
-                palette.background.ignoresSafeArea()
-                BotWebSurface(session: web).id(web.service.profileID)
-                if web.failed {
-                    // Android: a status line with a text button to retry; the rest of the page stays the page colour.
-                    VStack(spacing: 0) {
-                        HStack(spacing: 8) {
-                            Text(t("無法載入服務，請檢查網址與網路後重試。", "Unable to load the service. Check the address and network, then retry."))
-                                .scaledFont(size: 13).foregroundStyle(palette.ink).frame(maxWidth: .infinity, alignment: .leading)
-                            Button(t("重試", "Retry"), action: web.retry).scaledFont(size: 14, weight: .medium)
-                                .foregroundStyle(palette.accent).accessibilityIdentifier("bot.retry")
-                        }.padding(12)
-                        Spacer(minLength: 0)
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(palette.background)
-                }
+        ZStack {
+            // The page colour fills the status-bar and home-indicator strips around the website (Android: the Scaffold's colour).
+            palette.background.ignoresSafeArea()
+            // Under the transition page the page is not there for VoiceOver either.
+            BotWebSurface(session: web).id(web.service.profileID).accessibilityHidden(web.cover != nil)
+            if web.failed {
+                // Android: a status line with a text button to retry; the rest of the page stays the page colour.
+                VStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        Text(t("無法載入服務，請檢查網址與網路後重試。", "Unable to load the service. Check the address and network, then retry."))
+                            .scaledFont(size: 13).foregroundStyle(palette.ink).frame(maxWidth: .infinity, alignment: .leading)
+                        Button(t("重試", "Retry"), action: web.retry).scaledFont(size: 14, weight: .medium)
+                            .foregroundStyle(palette.accent).accessibilityIdentifier("bot.retry")
+                    }.padding(12)
+                    Spacer(minLength: 0)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(palette.background)
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if web.loading { ProgressView().frame(maxWidth: .infinity).accessibilityIdentifier("bot.loading") }
-            }
-            // Android's fallback bar (shown until the website's own sidebar takes over): the name, the service switcher
-            // and the manage sheet. iOS has no system back, so the way out of the service stays on the left.
-            .navigationTitle(web.service.name).navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    // Android: the name on one line, the address in small type under it.
-                    VStack(spacing: 0) {
-                        Text(web.service.name).font(.headline).lineLimit(1)
-                        Text(web.service.origin).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                    }.accessibilityElement(children: .combine)
-                }
-                ToolbarItemGroup(placement: .topBarLeading) {
-                    Button(action: close) { Label(t("返回", "Back"), systemImage: "chevron.backward") }
-                        .accessibilityIdentifier("bot.back")
-                    Button(t("服務", "Services")) { showsServices = true }.accessibilityIdentifier("bot.switch")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(t("更多", "More")) { showsManage = true }.accessibilityIdentifier("bot.menu")
-                }
-            }
-            .toolbarBackground(palette.background, for: .navigationBar)
-            .toolbar(web.workspaceControlsReady ? .hidden : .visible, for: .navigationBar)
-            .tint(palette.accent)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if web.cover == nil {
+                VStack(spacing: 0) {
+                    if !web.workspaceControlsReady { header }
+                    if web.loading { ProgressView().frame(maxWidth: .infinity).accessibilityIdentifier("bot.loading") }
+                }
+            }
+        }
+        .overlay {
+            // It covers at once and fades out onto the bot list (Android: no enter transition, a 220 ms fade-out).
+            ZStack {
+                if let cover = web.cover {
+                    BotServiceTransition(name: web.service.name, text: transitionText(cover), backLabel: t("返回", "Back"), back: close)
+                        .transition(BotCoverTransition())
+                }
+            }.animation(.easeOut(duration: 0.22), value: web.cover == nil)
+        }
+        .tint(palette.accent)
         .modifier(BrowserDownloadPresentations(manager: web.downloads, chat: chat, showsList: $showsDownloads,
                                                localizer: localizer, attach: attach))
+        .task(id: web.transitionID) { await web.runTransition(dark: colorScheme == .dark, localizer: localizer) }
+        .onChange(of: scenePhase, initial: true) { _, phase in web.sceneActive = phase == .active }
         .task(id: "\(colorScheme)-\(scenePhase)-\(localizer.language)") {
             guard scenePhase == .active else { return }
             while !Task.isCancelled {
@@ -295,6 +397,8 @@ struct BotServiceScreen: View {
             }
         }
         .onAppear {
+            // Every way in opens a page (`BotWorkspaceStore.openService`, a push target); this only guards a page never opened.
+            if !web.started { web.openList() }
             // A service's own "…" in the switcher opens this screen with its manage sheet.
             if workspace.manageOnOpen { workspace.manageOnOpen = false; showsManage = true }
         }
@@ -356,6 +460,29 @@ struct BotServiceScreen: View {
         }
     }
 
+    /// A page that is not the woowtechbot workspace (sign-in, other sites) keeps a bar of its own in the app's style (Android):
+    /// services, the name and address, more. iOS has no system back, so the way out of the service stays on the left.
+    private var header: some View {
+        HStack(spacing: 0) {
+            BotRoundButton(symbol: "chevron.left", label: t("返回", "Back"), identifier: "bot.back", action: close)
+            BotRoundButton(symbol: "arrow.left.arrow.right", label: t("服務", "Services"), identifier: "bot.switch") { showsServices = true }
+            VStack(spacing: 0) {
+                Text(web.service.name).scaledFont(size: 15, weight: .semibold).foregroundStyle(palette.ink)
+                Text(web.service.origin).scaledFont(size: 12).foregroundStyle(palette.hintInk)
+            }
+            .lineLimit(1).frame(maxWidth: .infinity).padding(.horizontal, 8).accessibilityElement(children: .combine)
+            BotRoundButton(symbol: "ellipsis", label: t("更多", "More"), identifier: "bot.menu") { showsManage = true }
+        }
+        .padding(.horizontal, 8).frame(minHeight: 64).background(palette.background)
+    }
+    private func transitionText(_ cover: BotTransitionText) -> String {
+        switch cover {
+        case .list: t("正在打開機器人列表…", "Opening the bot list…")
+        case .chat: t("正在打開對話…", "Opening the conversation…")
+        case .reload: t("正在重新載入…", "Reloading…")
+        }
+    }
+
     private func retire(_ action: Retirement) {
         retiring = nil; busy = true
         Task {
@@ -373,10 +500,63 @@ struct BotServiceScreen: View {
         guard let action = serviceFollowUp else { return }; serviceFollowUp = nil
         switch action {
         case .local: close()
-        case .service(let id, let manage): workspace.manageOnOpen = manage; workspace.selectedService = id
+        case .service(let id, let manage): workspace.openService(id, manage: manage)
         case .manage: showsManage = true
         case .downloads: showsDownloads = true
         case .pairing: showsPairing = true
+        }
+    }
+}
+
+/// Shown while a service opens, instead of the website's own connecting screen and a bare bar with the address (Android
+/// `ServiceTransition`): the page colour, the robot tile, the service name and a quiet spinner. It takes the taps meant for
+/// the page under it. iOS has no system back, so a round back button stays at the top left.
+private struct BotServiceTransition: View {
+    let name: String
+    let text: String
+    let backLabel: String
+    let back: () -> Void
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let palette = MikaVisualPalette(scheme)
+        VStack(spacing: 0) {
+            BotAvatar(avatar: BotConversationAvatar()).frame(width: 56, height: 56).accessibilityHidden(true)
+            Text(name).scaledFont(size: 17, weight: .semibold).foregroundStyle(palette.ink).lineLimit(1).padding(.top, 16)
+            Text(text).scaledFont(size: 14).foregroundStyle(palette.secondaryInk).multilineTextAlignment(.center)
+                .padding(.top, 6).accessibilityIdentifier("bot.transition")
+            BotSpinner(color: palette.hintInk).frame(width: 20, height: 20).padding(.top, 20).accessibilityHidden(true)
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(palette.background.ignoresSafeArea())
+        .contentShape(Rectangle())
+        .onTapGesture {}
+        .overlay(alignment: .topLeading) {
+            BotRoundButton(symbol: "chevron.left", label: backLabel, identifier: "bot.transition.back", action: back)
+                .padding(.horizontal, 8).frame(height: 64)
+        }
+    }
+}
+
+/// Android's small indeterminate CircularProgressIndicator (no track): an arc that grows and shrinks while it turns.
+/// In at once; out with a fade that no longer takes touches, so a tap on a bot right after the reveal reaches the page.
+private struct BotCoverTransition: Transition {
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        content.opacity(phase == .didDisappear ? 0 : 1).allowsHitTesting(phase != .didDisappear)
+    }
+}
+
+private struct BotSpinner: View {
+    let color: Color
+    var body: some View {
+        TimelineView(.animation) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            let cycle = (time / 1.332).truncatingRemainder(dividingBy: 1)
+            Circle().trim(from: 0, to: 0.06 + 0.66 * (0.5 - 0.5 * cos(cycle * 2 * .pi)))
+                .stroke(color, style: StrokeStyle(lineWidth: 2))
+                .rotationEffect(.degrees((time * 300).truncatingRemainder(dividingBy: 360) + cycle * 270))
+                .padding(1)
         }
     }
 }

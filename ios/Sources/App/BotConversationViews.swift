@@ -369,8 +369,7 @@ struct BotConversationList: View {
         servicesRequest = nil
         Task {
             try? await Task.sleep(for: .milliseconds(350))
-            workspace.manageOnOpen = manage
-            workspace.selectedService = id
+            workspace.openService(id, manage: manage)
         }
     }
 }

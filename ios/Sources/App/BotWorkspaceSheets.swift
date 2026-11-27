@@ -35,8 +35,8 @@ struct BotServicesSheet: View {
         let palette = MikaVisualPalette(scheme, look: .sheet)
         BotSheetScaffold(title: t("切換助理／服務", "Switch assistant or service"), closeLabel: t("關閉", "Close"),
                          closeIdentifier: "bot.services.done", close: onClose) {
-            Text(t("切換服務後，接續剛才的畫面。各服務的對話與登入分開保留。",
-                   "Switch services and continue where you left off. Each service keeps its own conversations and sign-in."))
+            Text(t("切換服務後會打開它的機器人列表。各服務的對話與登入分開保留。",
+                   "Switching opens the service's bot list. Each service keeps its own conversations and sign-in."))
                 .scaledFont(size: 14).foregroundStyle(palette.secondaryInk).lineSpacing(3)
                 .padding(.horizontal, 8).frame(maxWidth: .infinity, alignment: .leading)
             BotSectionLabel(text: t("這支手機", "This phone"))

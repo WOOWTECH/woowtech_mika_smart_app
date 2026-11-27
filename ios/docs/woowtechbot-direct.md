@@ -317,3 +317,38 @@ popover and services sheet): popovers, dialogs, sheets, chat header and menu, na
 composer (Debug build with the fake model), service screen fallback bar, injected controls, manage sheet, cancel and confirm logout,
 relogin, removal, a second service on the same origin staying independent, add dialog validation, drafts kept across history and service switches, deleting a conversation, the real HA add-on and PaaS pairing pages in the new screen; on the physical iPad (development-signed, candidate 36): history, popovers, switcher sheet, chat header, signed-in fixture page with the injected controls. Not verified: real woowtechbot pages
 behind a pairing, camera QR scanning, push delivery.
+
+## Opening a service: transition page and bot list (Android PR #56, `fa22299c`) on 2026-11-27
+
+Owner request, forwarded by the Android line: when jumping to a woowtechbot service, no intermediate screen (the native bar with the
+name and address over the website's own "connecting to your bots…"); if a screen is needed, a designed transition page. After the jump,
+land on the bot list, not on a conversation. The phone website keeps its bot list in a drawer that is closed on every load and closed
+again whenever the selected bot changes, its address stays `/`, and the injected controls attach while the list is hidden, so neither
+loading `/` nor the controls probe could tell where it landed.
+
+- `Configuration/BotResources/workspace-list.js` is Android's script unchanged (structure only; its one action is a click on the website's
+  own list button). `BotWebSession.workspaceList` runs it with `callAsyncJavaScript` in `.defaultClient`; a reply counts only for the
+  page committed when it was asked (`pageCommits`), and a poll superseded by a newer opening or reload returns without touching state.
+- `BotWebSession.cover` is the transition page (robot tile, service name, "正在打開機器人列表…" / "正在打開對話…" for a push target /
+  "正在重新載入…", a small spinner). It covers at once and fades out in 220 ms; from the reveal on, taps reach the page (a tap on a
+  bot during the fade is not lost). `runTransition` follows Android's rules: the list open on
+  two polls, a sign-in page at once, a page that is not a workspace 4 s after it loaded, a workspace without bots 5 s, 20 s at most; for
+  2.5 s after the reveal the list is reopened if the website closes it, until the first touch (`BotTouchRecorder`, which never takes the
+  touch). After a sign-in page the next committed page is covered again and its list opened.
+- Opening a service (`BotWorkspaceStore.openService`: the history's switcher, switching inside a service, reconnecting a disconnected
+  service) loads the root behind the transition page, a kept page too. A push target (`openTarget`) and a reload (`retry`) keep the
+  website's own page. A new session no longer loads anything until it is opened.
+- Pages that are not the workspace (sign-in, pairing, other sites) get the app-style bar: round back (iOS has no system back), round
+  services, name and address, round more. It replaces the system navigation bar. The switcher's hint now says that switching opens
+  the service's bot list.
+- Deliberate difference: the transition page keeps a round back button at the top left, since iOS has no system back to leave a slow
+  service.
+
+Verified on candidates 37 to 40 (simulator iPhone, Release), with `scripts/bot_fixture_server.py --list-workspace`, which gives a signed-in
+session `scripts/bot_list_fixture.html` (Android's `tools/woowtechbot-ui/list-fixture.html` plus the 768 px breakpoint and a log of what
+the page did at `/test/list-events`): sign-in page with the app-style bar, sign-in → transition page → bot list, the website closing the
+list twice (at 2.8 s and 4.6 s) and the app reopening it both times, a tap on a bot right after the reveal keeping its chat, switching
+away and back (root reloaded behind the transition page, list again), reload ("正在重新載入…", then the website's own chat), Traditional
+Chinese and dark mode, and the real HA add-on's pairing page with the app-style bar. This Mac was heavily loaded during the runs (load
+average above 20), so pages took 3–6 s to start; the transition page covered all of it. Not verified: a push target, a signed-in real
+woowtechbot service (pairing needs a code from the server), iPad (`wide`), accessibility sizes on the transition page.
