@@ -2,24 +2,34 @@ package com.wangzan101.mika.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wangzan101.mika.R
 import com.wangzan101.mika.chat.BotUiProfile
 import com.wangzan101.mika.chat.ConversationStore
@@ -53,7 +63,7 @@ internal fun BotUiHistoryHost(
     onPlans: () -> Unit, onMemory: () -> Unit, onBrowser: () -> Unit,
     onMcpServers: () -> Unit, onComputerAccess: () -> Unit, onScreens: () -> Unit,
     onSettings: () -> Unit, onAbout: () -> Unit, updateAvailable: Boolean,
-    onBotServices: () -> Unit, onBotNotifications: () -> Unit, onBotFiles: (() -> Unit)?,
+    onBotServices: () -> Unit, onBotNotifications: () -> Unit, onBotAddService: () -> Unit = onBotServices, onBotFiles: (() -> Unit)?,
     reopen: Boolean, onReopened: () -> Unit, externalOpenRevision: Int,
     content: @Composable (() -> Unit) -> Unit,
 ) {
@@ -97,8 +107,28 @@ internal fun BotUiHistoryHost(
     var editing by remember { mutableStateOf<BotUiHistoryRow?>(null) }
     var confirming by remember { mutableStateOf<Pair<BotUiHistoryRow, DeleteImpact>?>(null) }
     var shortcuts by remember { mutableStateOf(false) }
+    var accountMenu by remember { mutableStateOf(false) }
+    var newMenu by remember { mutableStateOf(false) }
     var showFiles by remember { mutableStateOf(false) }
     fun leave(action: () -> Unit) { open = false; action() }
+    // Only tools this app really has; settings and About sit under the top-left control instead.
+    @Composable fun toolEntries(onDismiss: () -> Unit) {
+        @Composable fun entry(icon: ImageVector, label: String, go: () -> Unit) {
+            BotUiPopoverItem(icon, label, onClick = { onDismiss(); leave(go) })
+        }
+        entry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onPlans)
+        entry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onMemory)
+        entry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onMcpServers)
+        entry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onComputerAccess)
+        entry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onBrowser)
+        entry(MikaIcons.Screens, stringResource(R.string.drawer_screens), onScreens)
+        entry(MikaIcons.Doc, stringResource(R.string.bot_ui_files)) {
+            if (onBotFiles != null) onBotFiles() else { open = true; showFiles = true }
+        }
+    }
+    LaunchedEffect(open) {
+        if (!open) { accountMenu = false; newMenu = false; shortcuts = false }
+    }
     BackHandler { if (open) context.findActivity()?.moveTaskToBack(true) else open = true }
     Box(Modifier.fillMaxSize()) {
         Box(if (open) Modifier.fillMaxSize().clearAndSetSemantics {} else Modifier.fillMaxSize()) { content { open = true } }
@@ -106,15 +136,34 @@ internal fun BotUiHistoryHost(
             val c = MikaTheme.colors
             Column(Modifier.fillMaxSize().background(c.bg).windowInsetsPadding(WindowInsets.safeDrawing).imePadding().testTag("bot_ui_history")) {
                 Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    BotUiRoundButton(MikaIcons.Gear, stringResource(R.string.settings_title)) { leave(onSettings) }
+                    Box {
+                        BotUiRoundButton(MikaIcons.Gear, stringResource(R.string.settings_title)) { accountMenu = !accountMenu }
+                        BotUiPopover(accountMenu, { accountMenu = false }, PopoverPlacement.BelowStart, minWidth = 220.dp) {
+                            BotUiPopoverItem(MikaIcons.Gear, stringResource(R.string.settings_title), onClick = { accountMenu = false; leave(onSettings) })
+                            BotUiPopoverDivider()
+                            BotUiPopoverItem(MikaIcons.Info, AboutCopy.TITLE + if (updateAvailable) " •" else "", onClick = { accountMenu = false; leave(onAbout) })
+                        }
+                    }
                     BotUiRoundButton(MikaIcons.WorkspaceSwitch, stringResource(R.string.bot_ui_services)) { onBotServices() }
                     Spacer(Modifier.weight(1f))
                     BotUiRoundButton(MikaIcons.Bell, stringResource(R.string.bot_ui_notifications)) { onBotNotifications() }
-                    BotUiRoundButton(MikaIcons.Plus, stringResource(R.string.chat_new), vm.canSwitch()) { vm.newConversation(); open = false }
+                    Box {
+                        BotUiRoundButton(MikaIcons.Plus, stringResource(R.string.chat_new)) { newMenu = !newMenu }
+                        BotUiPopover(newMenu, { newMenu = false }, PopoverPlacement.BelowEnd, minWidth = 220.dp) {
+                            BotUiPopoverItem(MikaIcons.New, stringResource(R.string.chat_new), enabled = vm.canSwitch(),
+                                onClick = { newMenu = false; vm.newConversation(); open = false })
+                            BotUiPopoverDivider()
+                            BotUiPopoverItem(MikaIcons.Link, stringResource(R.string.bot_services_add), onClick = { newMenu = false; onBotAddService() })
+                        }
+                    }
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.bot_ui_history), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { open = false }) { Text(stringResource(R.string.bot_ui_back)) }
+                    Text(stringResource(R.string.bot_ui_history), Modifier.weight(1f), color = c.ink, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.clip(RoundedCornerShape(12.dp)).clickable { open = false }.padding(horizontal = 8.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.bot_ui_back), color = c.ink3, fontSize = 11.sp, lineHeight = 15.sp)
+                        Icon(MikaIcons.Chevron, null, Modifier.size(13.dp), tint = c.ink3)
+                    }
                 }
                 if (!vm.canSwitch()) Text(stringResource(R.string.drawer_busy), Modifier.padding(horizontal = 16.dp), color = c.ink3, style = MikaType.Hint)
                 val visible = remember(rows, query, deleted, others, ui.conversationId, ui.composer) {
@@ -128,7 +177,13 @@ internal fun BotUiHistoryHost(
                     else if (visible.isEmpty()) item { Text(stringResource(R.string.bot_ui_no_results), color = c.ink3) }
                     // Fresh running conversations need an entry even before their first completed turn is persisted.
                     if (ui.conversationId != null && rows.orEmpty().none { it.summary.id == ui.conversationId } && query.isBlank()) item("current") {
-                        TextButton(onClick = { open = false }) { Text(ChatCopy.title(ui.exchanges).ifBlank { context.getString(R.string.chat_new) }) }
+                        // The running conversation before its first save: the same row as the saved ones, shown as the selected one.
+                        Row(Modifier.fillMaxWidth().background(c.fill, RoundedCornerShape(24.dp)).clickable { open = false }.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            BotUiAvatar(BotUiProfile(color = 1, palette = 2), Modifier.size(40.dp))
+                            Text(ChatCopy.title(ui.exchanges).ifBlank { context.getString(R.string.chat_new) }, Modifier.weight(1f), color = c.ink,
+                                fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                     items(visible, key = { it.summary.id }) { row ->
                         var menu by remember { mutableStateOf(false) }
@@ -139,25 +194,31 @@ internal fun BotUiHistoryHost(
                             .clickable(enabled = enabled) {
                                 if (!selected) { if (running) vm.switchTo(row.summary.id) else vm.openConversation(row.summary.id) }
                                 open = false
-                            }.padding(start = 10.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                            }.padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             BotUiAvatar(row.profile, Modifier.size(40.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (row.summary.pinnedAt != null) Icon(MikaIcons.Pin, stringResource(R.string.drawer_pinned), Modifier.size(14.dp), tint = c.ink3)
                                     if (row.summary.branchOf != null) Icon(MikaIcons.Route, stringResource(R.string.chat_branch_origin), Modifier.size(14.dp), tint = c.ink3)
-                                    Text(ChatCopy.plainTitle(row.summary.title), modifier = Modifier.weight(1f), style = MikaType.Body, color = if (enabled) c.ink else c.ink3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(conversationTime(row.summary.updatedAt, System.currentTimeMillis()), style = MikaType.Hint, color = c.ink3, maxLines = 1)
+                                    Text(ChatCopy.plainTitle(row.summary.title), modifier = Modifier.weight(1f), color = if (enabled) c.ink else c.ink3, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(conversationTime(row.summary.updatedAt, System.currentTimeMillis()), color = c.ink2, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 1)
                                 }
-                                Text(if (running) stringResource(R.string.drawer_running) else row.excerpt, style = MikaType.Hint, color = if (running) c.accent else c.ink3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(if (running) stringResource(R.string.drawer_running) else row.excerpt, color = if (running) c.accent else c.ink2, fontSize = 13.sp, lineHeight = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 row.summary.page?.host?.let { Text(it, style = MikaType.Hint, color = c.ink3, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             }
                             Box {
-                                BotUiButton(MikaIcons.More, stringResource(R.string.drawer_actions)) { menu = true }
-                                DropdownMenu(menu, { menu = false }) {
-                                    DropdownMenuItem(text = { Text(stringResource(R.string.bot_ui_profile)) }, onClick = { menu = false; editing = row })
-                                    DropdownMenuItem(text = { Text(stringResource(if (row.summary.pinnedAt == null) R.string.pin else R.string.unpin)) }, onClick = { menu = false; vm.setPinned(row.summary.id, row.summary.pinnedAt == null) })
-                                    DropdownMenuItem(text = { Text(stringResource(R.string.confirm_delete)) }, onClick = { menu = false; confirming = row to vm.deleteImpact(row.summary.id) })
+                                // `···` as a quiet 18 dp glyph in secondary ink, inside a 40 dp target.
+                                Box(Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button) { menu = !menu }, contentAlignment = Alignment.Center) {
+                                    Icon(MikaIcons.More, stringResource(R.string.drawer_actions), Modifier.size(18.dp), tint = c.ink2)
+                                }
+                                BotUiPopover(menu, { menu = false }, PopoverPlacement.BelowEnd, minWidth = 200.dp) {
+                                    BotUiPopoverItem(MikaIcons.Edit, stringResource(R.string.bot_ui_profile), onClick = { menu = false; editing = row })
+                                    BotUiPopoverItem(MikaIcons.Pin, stringResource(if (row.summary.pinnedAt == null) R.string.pin else R.string.unpin),
+                                        onClick = { menu = false; vm.setPinned(row.summary.id, row.summary.pinnedAt == null) })
+                                    BotUiPopoverDivider()
+                                    BotUiPopoverItem(MikaIcons.Trash, stringResource(R.string.confirm_delete), destructive = true,
+                                        onClick = { menu = false; confirming = row to vm.deleteImpact(row.summary.id) })
                                 }
                             }
                         }
@@ -165,27 +226,12 @@ internal fun BotUiHistoryHost(
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box {
-                        BotUiRoundButton(MikaIcons.Apps, stringResource(R.string.bot_ui_shortcuts)) { shortcuts = true }
-                        DropdownMenu(shortcuts, { shortcuts = false }) {
-                            @Composable fun entry(icon: ImageVector, label: String, go: () -> Unit) {
-                                DropdownMenuItem(text = { Text(label) }, leadingIcon = { Icon(icon, null) }, onClick = { shortcuts = false; leave(go) })
-                            }
-                            entry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onPlans)
-                            entry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onMemory)
-                            entry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onMcpServers)
-                            entry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onComputerAccess)
-                            entry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onBrowser)
-                            entry(MikaIcons.Screens, stringResource(R.string.drawer_screens), onScreens)
-                            entry(MikaIcons.Doc, stringResource(R.string.bot_ui_files)) { if (onBotFiles != null) onBotFiles() else { open = true; showFiles = true } }
-                            entry(MikaIcons.Gear, stringResource(R.string.settings_title), onSettings)
-                            entry(MikaIcons.Info, AboutCopy.TITLE + if (updateAvailable) " •" else "", onAbout)
+                        BotUiRoundButton(MikaIcons.Apps, stringResource(R.string.bot_ui_shortcuts)) { shortcuts = !shortcuts }
+                        BotUiPopover(shortcuts, { shortcuts = false }, PopoverPlacement.AboveStart, minWidth = 240.dp) {
+                            toolEntries { shortcuts = false }
                         }
                     }
-                    OutlinedTextField(query, { query = it }, Modifier.weight(1f).testTag("bot_ui_history_search"), singleLine = true,
-                        shape = RoundedCornerShape(24.dp), placeholder = { Text(stringResource(R.string.bot_ui_search_history)) },
-                        leadingIcon = { Icon(MikaIcons.Search, null) }, trailingIcon = {
-                            if (query.isNotEmpty()) BotUiButton(MikaIcons.Close, stringResource(R.string.bot_ui_close)) { query = "" }
-                        })
+                    BotUiSearchPill(query, { query = it }, stringResource(R.string.bot_ui_search_history), Modifier.weight(1f), testTag = "bot_ui_history_search")
                 }
             }
             // Last registered handler wins over the still-composed chat's message/PIP handlers.

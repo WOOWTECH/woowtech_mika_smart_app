@@ -9,22 +9,34 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import com.wangzan101.mika.woowbot.BotServices
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.AppLanguage
+import com.wangzan101.mika.ui.BotUiCard
+import com.wangzan101.mika.ui.BotUiCardDivider
+import com.wangzan101.mika.ui.BotUiSectionLabel
+import com.wangzan101.mika.ui.BotUiSettingsRow
+import com.wangzan101.mika.ui.BotUiSheet
+import com.wangzan101.mika.ui.BotUiSwitch
+import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.appearanceDark
 import com.wangzan101.mika.ui.theme.systemBarsFor
+import com.wangzan101.mika.woowbot.BotServices
 
+/** Bot notifications as a bottom sheet in the website's settings style; a translucent host, so it rises over the previous screen. */
 class BotPushSettingsActivity : ComponentActivity() {
     private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) BotPushBootstrap.setOptIn(this, true)
@@ -43,31 +55,51 @@ class BotPushSettingsActivity : ComponentActivity() {
                 val state = controller?.state?.collectAsState()?.value ?: BotPushState.NOT_CONFIGURED
                 val discovery = controller?.discovery?.collectAsState()?.value.orEmpty()
                 val services by remember { BotServices.registry(this) }.state.collectAsState()
-                Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text(stringResource(R.string.bot_push_settings_title), style = MaterialTheme.typography.headlineSmall)
-                        Text(stringResource(R.string.bot_push_settings_privacy))
-                        Text(stringResource(if (controller?.configured != true) R.string.bot_push_not_configured else statusText(state)))
-                        Button(enabled = (controller?.configured == true || controller?.optedIn == true) && state != BotPushState.PENDING, onClick = {
-                            if (controller?.optedIn == true) BotPushBootstrap.setOptIn(this@BotPushSettingsActivity, false)
-                            else if (Build.VERSION.SDK_INT >= 33 && !BotPushBootstrap.permissionGranted(this@BotPushSettingsActivity))
-                                permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            else BotPushBootstrap.setOptIn(this@BotPushSettingsActivity, true)
-                        }) { Text(stringResource(if (controller?.optedIn == true) R.string.bot_push_disable else R.string.bot_push_enable)) }
+                BotUiSheet(stringResource(R.string.bot_push_settings_title), onDismissRequest = { finish() }) {
+                    val c = MikaTheme.colors
+                    Text(stringResource(R.string.bot_push_settings_privacy), Modifier.padding(horizontal = 8.dp), color = c.ink2, fontSize = 14.sp, lineHeight = 20.sp)
+                    BotUiCard {
+                        BotUiSettingsRow(
+                            title = stringResource(R.string.bot_push_enable),
+                            subtitle = stringResource(if (controller?.configured != true) R.string.bot_push_not_configured else statusText(state)),
+                            icon = MikaIcons.Bell,
+                            trailing = {
+                                BotUiSwitch(
+                                    checked = controller?.optedIn == true,
+                                    onCheckedChange = {
+                                        if (controller?.optedIn == true) BotPushBootstrap.setOptIn(this@BotPushSettingsActivity, false)
+                                        else if (Build.VERSION.SDK_INT >= 33 && !BotPushBootstrap.permissionGranted(this@BotPushSettingsActivity))
+                                            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        else BotPushBootstrap.setOptIn(this@BotPushSettingsActivity, true)
+                                    },
+                                    enabled = (controller?.configured == true || controller?.optedIn == true) && state != BotPushState.PENDING,
+                                )
+                            },
+                        )
                         if (state == BotPushState.RETRY_REQUIRED || state == BotPushState.SERVER_NOT_READY) {
-                            OutlinedButton(onClick = { BotPushBootstrap.refresh(this@BotPushSettingsActivity) }) {
-                                Text(stringResource(R.string.bot_push_retry))
+                            BotUiCardDivider()
+                            BotUiSettingsRow(
+                                title = stringResource(R.string.bot_push_retry), icon = MikaIcons.Refresh,
+                                onClick = { BotPushBootstrap.refresh(this@BotPushSettingsActivity) },
+                                trailing = { Icon(MikaIcons.Chevron, null, Modifier.size(18.dp), tint = c.ink3) },
+                            )
+                        }
+                        BotUiCardDivider()
+                        BotUiSettingsRow(
+                            title = stringResource(R.string.bot_push_system_settings), icon = MikaIcons.Gear,
+                            onClick = { startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) },
+                            trailing = { Icon(MikaIcons.Chevron, null, Modifier.size(18.dp), tint = c.ink3) },
+                        )
+                    }
+                    val enabledServices = services.services.filter { it.enabled }
+                    if (enabledServices.isNotEmpty()) {
+                        BotUiSectionLabel(stringResource(R.string.bot_services_title))
+                        BotUiCard {
+                            enabledServices.forEachIndexed { index, service ->
+                                if (index > 0) BotUiCardDivider()
+                                BotUiSettingsRow(title = service.name, subtitle = stringResource(discoveryText(discovery[service.id])), icon = MikaIcons.Link)
                             }
                         }
-                        OutlinedButton(onClick = {
-                            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
-                        }) { Text(stringResource(R.string.bot_push_system_settings)) }
-                        for (service in services.services.filter { it.enabled }) {
-                            HorizontalDivider()
-                            Text(service.name, style = MaterialTheme.typography.titleMedium)
-                            Text(stringResource(discoveryText(discovery[service.id])), style = MaterialTheme.typography.bodyMedium)
-                        }
-                        TextButton(onClick = { finish() }) { Text(stringResource(R.string.bot_push_back)) }
                     }
                 }
             }

@@ -5,32 +5,62 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.wangzan101.mika.BuildConfig
+import com.wangzan101.mika.R
+import com.wangzan101.mika.i18n.AppLanguage
+import com.wangzan101.mika.ui.BotUiCard
+import com.wangzan101.mika.ui.BotUiCardDivider
+import com.wangzan101.mika.ui.BotUiPillButton
+import com.wangzan101.mika.ui.BotUiSectionLabel
+import com.wangzan101.mika.ui.BotUiSettingsRow
+import com.wangzan101.mika.ui.BotUiSheet
+import com.wangzan101.mika.ui.BotUiTextField
 import com.wangzan101.mika.ui.theme.MikaIcons
+import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.appearanceDark
 import com.wangzan101.mika.ui.theme.systemBarsFor
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import com.wangzan101.mika.R
-import com.wangzan101.mika.BuildConfig
-import com.wangzan101.mika.i18n.AppLanguage
-import com.wangzan101.mika.ui.theme.MikaTheme
 
+/** Translucent host ([R.style.Theme_Mika_Sheet]): the sheet rises over whatever opened it and finishes after its exit motion. */
 class BotServicesActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
+        val startAdding = intent.getBooleanExtra(EXTRA_ADD, false)
         setContent {
             val dark = appearanceDark()
             SideEffect { systemBarsFor(dark) }
@@ -42,85 +72,99 @@ class BotServicesActivity : ComponentActivity() {
                     finish()
                 }, onClose = { finish() }, onManage = {
                     startActivity(BotServiceActivity.intent(this, it).putExtra(BotServiceActivity.EXTRA_MANAGE, true)); finish()
-                })
+                }, startAdding = startAdding)
             }
         }
     }
     companion object {
+        const val EXTRA_ADD = "add"
         fun intent(context: Context) = Intent(context, BotServicesActivity::class.java)
     }
 }
 
-/** Embeddable management screen. Opening a service does not claim it has authenticated. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The assistant and service switcher, as a bottom sheet in the website's settings style. Opening a service does not claim it has
+ * authenticated; [onClose] runs after the sheet's exit motion.
+ */
 @Composable
 fun BotServicesScreen(registry: BotServiceRegistry, onLocal: () -> Unit, onOpen: (String) -> Unit,
-    onClose: () -> Unit = onLocal, selectedId: String? = null, onManage: (String) -> Unit = onOpen) {
+    onClose: () -> Unit = onLocal, selectedId: String? = null, onManage: (String) -> Unit = onOpen, startAdding: Boolean = false) {
     val state by registry.state.collectAsState()
     val supported = remember { BotServices.supportsIsolation() }
-    var adding by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf(startAdding) }
     var error by remember { mutableStateOf(false) }
     LaunchedEffect(registry) { runCatching { BotServices.cleanRetired(registry) }.onFailure { error = true } }
-    val c = MikaTheme.colors
-    Scaffold(containerColor = c.bg, topBar = { TopAppBar(title = { Text(stringResource(R.string.bot_ui_services)) }, navigationIcon = {
-        IconButton(onClick = onClose) { Icon(MikaIcons.Back, stringResource(R.string.bot_ui_back)) }
-    }) }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { Text(stringResource(R.string.bot_workspace_hint), color = c.ink2, style = MaterialTheme.typography.bodyMedium) }
-            item { Text(stringResource(R.string.bot_workspace_device), color = c.ink3, style = MaterialTheme.typography.labelMedium) }
-            item {
-                Row(Modifier.fillMaxWidth().background(if (selectedId == null) c.accentSoft else c.surface, RoundedCornerShape(16.dp))
-                    .clickable(onClick = onLocal).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(MikaIcons.Chats, null, Modifier.size(28.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
-                        Text(stringResource(R.string.bot_workspace_local_detail), color = c.ink2, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(if (selectedId == null) MikaIcons.Check else MikaIcons.Chevron, null)
-                }
-            }
-            item { Text(stringResource(R.string.bot_services_title), color = c.ink3, style = MaterialTheme.typography.labelMedium) }
-            if (!supported) item { Text(stringResource(R.string.bot_services_unsupported), color = c.bad) }
-            if (error) item { Text(stringResource(R.string.bot_services_action_error), color = c.bad) }
-            items(state.services, key = { it.id }) { service ->
-                Row(Modifier.fillMaxWidth().background(if (selectedId == service.id) c.accentSoft else c.surface, RoundedCornerShape(16.dp))
-                    .clickable(enabled = supported) {
-                        runCatching { registry.setEnabled(service.id, true); onOpen(service.id) }.onFailure { error = true }
-                    }.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(MikaIcons.Link, null, Modifier.size(28.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(service.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(service.origin, color = c.ink2, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        if (!service.enabled) Text(stringResource(R.string.bot_services_disconnected), color = c.ink3, style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (selectedId == service.id) Icon(MikaIcons.Check, stringResource(R.string.bot_ui_selected), Modifier.size(18.dp))
-                    IconButton(onClick = { onManage(service.id) }, enabled = supported) { Icon(MikaIcons.More, stringResource(R.string.bot_services_manage_session)) }
-                }
-            }
-            item { OutlinedButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth(), enabled = state.services.size < BotServiceRegistry.MAX_SERVICES) {
-                Icon(MikaIcons.Plus, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.bot_services_add))
-            } }
+    BotUiSheet(stringResource(R.string.bot_ui_services), onDismissRequest = onClose) {
+        val c = MikaTheme.colors
+        Text(stringResource(R.string.bot_workspace_hint), Modifier.padding(horizontal = 8.dp), color = c.ink2, fontSize = 14.sp, lineHeight = 20.sp)
+        BotUiSectionLabel(stringResource(R.string.bot_workspace_device))
+        BotUiCard {
+            BotUiSettingsRow(
+                title = stringResource(R.string.app_name), subtitle = stringResource(R.string.bot_workspace_local_detail),
+                icon = MikaIcons.Chats, onClick = onLocal,
+                trailing = {
+                    Icon(if (selectedId == null) MikaIcons.Check else MikaIcons.Chevron,
+                        if (selectedId == null) stringResource(R.string.bot_ui_selected) else null, Modifier.size(18.dp), tint = if (selectedId == null) c.ink else c.ink3)
+                },
+            )
         }
-    }
-    if (adding) {
-        var name by remember { mutableStateOf("") }
-        var address by remember { mutableStateOf("") }
-        var lan by remember { mutableStateOf(false) }
-        var invalid by remember { mutableStateOf(false) }
-        AlertDialog(onDismissRequest = { adding = false }, title = { Text(stringResource(R.string.bot_services_add)) }, text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it.take(80) }, label = { Text(stringResource(R.string.bot_services_name)) }, singleLine = true)
-                OutlinedTextField(address, { address = it.take(BotOrigin.MAX_URL) }, label = { Text(stringResource(R.string.bot_services_address)) }, singleLine = true)
-                Row { Checkbox(lan, { lan = it }); Text(stringResource(R.string.bot_services_lan_opt_in)) }
-                if (invalid) Text(stringResource(R.string.bot_services_invalid), color = MaterialTheme.colorScheme.error)
+        BotUiSectionLabel(stringResource(R.string.bot_services_title))
+        if (!supported) Text(stringResource(R.string.bot_services_unsupported), Modifier.padding(horizontal = 8.dp), color = c.bad, fontSize = 13.sp, lineHeight = 18.sp)
+        if (error) Text(stringResource(R.string.bot_services_action_error), Modifier.padding(horizontal = 8.dp), color = c.bad, fontSize = 13.sp, lineHeight = 18.sp)
+        if (state.services.isNotEmpty()) BotUiCard {
+            state.services.forEachIndexed { index, service ->
+                if (index > 0) BotUiCardDivider()
+                BotUiSettingsRow(
+                    title = service.name,
+                    subtitle = if (service.enabled) service.origin else service.origin + "\n" + stringResource(R.string.bot_services_disconnected),
+                    icon = MikaIcons.Link, enabled = supported,
+                    onClick = { runCatching { registry.setEnabled(service.id, true); onOpen(service.id) }.onFailure { error = true } },
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (selectedId == service.id) Icon(MikaIcons.Check, stringResource(R.string.bot_ui_selected), Modifier.size(18.dp), tint = c.ink)
+                            Box(Modifier.size(40.dp).clip(CircleShape).clickable(enabled = supported) { onManage(service.id) }, contentAlignment = Alignment.Center) {
+                                Icon(MikaIcons.More, stringResource(R.string.bot_services_manage_session), Modifier.size(20.dp), tint = c.ink2)
+                            }
+                        }
+                    },
+                )
             }
-        }, confirmButton = { TextButton(onClick = {
-            runCatching { registry.add(name, address, lan) }.onSuccess { adding = false }.onFailure { invalid = true }
-        }) { Text(stringResource(R.string.bot_services_add)) } }, dismissButton = {
-            TextButton(onClick = { adding = false }) { Text(stringResource(R.string.bot_services_cancel)) }
-        })
+        }
+        BotUiPillButton(stringResource(R.string.bot_services_add), onClick = { adding = true }, icon = MikaIcons.Plus,
+            enabled = state.services.size < BotServiceRegistry.MAX_SERVICES)
     }
+    if (adding) AddServiceDialog(registry) { adding = false }
+}
+
+/** A dialog on the website's popover surface (the theme gives it the menu colour and radius). */
+@Composable
+private fun AddServiceDialog(registry: BotServiceRegistry, onDone: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var lan by remember { mutableStateOf(false) }
+    var invalid by remember { mutableStateOf(false) }
+    val c = MikaTheme.colors
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text(stringResource(R.string.bot_services_add), fontSize = 19.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                BotUiTextField(stringResource(R.string.bot_services_name), name, { name = it.take(80) })
+                BotUiTextField(stringResource(R.string.bot_services_address), address, { address = it.take(BotOrigin.MAX_URL) }, keyboardType = KeyboardType.Uri)
+                Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable { lan = !lan }, verticalAlignment = Alignment.Top) {
+                    Checkbox(lan, { lan = it })
+                    Text(stringResource(R.string.bot_services_lan_opt_in), Modifier.padding(top = 12.dp, end = 4.dp), color = c.ink2, fontSize = 13.sp, lineHeight = 18.sp)
+                }
+                if (invalid) Text(stringResource(R.string.bot_services_invalid), color = c.bad, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+        },
+        confirmButton = {
+            BotUiPillButton(stringResource(R.string.bot_services_add), primary = true, fill = false, onClick = {
+                runCatching { registry.add(name, address, lan) }.onSuccess { onDone() }.onFailure { invalid = true }
+            })
+        },
+        dismissButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.bot_services_cancel), color = c.ink2) } },
+    )
 }
 
 @Composable

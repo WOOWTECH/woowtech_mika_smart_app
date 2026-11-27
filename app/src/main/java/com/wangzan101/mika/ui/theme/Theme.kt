@@ -10,9 +10,12 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -90,6 +93,10 @@ fun MikaTheme(dark: Boolean = appearanceDark(), reduceMotion: Boolean = false, c
     val colors = if (BuildConfig.WOOWTECHBOT_ENABLED) { if (dark) WoowDarkColors else WoowLightColors }
         else if (dark) DarkColors else LightColors
     val scheme = remember(colors) { scheme(colors) }
+    // Direct WOOWTECH dialogs share the website's popover radius; other brands keep Material's shapes.
+    val shapes = remember(colors) {
+        if (BuildConfig.WOOWTECHBOT_ENABLED) Shapes(extraLarge = RoundedCornerShape(colors.menuRadius.dp)) else Shapes()
+    }
     val layoutDirection = if (LocalContext.current.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
         LayoutDirection.Rtl
     } else {
@@ -100,7 +107,7 @@ fun MikaTheme(dark: Boolean = appearanceDark(), reduceMotion: Boolean = false, c
         LocalMikaColors provides colors,
         LocalReduceMotion provides reduceMotion,
     ) {
-        MaterialTheme(colorScheme = scheme) {
+        MaterialTheme(colorScheme = scheme, shapes = shapes) {
             CompositionLocalProvider(LocalContentColor provides colors.ink, content = content)
         }
     }
@@ -114,7 +121,7 @@ private fun scheme(c: MikaColors): ColorScheme {
         background = c.bg, onBackground = c.ink,
         surface = c.surface, onSurface = c.ink, surfaceVariant = c.fill, onSurfaceVariant = c.ink2,
         surfaceContainerLowest = c.surface, surfaceContainerLow = c.surface, surfaceContainer = c.surface,
-        surfaceContainerHigh = c.surface, surfaceContainerHighest = c.surface, surfaceTint = c.surface,
+        surfaceContainerHigh = c.menu, surfaceContainerHighest = c.surface, surfaceTint = c.surface,
         outline = c.ink3, outlineVariant = c.hair,
         error = c.bad, onError = c.onAccent,
     )

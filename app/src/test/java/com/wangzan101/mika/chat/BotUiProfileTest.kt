@@ -83,4 +83,33 @@ class BotUiProfileTest {
         assertEquals("First name", store.list().single().title)
         assertEquals(BotUiProfile(face = 2), store.botUiProfile(id))
     }
+
+    @Test fun elevenColourPaletteValidatesAndLegacyProfilesKeepTheirLook() {
+        // Original six-colour profiles map to the closest woowtechbot colour, so no conversation changes colour.
+        val legacy = listOf(0 to 1, 1 to 8, 2 to 4, 3 to 3, 4 to 6, 5 to 10)
+        legacy.forEach { (old, current) -> assertEquals(current, BotUiProfile(color = old).colorIndex()) }
+        assertEquals(0, BotUiProfile(color = 3, face = 2).faceMode())
+        val upgraded = BotUiProfile(robot = 1, color = 4, face = 2).upgraded()
+        assertEquals(BotUiProfile(robot = 1, color = 6, face = 0, palette = 2), upgraded)
+        assertEquals(upgraded, upgraded.upgraded())
+        // The new generation allows all eleven colours and the three face modes; the old one still stops at six.
+        assertTrue(BotUiProfile(color = 10, face = 2, palette = 2).valid())
+        assertFalse(BotUiProfile(color = 11, palette = 2).valid())
+        assertFalse(BotUiProfile(color = 6).valid())
+        assertFalse(BotUiProfile(palette = 3).valid())
+        assertEquals(2, BotUiProfile(color = 7, face = 2, palette = 2).faceMode())
+    }
+
+    @Test fun paletteGenerationSurvivesTheSidecarRoundTrip() {
+        val dir = tmp.newFolder()
+        val store = ConversationStore(dir)
+        assertTrue(store.saveBotUiProfile("a", "A", BotUiProfile(robot = 2, color = 9, face = 1, palette = 2)))
+        assertEquals(BotUiProfile(robot = 2, color = 9, face = 1, palette = 2), ConversationStore(dir).botUiProfile("a"))
+        // A sidecar written before the palette field existed has no "palette" key and reads as the legacy generation.
+        File(dir, "b.json").writeText("[]")
+        File(dir, "b.json.bot_ui_profile").writeText("{\"robot\":1,\"color\":2}")
+        val legacy = ConversationStore(dir).botUiProfile("b")
+        assertEquals(1, legacy.palette)
+        assertEquals(4, legacy.colorIndex())
+    }
 }

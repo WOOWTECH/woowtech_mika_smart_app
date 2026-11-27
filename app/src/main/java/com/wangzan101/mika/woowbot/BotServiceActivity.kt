@@ -12,8 +12,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.wangzan101.mika.ui.BotUiCard
+import com.wangzan101.mika.ui.BotUiCardDivider
+import com.wangzan101.mika.ui.BotUiSettingsRow
+import com.wangzan101.mika.ui.BotUiSheet
+import com.wangzan101.mika.ui.NoDialogDim
+import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.appearanceDark
 import com.wangzan101.mika.ui.theme.systemBarsFor
 import com.wangzan101.mika.woowbot.push.BotPushSettingsActivity
@@ -159,7 +166,10 @@ class BotServiceActivity : ComponentActivity() {
                 }
             }
         }
-        if (choosing) Dialog(onDismissRequest = { choosing = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        // Both sheets draw their own scrim and motion, so the dialog windows neither dim nor close themselves on Back.
+        val sheetWindow = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false)
+        if (choosing) Dialog(onDismissRequest = { choosing = false }, properties = sheetWindow) {
+            NoDialogDim()
             BotServicesScreen(registry, onLocal = { choosing = false; finish() }, onOpen = { id ->
                 choosing = false
                 if (id != selectedService) {
@@ -171,17 +181,30 @@ class BotServiceActivity : ComponentActivity() {
                 managing = true
             })
         }
-        if (managing) ModalBottomSheet(onDismissRequest = { managing = false }) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(service.name, style = MaterialTheme.typography.titleLarge)
-                Text(service.origin, style = MaterialTheme.typography.bodySmall)
-                TextButton(enabled = service.enabled && !scanning, onClick = { managing = false; scanPairing(service) }) { Text(stringResource(R.string.bot_services_scan_qr)) }
-                TextButton(onClick = { managing = false; retry() }) { Text(stringResource(R.string.bot_services_reload)) }
-                TextButton(onClick = { managing = false; runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, service.origin), getString(R.string.bot_services_share))) } }) { Text(stringResource(R.string.bot_services_share)) }
-                TextButton(onClick = { managing = false; registry.setEnabled(service.id, false); destroyWebView() }) { Text(stringResource(R.string.bot_services_disconnect)) }
-                TextButton(onClick = { managing = false; confirmLogout = true }) { Text(stringResource(R.string.bot_services_logout)) }
-                TextButton(onClick = { managing = false; confirmRemove = true }) { Text(stringResource(R.string.bot_services_remove)) }
-                Spacer(Modifier.height(16.dp))
+        if (managing) Dialog(onDismissRequest = { managing = false }, properties = sheetWindow) {
+            NoDialogDim()
+            BotUiSheet(service.name, onDismissRequest = { managing = false }) {
+                val c = MikaTheme.colors
+                Text(service.origin, Modifier.padding(horizontal = 8.dp), color = c.ink2, fontSize = 13.sp, lineHeight = 18.sp)
+                BotUiCard {
+                    BotUiSettingsRow(title = stringResource(R.string.bot_services_scan_qr), icon = MikaIcons.Camera,
+                        enabled = service.enabled && !scanning, onClick = { managing = false; scanPairing(service) })
+                    BotUiCardDivider()
+                    BotUiSettingsRow(title = stringResource(R.string.bot_services_reload), icon = MikaIcons.Refresh, onClick = { managing = false; retry() })
+                    BotUiCardDivider()
+                    BotUiSettingsRow(title = stringResource(R.string.bot_services_share), icon = MikaIcons.Share, onClick = {
+                        managing = false
+                        runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, service.origin), getString(R.string.bot_services_share))) }
+                    })
+                    BotUiCardDivider()
+                    BotUiSettingsRow(title = stringResource(R.string.bot_services_disconnect), icon = MikaIcons.Link,
+                        onClick = { managing = false; registry.setEnabled(service.id, false); destroyWebView() })
+                    BotUiCardDivider()
+                    BotUiSettingsRow(title = stringResource(R.string.bot_services_logout), icon = MikaIcons.Lock, onClick = { managing = false; confirmLogout = true })
+                    BotUiCardDivider()
+                    BotUiSettingsRow(title = stringResource(R.string.bot_services_remove), icon = MikaIcons.Trash, destructive = true,
+                        onClick = { managing = false; confirmRemove = true })
+                }
             }
         }
         if (confirmLogout || confirmRemove) AlertDialog(
