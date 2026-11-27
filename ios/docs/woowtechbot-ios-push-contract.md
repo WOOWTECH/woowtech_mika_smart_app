@@ -47,7 +47,10 @@ not merely that the Android data-only sender is running.
 
 `PUT /api/woowtech/ios-push/device` uses the captured cookie, matching `Origin`,
 and `X-Woowtech-Session-Id`. JSON is `{v:1, platform:"fcm", serviceId:<lowercase UUID>,
-token:<opaque FCM registration token>}`. The backend must bind the authenticated
+token:<opaque FCM registration token>, locale:"zh-TW"|"en"}`. `locale` is the app's
+interface language as the push relay names it (a Chinese interface is `zh-TW`,
+anything else `en`); the app registers again when it changes. Build 294 sends no
+`locale`: treat a missing one as `zh-TW`. The backend must bind the authenticated
 identity, validate the service UUID, support idempotent token replacement, and
 reject stale/mismatched session headers. Its successful response has exactly:
 
@@ -82,28 +85,49 @@ must not prevent another deployment from registering. The client preserves each
 service's retry/cleanup status independently and does not count a partial
 registration batch as complete.
 
-## FCM to APNs message
+## Sending: through the WoowTech push relay, as woowtech smart does
+
+Owner decisions on 2026-11-27: iOS push goes through Firebase (FCM to APNs), and
+it follows the push design of woowtech aiot, smart and platform. The backends
+therefore do not call FCM for iOS registrations: like the smart daemon, they send
+each notification to the WoowTech push relay, which alone holds the FCM sending
+rights, limits every token (10 a minute, 500 a day) and writes the text. Android
+registrations keep the backends' existing FCM sender for now.
+
+`POST https://botpush.woowtech.io/api/bot/v1/notify` (relay `WOOWTECH/woowtech-push-relay`,
+profile `bot`, branch `bot-mode`; contract fixtures
+`functions/test/fixtures/bot-notify-v1.fixtures.json`) with exactly:
+
+```json
+{"token":"<FCM token>","locale":"zh-TW","reason":"finished",
+ "target":{"serviceId":"<lowercase UUID>","botId":"<id>","threadId":"<id>","eventId":"<lowercase UUID>"}}
+```
+
+`locale` is the registration's (`zh-TW` when it has none). `reason` is `finished`,
+`permission`, `attention`, or `failed` for a run that ended in an error (owner
+2026-11-27, as Android). `botId` and `threadId` are the website's IDs within
+`[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}`; anything else is refused with 400 and the
+offending field. Answers: 201 sent; 410 `token_invalid` (delete that registration);
+429 rate limited (drop it); 503 or a network error or no answer within 10 s (retry
+once after 2–4 s); 502 `upstream_auth` (the APNs key or the relay's FCM rights,
+keep the registration, do not retry); 400 or 413 (a backend bug, do not retry).
+
+The relay sends a standard APNs alert through FCM with Android's fixed sentences:
+title `WOOWTECH Bot`; body `機器人已完成，請開啟查看。` / `A bot has finished. Open to
+review.` for `finished`, `機器人需要您的注意，請開啟查看。` / `A bot needs your attention.
+Open to review.` for `permission` and `attention`, and `機器人未能完成，請開啟查看。` / `A bot
+couldn't finish. Open to review.` for `failed`. Default sound, `apns-push-type:
+alert`, priority 10, a one-hour expiration, one notification per conversation
+(`apns-collapse-id`), no `mutable-content`, and no chat contents: nothing of a
+conversation passes through Apple or Google. FCM data contains one `woowtechbot`
+string: JSON of exactly `v`, `serviceId`, `botId`, `threadId`, `eventId`, `reason`,
+with `v` the string `"1"`. No URL or action command.
 
 Firebase project `woowtech-assistant` (795023111689), iOS app
-`1:795023111689:ios:289442214db27c7f442ad8`, APNs topic
-`io.woowtech.assistant.bot`, Apple team `W4UWZ8NP2P`. Use this bundle's own APNs
-configuration. Do not reuse a topic-restricted key belonging to Smart/Apporo.
-
-Owner decision on 2026-11-27: iOS push goes through Firebase (FCM to APNs). The
-backends reuse their existing Android FCM HTTP v1 sender and add the iOS device
-registration below; they never call APNs directly or hold an Apple key (the APNs
-key is uploaded to this Firebase iOS app by the owner).
-
-An Android data-only message is insufficient for visible iOS background delivery.
-The server sends a standard APNs alert through FCM with fixed text only, the same
-as Android's notification: title `WOOWTECH Bot`; body `機器人已完成，請開啟查看。`
-for `finished` and `機器人需要您的注意，請開啟查看。` for `permission` and
-`attention`. Default sound, `apns-push-type: alert`, priority 10, a bounded
-expiration, no `mutable-content`, and no chat contents: nothing of a conversation
-passes through Apple or Google. FCM data contains one `woowtechbot`
-string: JSON of exactly `v`, `serviceId`, `botId`, `threadId`, `eventId`, `reason`.
-`v` is the string `"1"`; reason is `finished`, `permission`, or `attention`.
-Routing identifiers follow the bounded client contract. No URL or action command.
+`1:795023111689:ios:289442214db27c7f442ad8`, APNs topic `io.woowtech.assistant.bot`,
+Apple team `W4UWZ8NP2P`: a pair of APNs keys limited to this topic (sandbox and
+production), as smart has, uploaded to this Firebase iOS app. Never a key of
+Smart/Apporo.
 
 The system can display a background alert before the app validates it. Therefore
 server-side identity revocation and generic notification content are essential.

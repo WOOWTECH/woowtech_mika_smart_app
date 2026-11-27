@@ -88,6 +88,9 @@ struct ContentView: View {
                     .padding(.top, 24)
             }
         }
+        .onChange(of: languages.resolved, initial: true) { _, language in
+            BotPushController.shared.setInterfaceLanguage(english: language == .english)
+        }
         .onReceive(session.draftModel.$text) { text in
             guard botRestored else { return }
             botDraftSave?.cancel()

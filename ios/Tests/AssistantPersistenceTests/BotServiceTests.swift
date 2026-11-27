@@ -61,6 +61,16 @@ final class BotServiceTests: XCTestCase {
         XCTAssertThrowsError(try target.url(for: BotServiceRecord(name: "Other", address: service.origin)))
     }
 
+    func testTargetsAcceptTheFourReasonsIncludingFailedRuns() throws {
+        var fields = ["v":"1", "serviceId":UUID().uuidString.lowercased(), "eventId":"event_demo_0002",
+                      "botId":"bot-1", "threadId":"seed-2", "reason":"finished"]
+        for reason in ["finished", "permission", "attention", "failed"] {
+            fields["reason"] = reason
+            XCTAssertEqual(try BotNotificationTarget(fields: fields).reason, reason)
+        }
+        fields["reason"] = "error"; XCTAssertThrowsError(try BotNotificationTarget(fields: fields))
+    }
+
     func testInvalidSnapshotAndAvatarFailClosed() throws {
         let record = try BotServiceRecord(name: "Work", address: "https://example.com")
         var registry = BotServiceRegistry(); try registry.add(record)

@@ -36,11 +36,13 @@ public struct BotPushDiscovery: Equatable {
         let bytes = try! JSONEncoder().encode([service.profileID.uuidString.lowercased(), service.origin, environment, session])
         return SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
-    public static func registrationBody(serviceID: UUID, token: String) throws -> Data {
+    /// The languages the push relay writes in (smart's mapping: a Chinese interface is zh-TW, anything else en).
+    public static let locales: Set<String> = ["zh-TW", "en"]
+    public static func registrationBody(serviceID: UUID, token: String, locale: String) throws -> Data {
         guard token.utf8.count >= 20, token.utf8.count <= 4096,
-              token.utf8.allSatisfy({ (33...126).contains($0) }) else { throw BotServiceError.invalidData }
+              token.utf8.allSatisfy({ (33...126).contains($0) }), locales.contains(locale) else { throw BotServiceError.invalidData }
         return try JSONSerialization.data(withJSONObject: ["v": 1, "platform": "fcm",
-            "serviceId": serviceID.uuidString.lowercased(), "token": token])
+            "serviceId": serviceID.uuidString.lowercased(), "token": token, "locale": locale])
     }
     public static func validateAcknowledgement(_ data: Data, serviceID: UUID?) throws {
         let value = try BotPushWire.object(data)

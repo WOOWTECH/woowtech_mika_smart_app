@@ -49,6 +49,15 @@ enum BotPushStatus {
     private var workspace: BotWorkspaceStore { .shared }
     var optedIn: Bool { workspace.state.push?.enabled == true }
     var pendingCleanup: Int { workspace.state.push?.registrations.filter { !$0.acknowledged }.count ?? 0 }
+    /// The language each registration carries, so the push relay writes the notification in the app's language.
+    private(set) var locale = "zh-TW"
+    /// A new interface language registers again, as smart re-registers its token string.
+    func setInterfaceLanguage(english: Bool) {
+        let next = english ? "en" : "zh-TW"
+        guard next != locale else { return }
+        locale = next
+        if optedIn { schedule() }
+    }
 
     private func configure() -> Bool {
         if FirebaseApp.app() != nil { return true }
@@ -185,7 +194,7 @@ enum BotPushStatus {
                     let entry = BotPushRegistration(service: service, identity: connection.discovery.identity, tokenDigest: digest)
                     // Persist ambiguity before making a request. Network errors never erase this ledger.
                     try save(entry)
-                    let body = try BotPushDiscovery.registrationBody(serviceID: service.id, token: token)
+                    let body = try BotPushDiscovery.registrationBody(serviceID: service.id, token: token, locale: locale)
                     let data = try await connection.request(method: "PUT", path: BotPushDiscovery.devicePath, body: body)
                     let stillCurrent = await connection.current(in: workspace)
                     guard generation == epoch, !Task.isCancelled else { return }

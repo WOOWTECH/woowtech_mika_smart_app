@@ -76,11 +76,16 @@ final class BotPushTests: XCTestCase {
     }
     func testRegistrationUsesSavedServiceAndBoundedOpaqueToken() throws {
         let id = UUID()
-        let value = try JSONSerialization.jsonObject(with: BotPushDiscovery.registrationBody(serviceID: id, token: String(repeating: "A", count: 40))) as! [String: Any]
+        let value = try JSONSerialization.jsonObject(with: BotPushDiscovery.registrationBody(serviceID: id, token: String(repeating: "A", count: 40), locale: "en")) as! [String: Any]
+        XCTAssertEqual(Set(value.keys), ["v", "platform", "serviceId", "token", "locale"])
         XCTAssertEqual(value["serviceId"] as? String, id.uuidString.lowercased())
         XCTAssertEqual(value["platform"] as? String, "fcm")
+        XCTAssertEqual(value["locale"] as? String, "en")
         for bad in ["short", String(repeating: "A", count: 4097), String(repeating: "A", count: 40) + "\n"] {
-            XCTAssertThrowsError(try BotPushDiscovery.registrationBody(serviceID: id, token: bad))
+            XCTAssertThrowsError(try BotPushDiscovery.registrationBody(serviceID: id, token: bad, locale: "zh-TW"))
+        }
+        for locale in ["zh-Hant", "zh-CN", "", "fr"] {
+            XCTAssertThrowsError(try BotPushDiscovery.registrationBody(serviceID: id, token: String(repeating: "A", count: 40), locale: locale))
         }
     }
     func testAmbiguousRegistrationSurvivesPersistenceAndDuplicatesAreRejected() throws {

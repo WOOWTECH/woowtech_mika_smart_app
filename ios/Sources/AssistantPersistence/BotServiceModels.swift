@@ -144,12 +144,14 @@ public struct BotNotificationTarget: Equatable, Sendable {
     public let eventID: String
     public let reason: String
     public var deduplicationKey: String { [serviceID.uuidString, botID, threadID, eventID].joined(separator: "|") }
+    /// Why the service notified; `failed` is a run that ended in an error (owner 2026-11-27, as Android).
+    public static let reasons: Set<String> = ["finished", "permission", "attention", "failed"]
     public init(fields: [String: String]) throws {
         guard Set(fields.keys) == ["v", "serviceId", "botId", "threadId", "eventId", "reason"], fields["v"] == "1",
               let service = fields["serviceId"].flatMap(UUID.init(uuidString:)),
               let event = fields["eventId"], Self.validID(event),
               let bot = fields["botId"], Self.validID(bot), let thread = fields["threadId"], Self.validID(thread),
-              let reason = fields["reason"], ["finished", "permission", "attention"].contains(reason)
+              let reason = fields["reason"], Self.reasons.contains(reason)
         else { throw BotServiceError.invalidData }
         serviceID = service; eventID = event; botID = bot; threadID = thread; self.reason = reason
     }
