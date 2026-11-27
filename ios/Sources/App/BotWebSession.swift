@@ -5,7 +5,7 @@ import Combine
 import SwiftUI
 import WebKit
 
-@MainActor final class BotWebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
+@MainActor final class BotWebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WKHTTPCookieStoreObserver {
     let service: BotServiceRecord
     let webView: WKWebView
     let downloads: BrowserDownloadManager
@@ -16,10 +16,10 @@ import WebKit
     private var valid = true
     private var downloadUntil = Date.distantPast
 
-    init(service: BotServiceRecord) {
+    init(service: BotServiceRecord, dataStore: WKWebsiteDataStore) {
         self.service = service
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = WKWebsiteDataStore(forIdentifier: service.profileID)
+        config.websiteDataStore = dataStore
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = .all
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
@@ -27,9 +27,11 @@ import WebKit
         webView.isInspectable = false
         webView.allowsBackForwardNavigationGestures = true
         webView.accessibilityIdentifier = "bot.webview"
+        webView.accessibilityValue = service.origin
         downloads = BrowserDownloadManager(root: PendingFileFolder.live("BotDownloads/" + service.profileID.uuidString).root,
                                             allowsURL: service.policy.allows)
         super.init()
+        webView.configuration.websiteDataStore.httpCookieStore.add(self)
         webView.navigationDelegate = self; webView.uiDelegate = self
         open(service.policy.url)
     }
@@ -41,12 +43,19 @@ import WebKit
     }
     func retry() { open(service.policy.url) }
     func invalidate() {
+        webView.configuration.websiteDataStore.httpCookieStore.remove(self)
         valid = false; webView.stopLoading(); downloads.cancelAll()
         for item in downloads.items where !item.phase.isActive { downloads.remove(item.id) }
         dialog?.finish(nil); dialog = nil; externalURL = nil
         webView.navigationDelegate = nil; webView.uiDelegate = nil
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
+    }
+    nonisolated func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+        Task { @MainActor [weak self] in
+            guard self?.valid == true, BotPushController.shared.optedIn else { return }
+            BotPushController.shared.schedule()
+        }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
@@ -94,7 +103,10 @@ import WebKit
         downloads.accept(download, from: url)
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { loading = true; failed = false }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { loading = false }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        loading = false
+        if BotPushController.shared.optedIn { BotPushController.shared.schedule() }
+    }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { fail(error) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fail(error) }
     private func fail(_ error: Error) {
@@ -141,11 +153,21 @@ struct BotWebDialog: Identifiable {
 
 private struct BotWebSurface: UIViewRepresentable {
     let session: BotWebSession
-    func makeUIView(context: Context) -> WKWebView { session.webView }
-    func updateUIView(_ view: WKWebView, context: Context) {}
-    static func dismantleUIView(_ view: WKWebView, coordinator: ()) {
-        // The workspace owns the WebView while switching between services.
-        view.removeFromSuperview()
+    func makeUIView(context: Context) -> UIView { UIView() }
+    func updateUIView(_ container: UIView, context: Context) {
+        let web = session.webView
+        container.accessibilityIdentifier = "bot.surface.\(session.service.id)"
+        guard container.subviews.first !== web else { return }
+        container.subviews.forEach { $0.removeFromSuperview() }
+        web.removeFromSuperview()
+        web.frame = container.bounds
+        web.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        container.addSubview(web)
+    }
+    static func dismantleUIView(_ container: UIView, coordinator: ()) {
+        // Remove only children still owned by THIS presentation. A cached WKWebView
+        // might already have been mounted in a newer presentation during dismissal.
+        container.subviews.forEach { $0.removeFromSuperview() }
     }
 }
 
@@ -164,7 +186,7 @@ struct BotServiceScreen: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                BotWebSurface(session: web)
+                BotWebSurface(session: web).id(web.service.profileID)
                 if web.failed {
                     ContentUnavailableView {
                         Label(t("暫時無法開啟服務", "Service unavailable"), systemImage: "wifi.exclamationmark")

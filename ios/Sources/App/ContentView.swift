@@ -97,6 +97,7 @@ struct ContentView: View {
             botRestored = true
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .active { BotPushController.shared.schedule() }
             if phase == .active && !botWorkspace.available {
                 do { try botWorkspace.reload() }
                 catch { botWorkspace.notice = .unreadable }

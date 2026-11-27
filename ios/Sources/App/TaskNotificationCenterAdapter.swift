@@ -106,6 +106,13 @@ import AssistantDomain
         let identifier = notification.request.identifier
         let hasSound = notification.request.content.sound != nil
         Task { @MainActor [weak self] in
+            #if WOOWTECHBOT
+            if notification.request.content.userInfo["woowtechbot"] != nil {
+                let allowed = await BotPushController.shared.mayPresent(notification.request.content.userInfo)
+                completionHandler(allowed ? (hasSound ? [.banner, .list, .sound] : [.banner, .list]) : [])
+                return
+            }
+            #endif
             guard let self, let logical = Self.logicalIdentifier(identifier, scope: self.scope),
                   self.mayPresent?(logical) == true else { completionHandler([]); return }
             // The person already sees the finished reply on the chat in front.
@@ -127,7 +134,9 @@ import AssistantDomain
             defer { completionHandler() }
             #if WOOWTECHBOT
             if isDefault, response.notification.request.content.userInfo["woowtechbot"] != nil {
-                _ = BotWorkspaceStore.shared.openNotification(response.notification.request.content.userInfo)
+                let info = response.notification.request.content.userInfo
+                // Finish the OS callback promptly; cookie discovery can require a network round trip.
+                Task { @MainActor in await BotPushController.shared.open(info) }
                 return
             }
             #endif

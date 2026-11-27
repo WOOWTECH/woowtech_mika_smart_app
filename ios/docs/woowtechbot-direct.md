@@ -63,17 +63,38 @@ UUIDs. A target is built only from the saved origin as
 extra URLs, and duplicate handled events are rejected. Dedupe includes service,
 bot, thread and event, with a bounded encrypted history.
 
-The existing system notification delegate can route an explicit
-`userInfo["woowtechbot"]` dictionary containing these six strings. This is an
-iOS routing adapter, not a server registration or delivery claim. It does not
-approve actions, call tools, grant notification permission, or register a token.
+The existing system notification delegate owns both local-task and Bot callbacks.
+Bot payloads use `userInfo["woowtechbot"]`, either the six-string dictionary or
+its bounded JSON string (FCM data values are strings). Opening requires consent,
+the current enabled profile, a fresh authenticated discovery, and an acknowledged
+registration for that exact profile/session identity. This never approves actions.
 
-Android currently uses Firebase and `/api/woowtech/android-push/device` with
-`platform=fcm`. There is no iOS Firebase app configuration, APNs entitlement,
-APNs credential or iOS registration adapter in this implementation. The app
-therefore says remote push is not connected. Completing that integration needs
-an agreed iOS Firebase/APNs setup and authenticated backend capability contract.
-Existing local assistant notifications are independent.
+The user selected the existing Firebase project `woowtech-assistant` and a separate
+iOS app. Firebase app `1:795023111689:ios:289442214db27c7f442ad8` was created for
+`io.woowtech.assistant.bot`. Firebase 13.2.0 Core/Messaging dependencies are restricted
+to the Bot spec. Swizzling, automatic token generation and Analytics collection are
+disabled. The client initializes after explicit push consent; APNs tokens are mapped
+through the existing UIApplicationDelegate. Denial/off unregisters APNs and deletes
+the FCM token. No token, cookie or session credential is stored in the push ledger.
+The SDK's new installation-ID registration mode is explicitly disabled because
+this integration uses the existing FCM token wire contract. Firebase 13.2 still
+supports that mode, with deprecation warnings for `token()`/`deleteToken()`; a
+future FID migration requires coordinated sender and registration-contract changes.
+
+The encrypted ledger records identity and token digests **before** PUT, retaining
+ambiguous registrations on network errors. A validated server ACK is needed for
+the registered status. Disable/logout attempts DELETE with the original profile;
+failed cleanup is displayed and retained. No new identity may acknowledge an old
+identity's revocation. Service cookies are never shared with the native assistant.
+
+Android's `woowtechAndroidPush` capability is deliberately insufficient. The iOS
+client requires the proposed `woowtechIOSPush` contract documented in
+[woowtechbot-ios-push-contract.md](woowtechbot-ios-push-contract.md). That document
+is the integration target, **not evidence that the three deployed backends already
+implement it**. Candidate 13 has an explicit push-enabled development profile.
+APNs credentials in Firebase, authenticated three-deployment registration,
+and physical delivery remain pending.
+Existing local assistant notification preferences stay independent.
 
 ## Reproducible validation
 
@@ -81,14 +102,31 @@ Generate inside this worktree's iOS directory (or copy its Configuration files
 when generating into a separate output directory):
 
 ```sh
+python3 ios/scripts/bot_firebase_app.py --gcloud /path/to/gcloud \
+  --output ios/Configuration/Private/GoogleService-Info.plist
 xcodegen generate --spec ios/project-woowtechbot.yml --project ios
+mkdir -p ios/WoowAssistant.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+cp ios/Configuration/BotFirebase-Package.resolved \
+  ios/WoowAssistant.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 xcodebuild -project ios/WoowAssistant.xcodeproj -scheme WoowAssistant \
   -configuration Release -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath /path/to/isolated/DerivedData -jobs 1 \
   ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
-  DEVELOPMENT_TEAM=W4UWZ8NP2P PROVISIONING_PROFILE_SPECIFIER= build
+  DEVELOPMENT_TEAM=W4UWZ8NP2P PROVISIONING_PROFILE_SPECIFIER= \
+  -onlyUsePackageVersionsFromResolvedFile build
 ```
+
+Firebase management uses the selected authenticated gcloud account. When the host
+keeps assistant credentials in an isolated configuration, set `CLOUDSDK_CONFIG` to
+that existing directory. The script supplies the exact quota project, validates
+project number/bundle/app IDs, and writes a local ignored client plist without
+printing its API key. `--apply` is only needed for first-time app creation.
+
+The entitlement is development APNs for this non-store variant. Device builds
+need an explicit push-enabled provisioning profile; the prior wildcard profile
+used by candidate 7 cannot provide APNs. Do not change to production solely to
+make a local signing check pass.
 
 Use ad-hoc **simulator** signing for Keychain checks. An unsigned simulator app
 can draw its UI while Keychain writes fail; that is not a valid persistence
@@ -122,10 +160,12 @@ synthetic notification must not be reported as those checks passing.
 
 ## Validation on 2026-11-26
 
-The final simulator candidate is build-candidate 7, app build 294, executable
+The previous simulator candidate (before Firebase integration) is candidate 7,
+app build 294, executable
 SHA256 `6e3833d46f75080cb6e424fb20abf6df297227e6c50a12e827ad045105d93efa`.
-It uses the same source hashes recorded in `candidate.json`; test runs verify
-the source file set, individual hashes, installed executable and UI driver.
+Its source hashes are retained in those runs' request/result snapshots;
+`candidate.json` now points to the latest candidate. Test runs verify the
+source file set, individual hashes, installed executable and UI driver.
 
 Confirmed on that candidate:
 
@@ -160,7 +200,7 @@ failed attempts, file-integrity checks and server audit. All nine successful
 runs use candidate 7. The temporary fixture was stopped and the test simulator
 shut down after this validation.
 
-The physical iPad remains unavailable to Xcode. Real camera decoding,
+At the candidate 7 checkpoint, the physical iPad was unavailable to Xcode. Real camera decoding,
 authenticated PaaS/HA sessions, remote AI completion and iOS remote push have
 not passed acceptance. Push additionally requires iOS Firebase/APNs setup;
 the app continues to show its unavailable status. No archive or upload was
@@ -173,3 +213,36 @@ not an installed or accepted physical-device release. `build-device.json` and
 `development-package.json` record its signing checks and hashes. The device
 executable SHA256 is
 `4b479ccaf6ab5bf2c673e7ba022d44861f46a4cda12af74d44057540771b7bab`.
+
+## Push preparation on 2026-11-27
+
+Candidate 13 compiles for both the arm64 simulator and physical iOS from the
+same recorded source hashes. Firebase client configuration is bundled only in
+the Bot variant. The physical app has a valid Apple Development signature, an
+explicit `W4UWZ8NP2P.io.woowtech.assistant.bot` profile, development APNs
+entitlements, and the target iPad in its provisioned-device list.
+
+`WOOW-Assistant-Bot-294-push-candidate13-development.ipa` is the new local test
+package (SHA256 `b86b6ca77ad9977d5bf402ff814fe2663b7423b611a0203f27592166def4789b`).
+It has not been installed or accepted on the disconnected iPad. It supersedes
+the earlier candidate 7 package for subsequent push testing. This is not a
+TestFlight archive or an upload of standard build 293.
+
+Thirteen Foundation tests pass: the five service/profile/target tests plus
+eight push-discovery, strict-ACK, identity-binding and pending-ledger tests.
+The tested core source hashes still match this candidate.
+
+UI testing exposed an asynchronous toggle setter that did not save the user's
+selection. The setter now saves synchronously, then requests system permission.
+A real simulator system prompt was displayed and accepted on candidate 11.
+Cookie reads now share each service's retained website data store and have a
+bounded wait. Candidate 12 verified that a failed read leaves a retry status
+instead of indefinite checking; retry is not counted as authenticated discovery.
+The latest registration loop also continues with the other deployments when
+one request fails, and checks profile freshness before acknowledging success.
+
+Remaining external prerequisites: dedicated iOS pairing for all three services,
+authenticated access to the backend source/deployments, this bundle's APNs
+credentials in Firebase, and a connected/unlocked/trusted physical iPad.
+The backend repository currently redirects command-line access to Cloudflare
+Access login. The proposed iOS contract has not been verified on any deployment.

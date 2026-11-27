@@ -14,7 +14,7 @@ struct BotChatPresentation: Codable, Equatable {
 
 enum BotWorkspaceNotice {
     case unreadable, draftUnsaved, busy, signedOut, remoteLogoutUnconfirmed
-    case notificationUnsaved, titleUnsaved, changesUnsaved, deletedMetadataUnsaved
+    case notificationUnsaved, titleUnsaved, changesUnsaved, deletedMetadataUnsaved, pushCleanupUnconfirmed
     func text(_ localizer: AppLocalizer) -> String {
         let words: (String, String)
         switch self {
@@ -27,6 +27,7 @@ enum BotWorkspaceNotice {
         case .titleUnsaved: words = ("對話已保存，但名稱尚未同步；請重新編輯名稱。", "The conversation was saved, but its name was not synchronized. Edit its name again.")
         case .changesUnsaved: words = ("變更尚未保存，請重試。", "Changes were not saved. Try again.")
         case .deletedMetadataUnsaved: words = ("對話已刪除，但圖示與草稿清除尚未保存。", "Conversation deleted; icon and draft cleanup was not saved.")
+        case .pushCleanupUnconfirmed: words = ("本機登入已清除，但舊推播註冊尚未確認撤銷；請在服務的裝置管理撤銷舊登入。", "Local sign-in was cleared, but push registration removal is unconfirmed. Revoke the old sign-in in the service's device settings.")
         }
         return localizer.language == .english ? words.1 : words.0
     }
@@ -37,8 +38,11 @@ struct BotWorkspaceSnapshot: Codable {
     var chats: [String: BotChatPresentation] = [:]
     var currentChat: String?
     var openedEvents: [String] = []
+    // Optional preserves decoding of pre-push encrypted workspaces.
+    var push: BotPushPreferences?
     func validate() throws {
         try registry.validate()
+        try push?.validate()
         guard chats.count <= 300, openedEvents.count <= 256,
               currentChat.map({ UUID(uuidString: $0) != nil }) ?? true else { throw BotServiceError.invalidData }
         for (id, chat) in chats {
@@ -60,6 +64,7 @@ struct BotWorkspaceSnapshot: Codable {
     @Published var selectedService: UUID?
     private let vault: EncryptedLearningFile?
     private var sessions: [UUID: BotWebSession] = [:]
+    private var dataStores: [UUID: WKWebsiteDataStore] = [:]
     private var cleaning = Set<UUID>()
     var services: [BotServiceRecord] { state.registry.services }
 
@@ -106,9 +111,18 @@ struct BotWorkspaceSnapshot: Codable {
     func session(_ id: UUID) -> BotWebSession? {
         guard available, let record = services.first(where: { $0.id == id && $0.enabled }) else { return nil }
         if let current = sessions[id], current.service.profileID == record.profileID { return current }
-        let session = BotWebSession(service: record)
+        let session = BotWebSession(service: record, dataStore: websiteDataStore(record.profileID))
         sessions[id] = session
         return session
+    }
+
+    /// Retain one data-store object per profile, including while native push
+    /// reads its cookie store. A temporary parent can disappear during an async read.
+    func websiteDataStore(_ profile: UUID) -> WKWebsiteDataStore {
+        if let stored = dataStores[profile] { return stored }
+        let stored = WKWebsiteDataStore(forIdentifier: profile)
+        dataStores[profile] = stored
+        return stored
     }
 
     func setEnabled(_ id: UUID, _ enabled: Bool) throws {
@@ -117,26 +131,29 @@ struct BotWorkspaceSnapshot: Codable {
             if selectedService == id { selectedService = nil }
             sessions.removeValue(forKey: id)?.invalidate()
         }
+        BotPushController.shared.schedule()
     }
 
     /// Commit a new identity first. Requests finishing afterwards cannot revive
     /// the old profile, even if the server is unreachable.
     func retire(_ id: UUID, remove: Bool) async throws {
         guard let record = services.first(where: { $0.id == id }) else { throw BotServiceError.stale }
-        let dataStore = WKWebsiteDataStore(forIdentifier: record.profileID)
+        let dataStore = websiteDataStore(record.profileID)
         try change { _ = try $0.registry.retire(id, remove: remove) }
         if selectedService == id { selectedService = nil }
         sessions.removeValue(forKey: id)?.invalidate()
         let cookies = await dataStore.httpCookieStore.allCookies()
+        let pushRevoked = await BotPushController.shared.retire(record, cookies: cookies)
         await dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         let revoked = await BotRemoteLogout.revoke(record, cookies: cookies)
-        notice = revoked ? .signedOut : .remoteLogoutUnconfirmed
+        notice = !pushRevoked ? .pushCleanupUnconfirmed : (revoked ? .signedOut : .remoteLogoutUnconfirmed)
         await cleanRetiredProfiles()
     }
 
     func cleanRetiredProfiles() async {
         for id in state.registry.retiredProfiles where !cleaning.contains(id) {
             cleaning.insert(id)
+            dataStores.removeValue(forKey: id)
             do {
                 try await WKWebsiteDataStore.remove(forIdentifier: id)
                 try change { $0.registry.acknowledgeRemoval(id) }
@@ -169,12 +186,10 @@ struct BotWorkspaceSnapshot: Codable {
         }
     }
 
-    /// Called only by the system notification delegate. Payloads contain IDs,
-    /// never URLs, commands, model text or credentials.
-    @discardableResult func openNotification(_ info: [AnyHashable: Any]) -> Bool {
-        guard let payload = info["woowtechbot"] as? [String: String],
-              let target = try? BotNotificationTarget(fields: payload),
-              !state.openedEvents.contains(target.deduplicationKey),
+    /// The push controller calls this only after verifying current authentication.
+    /// Payloads contain IDs, never URLs, commands, model text or credentials.
+    @discardableResult func openNotificationTarget(_ target: BotNotificationTarget) -> Bool {
+        guard !state.openedEvents.contains(target.deduplicationKey),
               let record = services.first(where: { $0.id == target.serviceID }),
               let url = try? target.url(for: record), let web = session(record.id) else { return false }
         do {

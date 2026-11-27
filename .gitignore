@@ -21,3 +21,6 @@ CLAUDE.md
 __pycache__/
 *.py[cod]
 *.egg-info/
+
+# Per-app Firebase client configuration supplied by the build host.
+ios/Configuration/Private/

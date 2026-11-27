@@ -105,7 +105,18 @@ import UIKit
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         TaskNotificationStore.shared.installDelegate()
         Task { await TaskNotificationStore.shared.service.refresh() }
+        #if WOOWTECHBOT
+        BotPushController.shared.schedule()
+        #endif
         return true
     }
+    #if WOOWTECHBOT
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        BotPushController.shared.didRegisterAPNs(deviceToken)
+    }
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        BotPushController.shared.didFailAPNs()
+    }
+    #endif
 }
 #endif

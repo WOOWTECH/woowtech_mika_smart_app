@@ -1,5 +1,9 @@
 include:
   - project.yml
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk.git
+    exactVersion: 13.2.0
 targets:
   WoowAssistant:
     sources:REPLACE:
@@ -7,6 +11,14 @@ targets:
         excludes:
           - Resources/**/InfoPlist.strings
       - path: Configuration/BotResources
+      - path: Configuration/Private/GoogleService-Info.plist
+        optional: true
+        buildPhase: resources
+    dependencies:
+      - package: Firebase
+        product: FirebaseCore
+      - package: Firebase
+        product: FirebaseMessaging
     settings:
       base:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WOOWTECHBOT"
@@ -14,6 +26,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: 渥屋助理 Bot
         CURRENT_PROJECT_VERSION: "294"
         INFOPLIST_FILE: Configuration/Info-WoowtechBot.plist
+        CODE_SIGN_ENTITLEMENTS: Configuration/WoowtechBot.entitlements
       configs:
         Debug:
           INFOPLIST_FILE: Configuration/Info-WoowtechBot.plist

@@ -4,6 +4,7 @@ import SwiftUI
 
 struct BotServicesView: View {
     @ObservedObject var workspace: BotWorkspaceStore
+    @ObservedObject private var push = BotPushController.shared
     let localizer: AppLocalizer
     let open: (UUID) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -46,6 +47,10 @@ struct BotServicesView: View {
                             Button(t("開啟服務", "Open service")) { dismiss(); open(service.id) }
                                 .disabled(!service.enabled)
                                 .accessibilityIdentifier("bot.service.\(service.id).open")
+                            if let status = push.services[service.id] {
+                                Text(status.text(localizer)).font(.footnote).foregroundStyle(.secondary)
+                                    .accessibilityIdentifier("bot.service.\(service.id).push")
+                            }
                         }
                     }
                 }
@@ -70,8 +75,18 @@ struct BotServicesView: View {
                     }.accessibilityIdentifier("bot.add.save")
                 }
                 Section(t("服務通知", "Service notifications")) {
-                    Text(t("iOS 遠端推播尚未接通。你仍可開啟服務查看工作進度；本機助理通知維持原設定。", "iOS remote push is not connected yet. Open a service to check progress; local assistant notifications keep their settings."))
+                    Toggle(t("允許服務推播", "Allow service push"), isOn: Binding(get: { push.optedIn }, set: { enabled in
+                        push.setOptIn(enabled)
+                    })).accessibilityIdentifier("bot.push.enabled")
+                    Text(push.status.text(localizer))
                         .font(.footnote).accessibilityIdentifier("bot.push.status")
+                    Text(t("PaaS、Home Assistant add-on、Podman 各自配對與註冊。通知只提示開啟查看，不會執行核准或操作。", "Pair and register PaaS, Home Assistant add-on and Podman separately. Notifications invite you to open the service; they do not approve or execute actions."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Button(t("重新檢查推播", "Check push again")) { push.schedule() }
+                        .accessibilityIdentifier("bot.push.retry")
+                    Button(t("開啟通知設定", "Open notification settings")) {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    }.accessibilityIdentifier("bot.push.settings")
                 }
                 if let error { Section { Text(error).foregroundStyle(.red).accessibilityIdentifier("bot.services.error") } }
             }
