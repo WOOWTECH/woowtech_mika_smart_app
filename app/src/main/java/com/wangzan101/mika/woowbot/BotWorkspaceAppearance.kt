@@ -14,11 +14,12 @@ internal object BotWorkspaceAppearance {
             else -> null
         }
     }
+    private var source: String? = null
     fun script(context: Context, dark: Boolean): String {
         val config = JSONObject().put("skin", if (dark) "midnight" else "daylight")
             .put("services", context.getString(R.string.bot_ui_services))
             .put("notifications", context.getString(R.string.bot_ui_notifications))
-        return context.assets.open("woowtechbot/workspace-controls.js").bufferedReader().use { it.readText() }
-            .replace("__WOOW_CONFIGURATION__", config.toString())
+        val text = source ?: context.assets.open("woowtechbot/workspace-controls.js").bufferedReader().use { it.readText() }.also { source = it }
+        return text.replace("__WOOW_CONFIGURATION__", config.toString())
     }
 }
