@@ -177,7 +177,7 @@ struct BotPopoverRow: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: symbol).font(.system(size: 14.5, weight: .regular)).frame(width: 16, height: 16)
-                    .foregroundStyle(destructive ? palette.destructive : palette.secondaryInk)
+                    .foregroundStyle(destructive ? palette.destructive : palette.secondaryInk).accessibilityHidden(true)
                 Text(title).scaledFont(size: 14).lineLimit(1)
                     .foregroundStyle(destructive ? palette.destructive : palette.ink)
                 Spacer(minLength: 0)

@@ -312,8 +312,8 @@ service screen's fallback bar keeps a Back chevron (there is no system back); pa
 Save to Files and Share for generated files; the composer keeps iOS's separate hold-to-talk mic button instead of Android's
 hold-anywhere placeholder.
 
-Verified on candidate 34 (simulator iPhone, dark and light, English and Traditional Chinese, accessibility size 5 for the history,
+Verified on candidate 36 (simulator iPhone, dark and light, English and Traditional Chinese, accessibility size 5 for the history,
 popover and services sheet): popovers, dialogs, sheets, chat header and menu, name and icon page, find and files pages, chat bubbles and
 composer (Debug build with the fake model), service screen fallback bar, injected controls, manage sheet, cancel and confirm logout,
-relogin, removal, a second service on the same origin staying independent, add dialog validation. Not verified: real woowtechbot pages
+relogin, removal, a second service on the same origin staying independent, add dialog validation, drafts kept across history and service switches, deleting a conversation, the real HA add-on and PaaS pairing pages in the new screen; on the physical iPad (development-signed, candidate 36): history, popovers, switcher sheet, chat header, signed-in fixture page with the injected controls. Not verified: real woowtechbot pages
 behind a pairing, camera QR scanning, push delivery.

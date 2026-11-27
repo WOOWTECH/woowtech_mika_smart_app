@@ -529,7 +529,8 @@ struct ContentView: View {
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { botChatMenuFrame = $0 }
         }
         // The page colour reaches up behind the status bar only: a background that also ignored the other edges painted over the chat.
-        .padding(.horizontal, 8).background(palette.background, ignoresSafeAreaEdges: .top)
+        .padding(.horizontal, 8).mikaReadableColumn()
+        .background(palette.background, ignoresSafeAreaEdges: .top)
     }
 
     @ViewBuilder private var botChatMenuView: some View {

@@ -217,10 +217,6 @@ struct BotManageSheet: View {
                 BotCardDivider()
                 BotSettingsRow(title: t("移除服務", "Remove service"), symbol: "trash", destructive: true, identifier: "bot.manage.remove", action: remove)
             }
-            Text(t("中斷連線會關閉手機上的服務頁面並保留登入。登出會清除該服務的登入狀態。伺服器任務仍會獨立執行。",
-                   "Disconnect closes this service on your phone and keeps its sign-in. Logout clears this service’s sign-in. Server tasks continue independently."))
-                .scaledFont(size: 13).lineSpacing(2).foregroundStyle(palette.secondaryInk)
-                .padding(.horizontal, 8).frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
