@@ -59,6 +59,7 @@ struct BotConversationList: View {
                         excerpt: workspace.presentation(record.id.uuidString).draft.isEmpty ? record.turns.last?.assistantText ?? "" : t("草稿：", "Draft: ") + workspace.presentation(record.id.uuidString).draft,
                         date: record.updatedAt, pinned: record.pinnedAt != nil) }
                     .buttonStyle(.plain).accessibilityIdentifier("bot.chat.\(record.id)")
+                    .listRowBackground(Color.clear)
                     .contextMenu {
                         Button(t("名稱與圖示", "Name & icon"), systemImage: "pencil") { editID = record.id.uuidString }
                         Button(record.pinnedAt == nil ? t("置頂", "Pin") : t("取消置頂", "Unpin"), systemImage: "pin") {
@@ -165,6 +166,7 @@ struct BotConversationList: View {
                       excerpt: id == chat.conversationID ? chat.draft : workspace.presentation(id).draft,
                       date: workspace.presentation(id).updatedAt, pinned: false) }
             .buttonStyle(.plain).accessibilityIdentifier("bot.draft.\(id)")
+            .listRowBackground(Color.clear)
             .contextMenu {
                 Button(t("名稱與圖示", "Name & icon"), systemImage: "pencil") { editID = id }
                 Button(t("刪除草稿", "Delete draft"), systemImage: "trash", role: .destructive) { deleteID = UUID(uuidString: id) }
