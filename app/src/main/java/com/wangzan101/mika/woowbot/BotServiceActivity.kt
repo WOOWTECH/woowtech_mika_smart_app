@@ -165,6 +165,8 @@ class BotServiceActivity : ComponentActivity() {
         // opened again if the website closes it by itself (until the first touch). After a sign-in page, or a workspace still
         // starting or connecting at 20 s, the list is still opened once, when the workspace appears.
         LaunchedEffect(service.profileName, transition) {
+            // A newer transition (switch, reload) replaces this one; an answer that arrives after that changes nothing.
+            val round = transition
             val started = System.currentTimeMillis()
             var openSeen = 0
             var emptySince = 0L
@@ -172,6 +174,7 @@ class BotServiceActivity : ComponentActivity() {
             var last: String? = null
             while (!revealed || landOnList) {
                 delay(if (!revealed || settleFrom != 0L) 200L else 1_000L)
+                if (transition != round) break
                 if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
                 val now = System.currentTimeMillis()
                 if (settleFrom != 0L && (touchedAt > settleFrom || now - settleFrom > 2_500L)) { landOnList = false; break }
@@ -181,6 +184,7 @@ class BotServiceActivity : ComponentActivity() {
                 if (pageStarts <= transitionFrom) continue
                 applyAppearance(view)
                 val shown = evaluate(view, BotWorkspaceList.script(this@BotServiceActivity, open = landOnList))
+                if (transition != round) break
                 if (shown != null) last = shown
                 if (shown != "app") emptySince = 0L
                 if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "transition shown=$shown ms=" + (now - started) +
@@ -632,17 +636,18 @@ class BotServiceActivity : ComponentActivity() {
  */
 @Composable
 private fun ServiceTransitionOverlay(visible: Boolean, name: String, text: String) {
-    AnimatedVisibility(visible, enter = EnterTransition.None, exit = fadeOut(tween(220))) { ServiceTransition(name, text) }
+    AnimatedVisibility(visible, enter = EnterTransition.None, exit = fadeOut(tween(220))) { ServiceTransition(name, text, blocking = visible) }
 }
 
 /**
  * Shown while a service opens, instead of the website's own connecting screen and a bare bar with the address: the page
- * colour, the robot tile, the service name and a quiet spinner. It takes the taps meant for the page under it.
+ * colour, the robot tile, the service name and a quiet spinner. While it is up it takes the taps meant for the page under
+ * it; while it fades out they reach the page, so a bot tapped right after the list shows opens.
  */
 @Composable
-private fun ServiceTransition(name: String, text: String) {
+private fun ServiceTransition(name: String, text: String, blocking: Boolean) {
     val c = MikaTheme.colors
-    Column(Modifier.fillMaxSize().background(c.bg).pointerInput(Unit) { detectTapGestures { } },
+    Column(Modifier.fillMaxSize().background(c.bg).then(if (blocking) Modifier.pointerInput(Unit) { detectTapGestures { } } else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         BotUiAvatar(BotUiProfile(color = 1, palette = 2), Modifier.size(56.dp))
         Spacer(Modifier.height(16.dp))
