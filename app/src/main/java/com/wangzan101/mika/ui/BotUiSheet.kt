@@ -66,6 +66,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -80,6 +81,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
+import kotlinx.coroutines.delay
 import com.wangzan101.mika.R
 import com.wangzan101.mika.ui.theme.LocalMikaColors
 import com.wangzan101.mika.ui.theme.MikaIcons
@@ -103,9 +105,16 @@ internal fun BotUiSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = if (MikaTheme.colors.isDark) WoowSheetDarkColors else WoowSheetLightColors
-    val visible = remember { MutableTransitionState(false).apply { targetState = true } }
+    val visible = remember { MutableTransitionState(false) }
     var closing by remember { mutableStateOf(false) }
     val dismiss = { if (!closing) { closing = true; visible.targetState = false } }
+    // The hosting activity or dialog window can take a few hundred milliseconds to appear (700 ms measured for the services
+    // sheet on a debug build), and `sheet-in` ran unseen meanwhile. Start it when the window has focus, or after 400 ms anyway.
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(windowFocused) {
+        if (!windowFocused) delay(400)
+        if (!closing) visible.targetState = true
+    }
     LaunchedEffect(closing, visible.currentState) { if (closing && !visible.currentState) onDismissRequest() }
     BackHandler(onBack = dismiss)
     val reduce = MikaTheme.reduceMotion

@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -56,6 +58,7 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.menuRadius
+import kotlinx.coroutines.delay
 
 /**
  * woowtechbot's popover menus, measured from the production website: no scrim, anchored to the button that opened them
@@ -108,8 +111,9 @@ internal fun BotUiPopover(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val visible = remember { MutableTransitionState(false) }
-    visible.targetState = expanded
-    if (!visible.currentState && !visible.targetState) return
+    // Closing is immediate; opening is started from inside the popup window once that window is on screen (below).
+    if (!expanded) visible.targetState = false
+    if (!expanded && !visible.currentState && !visible.targetState) return
     val c = MikaTheme.colors
     val density = LocalDensity.current
     val provider = remember(placement, density) {
@@ -129,6 +133,16 @@ internal fun BotUiPopover(
     // the system sliding the whole window inwards, which moved the menu off its anchor.
     Popup(popupPositionProvider = provider, onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true, clippingEnabled = false)) {
+        // A new window can take a few hundred milliseconds to appear (a debug build on a modest phone measured 300 ms), which
+        // used to swallow the whole 0.2 s `pop-in`. The entrance starts when this window has focus, i.e. is on screen, and
+        // after 350 ms regardless, so a window that never reports focus still shows.
+        val windowFocused = LocalWindowInfo.current.isWindowFocused
+        LaunchedEffect(expanded, windowFocused) {
+            if (expanded) {
+                if (!windowFocused) delay(350)
+                visible.targetState = true
+            }
+        }
         AnimatedVisibility(visibleState = visible, enter = enter, exit = exit) {
             Box(Modifier.padding(ShadowRoom)) {
                 Column(

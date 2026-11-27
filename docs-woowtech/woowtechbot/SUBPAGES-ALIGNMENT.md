@@ -71,6 +71,25 @@ reached the screen edge and the menu ended up 8 dp away from its button.
 `BotUiProfile.palette` (default 1) marks the generation. Profiles saved before it read as the original six colours and are mapped to the
 closest of the eleven (`colorIndex()`), so no conversation changes colour; the editor saves generation 2, where `face` is automatic / white / black.
 
+## Evidence
+
+POCO (720 × 1600, 320 dpi, portrait), debug build, dev package `io.woowtech.agent.dev`, 2026-11-27. Screenshots are half size, in
+`evidence/subpages/dark/` and `evidence/subpages/light/` with the same file names; several were taken with Craft Anything's
+`adb-screenshot-take`, the rest with `adb exec-out screencap`.
+
+| File | Shows |
+| --- | --- |
+| `01-history` | history list, current conversation selected, quiet “…” glyphs, 40 dp round buttons |
+| `02-gear-menu` / `03-plus-menu` | popovers below-left of the gear and below-right of plus, edges aligned with their buttons |
+| `04-shortcuts-menu` | four-grid popover opening upwards, the seven tools this app has |
+| `05-row-menu` | row “…” popover: name and icon, pin, delete |
+| `06-switch-service-sheet` / `07-add-service-dialog` / `08-bot-notifications-sheet` | bottom sheets and the add dialog |
+| `09-chat-header` / `10-chat-menu` | header with side margins and a centred capsule, its menu |
+| `11-name-and-icon` / `12-name-and-icon-card` | the design's name page, icon card open |
+| `13-find` / `14-files` / `15-delete-confirmation` | same-family pages and dialog |
+
+Unit tests: `BotUiProfileTest` 7, `BotUiHistoryTest` 3, all pass. CI on the pull request: all jobs pass, including the APK job.
+
 ## Not matched on purpose
 
 - The website uses Geist; this app keeps the system font. Icons are this app's own 1.7 px stroke set, scaled to 16 dp.

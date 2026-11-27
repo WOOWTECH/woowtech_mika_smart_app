@@ -120,6 +120,8 @@ class BotUiConversationDeviceTest {
         restoration.setContent { Content() }
         compose.onNodeWithTag("bot_ui_test_draft").performTextReplacement("Alpha unsent 中文")
         compose.onNodeWithContentDescription(text(R.string.bot_ui_more)).performClick()
+        // The popover plays its entrance once its own window is on screen, so wait for the item instead of assuming it is there.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.chat_new)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText(text(R.string.chat_new)).performClick()
         compose.onNodeWithTag("bot_ui_test_draft").assertTextEquals("")
         compose.onNodeWithTag("bot_ui_test_draft").performTextReplacement("New unsent")
