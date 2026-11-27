@@ -28,3 +28,18 @@ and `Icons`; all merged without conflict and the Play-only code (AI response rep
 | Accent | woowtechbot blue (#0B69CC / #7FC0FF) | WOOWTECH: the same; Apporo: its brand gold (#8B6B24 / #C49E53) |
 
 Upstream and the non-Play Apporo flavor keep the drawer and their palettes.
+
+## Verified on a device
+
+POCO (720 × 1600, 320 dpi, portrait), debug builds `io.woowtech.assistant.dev` and `com.apporo.assistant.play.dev`, 2026-11-27.
+Both new test packages were installed with the owner's permission to confirm HyperOS's USB install reminder once each. Sample
+conversations come from an untracked seed test; the first-run model step was marked done in those two test installs only (no model
+or key written). Screenshots (half size) in `docs-woowtech/woowtechbot/evidence/play-workspace/{woowtech,apporo}/{dark,light}/`:
+
+- WOOWTECH, dark: history (gear and plus only), gear menu, plus menu (new conversation), four-grid menu, row menu, chat header and
+  its menu, name and icon page and its icon card, delete confirmation. Light: history, gear menu, row menu, name field focused (blue).
+- Apporo (English UI), dark: history, gear menu (About Apporo Assistant), plus menu, chat header, icon card, name field focused (gold
+  accent). Light: history, gear menu, row menu, name field focused (gold).
+
+The layout, popovers, sheets of the name page and dialogs match the direct-download edition's screenshots in PR #52; only the
+woowtechbot buttons are absent and Apporo's focus and cursor colour is its gold.
