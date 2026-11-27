@@ -20,6 +20,7 @@ struct BotConversationList: View {
     @State private var editID: String?
     @State private var deleteID: UUID?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var palette: MikaVisualPalette { .init(colorScheme) }
     private func t(_ zh: String, _ en: String) -> String { localizer.language == .english ? en : zh }
     private var records: [ArchivedConversation] {
@@ -84,6 +85,7 @@ struct BotConversationList: View {
                     .accessibilityIdentifier("bot.history.shortcuts")
                     Text(localizer.text(chat.chatStatusMessage == .chatStatusUnconfigured ? .chatSendBlockedTitle : .drawerStatusReady))
                         .font(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                     Spacer(minLength: 0)
                 }.padding(.horizontal, 16).padding(.vertical, 8).background(palette.background)
             }
@@ -105,6 +107,8 @@ struct BotConversationList: View {
             }
           }
           .toolbar(.hidden, for: .navigationBar)
+          // Like the chat, a readable column on wide screens; the canvas stays full width.
+          .mikaReadableColumn()
           .background(palette.background)
           .tint(palette.accent)
         }
@@ -139,6 +143,8 @@ struct BotConversationList: View {
                 Button(t("返回對話", "Back to chat"), action: close).font(.subheadline)
                     .accessibilityIdentifier("bot.history.back")
             }
+            // Like the chat's top bar, the title row keeps its height at the largest sizes.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(palette.secondaryInk)
                 TextField(t("搜尋名稱或訊息", "Search names or messages"), text: $search)
@@ -165,17 +171,31 @@ struct BotConversationList: View {
             }
     }
     private func row(title: String, id: String, excerpt: String, date: Date, pinned: Bool) -> some View {
-        HStack(spacing: 12) {
+        let preview = Text(excerpt.isEmpty ? t("尚未傳送訊息", "No messages yet") : excerpt)
+            .font(.subheadline).foregroundStyle(palette.secondaryInk)
+        let pin = Image(systemName: "pin.fill").font(.caption).accessibilityLabel(t("已置頂", "Pinned"))
+        return HStack(spacing: 12) {
             BotAvatar(avatar: workspace.presentation(id).avatar).frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(title).font(.headline).lineLimit(1)
-                    if pinned { Image(systemName: "pin.fill").font(.caption).accessibilityLabel(t("已置頂", "Pinned")) }
-                    Spacer()
-                    Text(date, style: .date).font(.caption2).foregroundStyle(.secondary)
+            if typeSize.isAccessibilitySize {
+                // The date no longer fits beside the name at accessibility sizes: stack the lines.
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(title).font(.headline).lineLimit(2)
+                        if pinned { pin }
+                    }
+                    Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
+                    preview.lineLimit(2)
                 }
-                Text(excerpt.isEmpty ? t("尚未傳送訊息", "No messages yet") : excerpt)
-                    .lineLimit(1).font(.subheadline).foregroundStyle(palette.secondaryInk)
+            } else {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text(title).font(.headline).lineLimit(1)
+                        if pinned { pin }
+                        Spacer()
+                        Text(date, style: .date).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    preview.lineLimit(1)
+                }
             }
         }.padding(10).foregroundStyle(palette.ink)
             .background(id == chat.conversationID ? palette.glass : .clear, in: RoundedRectangle(cornerRadius: 24))
