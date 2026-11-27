@@ -24,7 +24,7 @@ object ChatCopy {
     enum class ExampleKind { App, Web, File, Schedule, Device }
     data class Example(val kind: ExampleKind, val text: String)
 
-    val examples get() = if (BuildConfig.FLAVOR == "woowtech") listOf(
+    val examples get() = if (BuildConfig.PLAY_EDITION) listOf(
         Example(ExampleKind.File, tr(R.string.chat_example_follow)),
         Example(ExampleKind.Web, tr(R.string.chat_example_group_summary)),
         Example(ExampleKind.Web, tr(R.string.chat_example_jobs)),

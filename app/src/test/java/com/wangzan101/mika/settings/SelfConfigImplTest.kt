@@ -39,6 +39,20 @@ class SelfConfigImplTest {
         assertEquals(false, f.keepScreenOn())
     }
 
+    /** 商店版没有操作手机:只给外观和屏幕常亮,操作节奏、静音、悬浮胶囊既不列也改不了。 */
+    @Test fun withoutPhoneControlOnlyAppearanceAndScreenOnAreOffered() {
+        val f = flags()
+        val s = SelfConfigImpl(f, phoneControl = false)
+        assertEquals(setOf("appearance", "keep_screen_on"), s.options().map { it.key }.toSet())
+        val pace = f.operatingPace()
+        assertEquals("there is no such setting", s.set("operating_pace", "fast"))
+        assertEquals(pace, f.operatingPace())
+        assertEquals("there is no such setting", s.set("capsule", "always"))
+        assertEquals("there is no such setting", s.set("mute_apps", "off"))
+        assertNull(s.set("appearance", "dark"))
+        assertEquals(ThemeMode.Dark, f.themeMode())
+    }
+
     @Test fun badValuesAndUnknownKeysAreReported() {
         val s = SelfConfigImpl(flags())
         assertNotNull(s.set("operating_pace", "turbo"))

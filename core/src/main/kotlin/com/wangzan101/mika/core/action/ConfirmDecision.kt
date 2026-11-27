@@ -62,7 +62,10 @@ class ConfirmDecision(
     /** 判定放在锁屏等待之后:按此刻重新读的一屏判。 */
     suspend fun judge(tool: String, args: JsonObject, origin: Origin): Decision {
         outwardSite = null
-        if (autonomous || approvals.autonomous()) {
+        val auto = autonomous || approvals.autonomous()
+        // 付款永远先问的版本(商店版):自主时照样判,只有花钱的一步要同意,别的照自主放行
+        val paymentsAsk = approvals.paymentsAlwaysAsk()
+        if (auto && !paymentsAsk) {
             val target = tools.gateTarget(tool)
             if (IrreversibleDetector.needsCheck(target, args)) {
                 val aim = tools.interfaces.actionTarget(tools.declared(tool), args)
@@ -77,9 +80,11 @@ class ConfirmDecision(
         val checked = aim.args
         if (ownApp(tool, args, aim.aimed)) return Decision.OwnApp
         tools.approvalRisk(tool, checked)?.let { declared ->
+            if (auto && !declared.payment) return Decision.Clear
             return approve(tool, checked, origin, null, declared, null, null, null) ?: Decision.Clear
         }
-        if (confirmations == null && !policy.judgeWithoutGate) return Decision.Clear
+        // 没有确认关卡时本来不判;付款永远先问时照判,付款这一步没有关卡就做不了
+        if (confirmations == null && !policy.judgeWithoutGate && !paymentsAsk) return Decision.Clear
         val verb = tools.verb(tool)
         val typing = if (verb == Verb.TypeText) (args["text"] as? JsonPrimitive)?.contentOrNull else null
         // 没有可判的不可逆字样的动作(一般改动、界面间移动)不花钱,不用问
@@ -94,7 +99,7 @@ class ConfirmDecision(
         outwardSite = outward(hit, fresh ?: snap)
         approve(tool, checked, origin, hit, risk, fresh ?: snap, typing, seen)?.let { return it }
         if (hit != null || !IrreversibleDetector.unresolved(target, checked, snap, fresh)) return Decision.Clear
-        return if (policy.refuseUnresolved) Decision.Unresolved else Decision.Traced(unresolvedDetail(args, aim.readAgeMs, fresh != null))
+        return if (policy.refuseUnresolved && !auto) Decision.Unresolved else Decision.Traced(unresolvedDetail(args, aim.readAgeMs, fresh != null))
     }
 
     /** 命中的是发送、提交时这一屏的网站或 App。 */

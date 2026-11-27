@@ -10,6 +10,14 @@
         </intent>
     </queries>
     <application>
+        <activity android:name="com.wangzan101.mika.ui.viewer.DocumentShareReceiverActivity"
+            android:exported="true" android:label="Document test receiver">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
         <activity android:name="com.wangzan101.mika.cap.phone.display.RotationTestActivity"
             android:exported="true" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@android:style/Theme.Material.NoActionBar" />

@@ -48,4 +48,8 @@
     <string name="model_reasoning_high">High</string>
     <string name="model_reasoning_xhigh">Extra high</string>
     <string name="model_reasoning_max">Maximum</string>
+    <string name="viewer_save_as">Save a copy</string>
+    <string name="viewer_saved">File saved</string>
+    <string name="viewer_save_cancelled">Save cancelled</string>
+    <string name="viewer_save_failed">Could not save the file. Check storage and try again.</string>
 </resources>

@@ -114,11 +114,52 @@ private sealed interface Loaded {
 fun FileViewerScreen(uri: Uri, name: String, kind: ViewerKind?, onBack: () -> Unit) {
     val context = LocalContext.current
     val openElsewhere = { FileViewer.openElsewhere(context, uri, name) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    val mime = remember(uri, name) {
+        runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: when (name.substringAfterLast('.').lowercase()) {
+            "pdf" -> "application/pdf"
+            "html" -> "text/html"
+            "csv" -> "text/csv"
+            else -> "application/octet-stream"
+        }
+    }
+    val saveAs = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument(mime)
+    ) { destination ->
+        if (destination == null) {
+            android.widget.Toast.makeText(context, R.string.viewer_save_cancelled, android.widget.Toast.LENGTH_SHORT).show()
+        } else scope.launch(Dispatchers.Main.immediate) {
+            saving = true
+            val saved = withContext(Dispatchers.IO) {
+                try {
+                    require(destination != uri)
+                    checkNotNull(context.contentResolver.openInputStream(uri)).use { source ->
+                        checkNotNull(context.contentResolver.openOutputStream(destination, "wt")).use { out -> source.copyTo(out) }
+                    }
+                    true
+                } catch (e: java.io.IOException) { false }
+                  catch (e: SecurityException) { false }
+                  catch (e: IllegalArgumentException) { false }
+                  catch (e: IllegalStateException) { false }
+            }
+            saving = false
+            android.widget.Toast.makeText(context, if (saved) R.string.viewer_saved else R.string.viewer_save_failed, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     PageBackground {
         Column(Modifier.fillMaxSize()) {
             TopBar(name, MikaIcons.Back, onBack, stringResource(R.string.back), right = {
-                BarIconButton(MikaIcons.Share, stringResource(R.string.share), { FileViewer.share(context, uri, name) })
-                BarIconButton(MikaIcons.External, stringResource(R.string.viewer_open_elsewhere), openElsewhere)
+                BarIconButton(MikaIcons.Doc, stringResource(R.string.viewer_save_as), {
+                    if (!saving) try { saveAs.launch(name) } catch (e: android.content.ActivityNotFoundException) {
+                        android.widget.Toast.makeText(context, R.string.viewer_save_failed, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }, modifier = Modifier.testTag("viewer.save"))
+                BarIconButton(MikaIcons.Share, stringResource(R.string.share), { FileViewer.share(context, uri, name) },
+                    modifier = Modifier.testTag("viewer.share"))
+                BarIconButton(MikaIcons.External, stringResource(R.string.viewer_open_elsewhere), openElsewhere,
+                    modifier = Modifier.testTag("viewer.open_elsewhere"))
             })
             Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
                 when (kind) {

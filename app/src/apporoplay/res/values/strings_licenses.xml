@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant Google Play edition: the licenses page in English (upstream hard-codes Simplified Chinese there).
+  One entry per upstream Licenses.ENTRIES item, with the names the Apporo BrandLicenses.kt uses. The Play edition's
+  BrandLicenses.kt (src/apporoplay/java) leaves out PRoot, talloc, scrcpy and Alpine Linux and adds neither ML Kit nor
+  runtime packages: this edition has no sandbox runtime, phone control or cross-app OCR. Those entries still exist so
+  that either BrandLicenses.kt compiles, and they say they are not included in case they are ever shown.
+-->
+<resources>
+    <string name="woow_lic_mika">This app is based on the open-source project Mika (Copyright 2026 wangzan101, https://github.com/wangzan101/Mika), modified and distributed by WOOW TECH CO., LTD. The full license text is at the top of this page; the changes are listed in docs-apporo/RESEARCH.zh-TW.md in the source repository, and upstream\'s NOTICE is kept with the source code.</string>
+    <string name="woow_lic_proot">Not included in the Google Play edition, which has no environment for running programs such as Python and Node.</string>
+    <string name="woow_lic_talloc">Not included in the Google Play edition (it is used only by PRoot).</string>
+    <string name="woow_lic_commons_compress">Apache archive handling library. Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_codec">A dependency of Apache Commons Compress. Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_io">A dependency of Apache Commons Compress. Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_lang">A dependency of Apache Commons Compress. Copyright 2001-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_kotlin_name">Kotlin standard library</string>
+    <string name="woow_lic_kotlin">kotlin-stdlib 2.1.20 and related libraries, plus JetBrains annotations 23.0.0. https://kotlinlang.org/</string>
+    <string name="woow_lic_coroutines">Version 1.9.0. https://github.com/Kotlin/kotlinx.coroutines</string>
+    <string name="woow_lic_serialization">Version 1.7.3. https://github.com/Kotlin/kotlinx.serialization</string>
+    <string name="woow_lic_opentelemetry">OTLP message definitions for detailed traces. https://opentelemetry.io/</string>
+    <string name="woow_lic_protobuf">Protobuf encoding for detailed traces. https://protobuf.dev/</string>
+    <string name="woow_lic_okhttp">Version 4.12.0, used to call model APIs. https://square.github.io/okhttp/</string>
+    <string name="woow_lic_okio">Version 3.6.0, a dependency of OkHttp. https://github.com/square/okio/</string>
+    <string name="woow_lic_androidx_name">AndroidX (including Jetpack Compose)</string>
+    <string name="woow_lic_androidx">Compose 1.7.6, Material3 1.3.1, Activity 1.9.3, Lifecycle 2.8.3, Core 1.13.1, WebKit 1.12.1 and other UI and system component libraries. https://developer.android.com/jetpack/androidx</string>
+    <string name="woow_lic_guava_name">Guava ListenableFuture (pulled in by AndroidX)</string>
+    <string name="woow_lic_guava">listenablefuture 1.0. https://github.com/google/guava</string>
+    <string name="woow_lic_scrcpy">Not included in the Google Play edition, which does not control other apps.</string>
+    <string name="woow_lic_alpine_license">Each package\'s own license</string>
+    <string name="woow_lic_alpine">Not included in the Google Play edition, which has no environment for running programs.</string>
+    <string name="woow_lic_xz">Version 1.10, XZ archive support library. https://tukaani.org/xz/java.html</string>
+    <string name="woow_lic_commonmark">Version 0.30.1 (with the tables and strikethrough extensions); parses the Markdown in answers for display. Copyright (c) 2015, Atlassian Pty Ltd. https://github.com/commonmark/commonmark-java</string>
+    <string name="woow_lic_mlkit_name">Google ML Kit text recognition</string>
+    <string name="woow_lic_mlkit_license">Google APIs Terms of Service and ML Kit Terms</string>
+    <string name="woow_lic_mlkit">Not included in the Google Play edition, which does not read text on other apps\' screens.</string>
+    <!-- A bundled runtime package: version, then its homepage (may be empty). The Play edition has none. -->
+    <string name="woow_lic_runtime_package">Version %1$s. %2$s</string>
+</resources>

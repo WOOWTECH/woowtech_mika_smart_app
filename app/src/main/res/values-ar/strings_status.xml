@@ -88,4 +88,6 @@
     <string name="sandbox_script">جارٍ تشغيل نص برمجي</string>
     <string name="sandbox_online">متصل</string>
     <string name="runtime_preparing">جارٍ التحضير</string>
+    <string name="task_retry_network">انقطع الاتصال. تجري إعادة المحاولة (المحاولة %1$d)…</string>
+    <string name="task_retry_busy">خدمة النموذج مشغولة. تجري إعادة المحاولة (المحاولة %1$d)…</string>
 </resources>

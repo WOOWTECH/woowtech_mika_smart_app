@@ -615,8 +615,17 @@ class ChatViewModel(
     /** 从相机、相册、文件选择器拿到的文件:没有任务在跑、沙箱就绪时才收;读出名字和大小后挂在输入框上方,随下一句话发出去。 */
     fun attach(uris: List<String>) {
         if (uris.isEmpty() || !canAttach(_ui.value)) return
+        val botUiTarget = _ui.value.conversationId.takeIf { botUiDraftsEnabled }
         scope.launch {
             val items = try { describeAttachments(uris) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+            if (botUiTarget != null && botUiTarget != _ui.value.conversationId) {
+                if (botUiTarget !in deleted.value) {
+                    val prior = botUiComposers[botUiTarget] ?: BotUiComposerState(emptyList(), null, emptyList(), 0)
+                    val (all, dropped) = AttachTray.add(prior.attachments, items)
+                    botUiComposers[botUiTarget] = prior.copy(attachments = all, overLimit = dropped, rejected = emptyList())
+                }
+                return@launch
+            }
             _ui.update { ui ->
                 if (!canAttach(ui)) return@update ui
                 val (all, dropped) = AttachTray.add(ui.attachments, items)
@@ -838,13 +847,17 @@ class ChatViewModel(
     fun switchTo(conversationId: String) {
         refreshParallel()
         if (!parallel()) return openConversation(conversationId)
+        if (botUiDraftsEnabled && (_ui.value.importing || conversationId == _ui.value.conversationId)) return
+        botUiParkComposer()
         lingerJob?.cancel()
         if (conversationId != _ui.value.conversationId) parkLive()
         val past = saved(conversationId)
         liveIndex = -1
         // 没有任务的对话不带别的任务的接管进度
-        _ui.update { ChatUi(conversationId = conversationId, exchanges = past, takeoverStage = Takeover.Stage.None) }
+        _ui.update { ChatUi(conversationId = conversationId, exchanges = past, takeoverStage = Takeover.Stage.None,
+            attachEnabled = botUiDraftsEnabled && it.attachEnabled) }
         markCurrent(CurrentChat.Open(conversationId))
+        botUiRestoreComposer(conversationId)
         if (conversationId !in activeConversations.value) { unpark(conversationId); return }
         follow(conversationId, unpark(conversationId))
     }
@@ -1001,11 +1014,13 @@ class ChatViewModel(
     fun openConversation(id: String) {
         refreshParallel()
         if (parallel()) return switchTo(id)
-        if (busy()) return
+        if (busy() || (botUiDraftsEnabled && (_ui.value.importing || id == _ui.value.conversationId))) return
+        botUiParkComposer()
         val past = saved(id)
         liveIndex = -1
         _ui.update { ChatUi(conversationId = id, exchanges = past, takeoverStage = it.takeoverStage, attachEnabled = it.attachEnabled) }
         markCurrent(CurrentChat.Open(id))
+        botUiRestoreComposer(id)
         // 这个对话的任务是别处开始的(悬浮胶囊、定时任务):打开就接上它
         if (id in activeConversations.value) follow(id)
     }
@@ -1018,8 +1033,36 @@ class ChatViewModel(
         runCatching { store.setCurrent(current) }
     }
 
+    /** Reserve an identity before editing a fresh conversation's profile. Does not start a task. */
+    internal val botUiStore: ConversationStore get() = store
+    internal fun botUiPendingDraftIds(): Set<String> = botUiComposers.filterValues { it.attachments.isNotEmpty() || it.quote != null }.keys.toSet()
+    private var botUiDraftsEnabled = false
+    private data class BotUiComposerState(val attachments: List<PendingAttachment>, val quote: QuoteMessage.Quote?,
+        val rejected: List<String>, val overLimit: Int)
+    private val botUiComposers = mutableMapOf<String, BotUiComposerState>()
+    private fun botUiParkComposer() {
+        if (!botUiDraftsEnabled) return
+        val ui = _ui.value
+        ui.conversationId?.let { botUiComposers[it] = BotUiComposerState(ui.attachments, ui.quote, ui.rejectedAttachments, ui.overLimit) }
+    }
+    private fun botUiRestoreComposer(id: String) {
+        if (!botUiDraftsEnabled) return
+        val draft = botUiComposers.remove(id) ?: return
+        _ui.update { it.copy(attachments = draft.attachments, quote = draft.quote, rejectedAttachments = draft.rejected, overLimit = draft.overLimit) }
+    }
+    fun botUiConversationId(): String {
+        botUiDraftsEnabled = true
+        _ui.value.conversationId?.let { return it }
+        val id = store.newConversation()
+        _ui.update { it.copy(conversationId = id) }
+        markCurrent(CurrentChat.Open(id))
+        return id
+    }
+
     fun newConversation() {
         refreshParallel()
+        if (botUiDraftsEnabled && (_ui.value.importing || !canSwitch())) return
+        botUiParkComposer()
         if (parallel()) {
             // 别的任务可能还在跑:先给新对话编号,它的状态就不会被当成这个对话的
             lingerJob?.cancel()
@@ -1109,6 +1152,7 @@ class ChatViewModel(
     fun deleteConversation(id: String) {
         if (!deleting.add(id)) return
         _deleted.update { it + id }
+        botUiComposers.remove(id)
         if (id == _ui.value.conversationId) startOver(id) else unpark(id)
         scope.launch {
             try { removeConversation(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { } finally { deleting -= id }
@@ -1153,7 +1197,7 @@ class ChatViewModel(
     fun runningGoal(conversationId: String): String? = runGoal(conversationId)
 
     /** 能不能换到别的对话:并行时随时能换,否则要等这个对话的任务结束。 */
-    fun canSwitch() = parallel() || !busy()
+    fun canSwitch() = (!botUiDraftsEnabled || !_ui.value.importing) && (parallel() || !busy())
 
     private fun onState(s: TaskState) {
         if (liveIndex < 0) {
@@ -1528,6 +1572,7 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "运行自带脚本" to R.string.tool_run_script,
             "读文件" to R.string.tool_read_file,
             "写文件" to R.string.tool_write_file,
+            "生成文档" to R.string.tool_create_document,
             "搜索文件" to R.string.tool_search_files,
             "导出文件" to R.string.tool_export_file,
             "打开网页" to R.string.tool_open_page,

@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">高</string>
     <string name="model_reasoning_xhigh">很高</string>
     <string name="model_reasoning_max">最高</string>
+    <string name="viewer_save_as">另存副本</string>
+    <string name="viewer_saved">檔案已儲存</string>
+    <string name="viewer_save_cancelled">已取消儲存</string>
+    <string name="viewer_save_failed">無法儲存檔案，請檢查儲存空間後重試。</string>
 </resources>

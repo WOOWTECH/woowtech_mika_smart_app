@@ -212,6 +212,7 @@ fun ChatDrawer(
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
     onMcpServers: () -> Unit = {},
+    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onOpen: (DrawerConversation) -> Unit,
@@ -275,10 +276,14 @@ fun ChatDrawer(
                         Row {
                             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), Modifier.weight(1f),
                                 enabled = canSwitch, onClick = onNew)
-                            NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), Modifier.weight(1f), onClick = onMemory)
+                            NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), Modifier.weight(1f), onClick = onPlans)
                         }
                         Row {
+                            NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), Modifier.weight(1f), onClick = onMemory)
                             NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), Modifier.weight(1f), onClick = onMcpServers)
+                        }
+                        Row {
+                            NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), Modifier.weight(1f), onClick = onComputerAccess)
                             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), Modifier.weight(1f), onClick = onBrowser)
                         }
                     }
@@ -291,8 +296,10 @@ fun ChatDrawer(
                 DrawerHeader(check)
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                     NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
+                    NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
                     NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
                     NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
+                    NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onClick = onComputerAccess)
                     NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f).lazyListScrollbar(list), state = list) { conversations() }
@@ -347,8 +354,10 @@ private fun NavEntry(
         Icon(icon, null, Modifier.size(MikaSize.Icon), tint = c.ink2)
         Row(Modifier.then(if (wrapLabel) Modifier.weight(1f) else Modifier),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // 两列的短屏布局里一格只有半宽:放不下的单行名字以「…」结尾,不在格子边上被切掉
             Text(text, modifier = if (wrapLabel) Modifier.weight(1f) else Modifier,
-                style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel)
+                style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel,
+                overflow = if (wrapLabel) TextOverflow.Clip else TextOverflow.Ellipsis)
         }
     }
 }
@@ -523,6 +532,7 @@ fun ChatWithDrawer(
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
     onMcpServers: () -> Unit = {},
+    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onAbout: () -> Unit = {},
@@ -533,6 +543,12 @@ fun ChatWithDrawer(
     externalOpenRevision: Int = 0,
     content: @Composable (openDrawer: () -> Unit) -> Unit,
 ) {
+    if (botUiEnabled(LocalContext.current)) {
+        BotUiHistoryHost(vm, conversations, conversationChanges, onPlans, onMemory, onBrowser,
+            onMcpServers, onComputerAccess, onScreens, onSettings, onAbout,
+            reopen = reopen, onReopened = onReopened, externalOpenRevision = externalOpenRevision, content = content)
+        return
+    }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var handledOpenRevision by rememberSaveable { mutableIntStateOf(externalOpenRevision) }
@@ -627,6 +643,7 @@ fun ChatWithDrawer(
                     onPlans = { leave(onPlans) },
                     onMemory = { leave(onMemory) },
                     onMcpServers = { leave(onMcpServers) },
+                    onComputerAccess = { leave(onComputerAccess) },
                     onSettings = { leave(onSettings) },
                     onBrowser = { leave(onBrowser) },
                     onScreens = { leave(onScreens) },

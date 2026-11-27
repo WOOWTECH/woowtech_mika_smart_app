@@ -2,7 +2,7 @@
 # WOOWTECH fork: brand leak checks. Not part of upstream Mika; see docs-woowtech/FORK.md.
 #
 #   sh woowtech/tools/brand-check.sh sources      # shipped sources must not point at the upstream repo
-#   sh woowtech/tools/brand-check.sh apk <file>   # a built woowtech APK: package, labels, locales, exact alarm permissions, strings
+#   sh woowtech/tools/brand-check.sh apk <file>   # a built woowtech APK: package, labels, locales, no USE_EXACT_ALARM, strings
 #
 # Allowed on purpose: Brand.kt's upstream defaults, the attribution on the licenses page (woow_lic_mika,
 # "Copyright 2026 wangzan101") and in the about_author string ("Based on wangzan101/Mika" / "基於 wangzan101/Mika").
@@ -52,11 +52,12 @@ apk)
     locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant|zh-TW)$' || true)
     [ -z "$locales" ] || bad "unexpected UI locales: $(say "$locales" | tr '\n' ' ')"
     say "$badging" | grep -E "^(package|application-label|locales)" | sed 's/^/  /'
-    # The Play edition has no exact-alarm capability.
+    # Scheduled tasks use the user-granted SCHEDULE_EXACT_ALARM; Play limits USE_EXACT_ALARM to alarm and calendar apps.
     perms=$("$aapt2" dump permissions "$apk")
-    if say "$perms" | grep -q -F "EXACT_ALARM"; then
-        bad "Play edition must not request exact alarm permissions"
+    if say "$perms" | grep -q -F "USE_EXACT_ALARM"; then
+        bad "Play edition must not request USE_EXACT_ALARM"
     fi
+    say "$perms" | grep -q -F "android.permission.SCHEDULE_EXACT_ALARM" || bad "scheduled tasks need SCHEDULE_EXACT_ALARM"
     # Browser entry must survive manifest merging; JVM guards also enforce flavor isolation.
     manifest=$("$aapt2" dump xmltree "$apk" --file AndroidManifest.xml)
     for value in 'com.wangzan101.mika.woowtech.BrowserOpenActivity' 'android.intent.category.BROWSABLE' 'android.intent.action.VIEW'; do

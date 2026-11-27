@@ -30,6 +30,12 @@ interface SandboxPort {
 
     fun status(): SandboxStatus
 
+    /**
+     * 这里能跑命令和技能脚本(run_command、run_bundled_script)。只有文件的工作区(商店版)为 false:
+     * 只给读、写、搜、导出文件的工具,不执行任何代码;附件、网页下载的文件照样在 /workspace 里。
+     */
+    val runsCommands: Boolean get() = true
+
     /** 用户是否允许沙箱联网(运行环境还没准备好时也知道);默认按就绪状态里的。 */
     fun networkAllowed(): Boolean = (status() as? SandboxStatus.Ready)?.network == true
 
@@ -59,6 +65,9 @@ interface SandboxPort {
 
     /** 存到手机的「下载/Mika」,返回 "Download/Mika/<名字>"。 */
     suspend fun share(file: File, name: String): String
+
+    suspend fun renderDocumentPdf(document: com.wangzan101.mika.core.document.Document): ByteArray =
+        throw SandboxError("pdf_unsupported", "PDF generation is unavailable on this platform.", recoverable = true)
 
     fun freeBytes(): Long
     fun workspaceBytes(workspace: String): Long

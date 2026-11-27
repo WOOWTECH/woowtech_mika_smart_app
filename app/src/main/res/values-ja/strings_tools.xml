@@ -76,4 +76,5 @@
     <string name="tool_describe_screen">画像から画面を説明</string>
     <string name="tool_find_visually">画像から要素を探す</string>
     <string name="tool_do_steps">続けて数ステップ</string>
+    <string name="tool_create_document">ドキュメントを作成</string>
 </resources>

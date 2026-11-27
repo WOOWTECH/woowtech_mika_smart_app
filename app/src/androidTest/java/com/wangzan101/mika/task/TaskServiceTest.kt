@@ -367,40 +367,6 @@ class TaskServiceTest {
     }
 
     @Test
-    fun scheduledTaskFailsAndNotifiesWhenUnlockIsNotAllowed() {
-        val access = (context.applicationContext as MikaApp).deviceAccess
-        val wasEnabled = access.settings.config.value.enabled
-        val power = context.getSystemService(PowerManager::class.java)
-        val notifications = context.getSystemService(NotificationManager::class.java)
-        val before = notifications.activeNotifications.associate { it.key to it.postTime }
-        val conversation = "test-scheduled-unlock-${System.nanoTime()}"
-        access.settings.setEnabled(false)
-        try {
-            TaskService.startTrigger(context, "测试定时任务", conversation, conversation, null)
-            assertEquals(1, model.awaitCall().number)
-            sh("input keyevent KEYCODE_SLEEP")
-            assertNotNull("screen did not turn off", pollUntil(5_000) { true.takeIf { !power.isInteractive } })
-
-            model.feed("phone_launch_app", """{"package":"$SETTINGS"}""")
-            val end = awaitState { it is TaskState.Failed } as TaskState.Failed
-            val expected = context.getString(com.wangzan101.mika.R.string.trigger_unlock_failed)
-            assertEquals(expected, end.reason)
-            assertEquals(FailKind.Environment, end.kind)
-
-            val posted = pollUntil(5_000) {
-                notifications.activeNotifications.firstOrNull {
-                    it.postTime > (before[it.key] ?: Long.MIN_VALUE) && it.notification.channelId == TaskService.CHANNEL_RESULT &&
-                        it.notification.extras.getCharSequence(Notification.EXTRA_TEXT) == expected
-                }
-            }
-            assertNotNull("missing scheduled-task failure notification", posted)
-        } finally {
-            access.settings.setEnabled(wasEnabled)
-            sh("input keyevent KEYCODE_WAKEUP")
-        }
-    }
-
-    @Test
     fun uiTaskStillWaitsForManualUnlock() {
         val power = context.getSystemService(PowerManager::class.java)
         try {

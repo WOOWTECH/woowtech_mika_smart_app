@@ -12,16 +12,19 @@ import com.wangzan101.mika.core.settings.SelfConfig
  */
 class SelfConfigImpl(
     private val flags: FeatureFlags,
+    /** 有操作手机的那几项(操作节奏、静音、悬浮胶囊);商店版没有操作手机,为 false 时不列也不改。 */
+    private val phoneControl: Boolean = true,
 ) : SelfConfig {
-    override fun options(): List<SelfConfig.Option> = listOf(
-        SelfConfig.Option(KEY_PACE, "操作节奏", flags.operatingPace().name.lowercase(), listOf("fast", "standard", "human")),
-        SelfConfig.Option(KEY_MUTE, "干活时把被操作的 App 静音", onOff(flags.muteTarget()), ON_OFF),
+    override fun options(): List<SelfConfig.Option> = listOfNotNull(
+        SelfConfig.Option(KEY_PACE, "操作节奏", flags.operatingPace().name.lowercase(), listOf("fast", "standard", "human")).takeIf { phoneControl },
+        SelfConfig.Option(KEY_MUTE, "干活时把被操作的 App 静音", onOff(flags.muteTarget()), ON_OFF).takeIf { phoneControl },
         SelfConfig.Option(KEY_THEME, "外观", flags.themeMode().name.lowercase(), listOf("system", "light", "dark")),
-        SelfConfig.Option(KEY_CAPSULE, "悬浮胶囊", flags.capsuleMode().name.lowercase(), listOf("off", "duringtasks", "always")),
+        SelfConfig.Option(KEY_CAPSULE, "悬浮胶囊", flags.capsuleMode().name.lowercase(), listOf("off", "duringtasks", "always")).takeIf { phoneControl },
         SelfConfig.Option(KEY_KEEP_ON, "干活时屏幕常亮", onOff(flags.keepScreenOn()), ON_OFF),
     )
 
     override fun set(key: String, value: String): String? {
+        if (!phoneControl && key in PHONE_KEYS) return "there is no such setting"
         val v = value.trim().lowercase()
         fun onOff(): Boolean? = when (v) {
             "on", "true", "yes" -> true
@@ -68,5 +71,6 @@ class SelfConfigImpl(
         const val KEY_THEME = "appearance"
         const val KEY_CAPSULE = "capsule"
         const val KEY_KEEP_ON = "keep_screen_on"
+        val PHONE_KEYS = setOf(KEY_PACE, KEY_MUTE, KEY_CAPSULE)
     }
 }

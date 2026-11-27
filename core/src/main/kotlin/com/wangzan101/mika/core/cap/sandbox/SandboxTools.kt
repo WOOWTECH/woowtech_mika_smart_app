@@ -35,6 +35,8 @@ import com.wangzan101.mika.core.workspace.SandboxError
 import com.wangzan101.mika.core.knowledge.ScriptManifest
 import com.wangzan101.mika.core.workspace.WorkspaceFileGate
 import com.wangzan101.mika.core.workspace.SandboxPaths
+import com.wangzan101.mika.core.vision.ImageOps
+import com.wangzan101.mika.core.vision.ModelImage
 
 private const val MB = 1L shl 20
 private const val GB = 1L shl 30
@@ -55,6 +57,11 @@ private const val MATCH_TEXT = 300
 private const val SEARCH_FILE_MAX = 8 * MB
 
 private val IMAGE_TYPES = mapOf("png" to "image/png", "jpg" to "image/jpeg", "jpeg" to "image/jpeg", "webp" to "image/webp")
+/** 只有文件的工作区里另外当照片看的格式:没有命令可以转,读的时候先缩成 JPEG(见 [SandboxTools.readFile])。 */
+private val PHOTO_TYPES = mapOf("heic" to "image/heic", "heif" to "image/heif", "gif" to "image/gif", "bmp" to "image/bmp")
+/** 只有文件的工作区里先缩小再交给模型的照片最大多大;文档(PDF、Office)读文字层最大多大。 */
+private const val MAX_PHOTO = 40 * MB
+private const val MAX_DOCUMENT = 50 * MB
 private val KNOWN_TYPES = IMAGE_TYPES + mapOf(
     "gif" to "image/gif", "pdf" to "application/pdf", "zip" to "application/zip", "gz" to "application/gzip",
     "mp3" to "audio/mpeg", "mp4" to "video/mp4", "xlsx" to "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -102,6 +109,9 @@ internal class SandboxTools(
 ) {
     /** 设备支持就提供工具:运行环境首次启动时在后台准备,工具调用时等它。 */
     fun available(): Boolean = sandbox.status() !is SandboxStatus.Unsupported
+
+    /** 能跑命令和技能脚本;只有文件的工作区(见 [SandboxPort.runsCommands])为 false。 */
+    val runsCommands: Boolean get() = sandbox.runsCommands
 
     /** 沙箱目录的树锁。 */
     val tree get() = sandbox.tree
@@ -261,12 +271,76 @@ internal class SandboxTools(
         else -> fail(e.code, "$path: ${e.message}", e.recoverable)
     }
 
-    internal fun readFile(a: Args, ws: String): ToolExecution {
+    /** [imageOps]:只有文件的工作区里缩小照片用(任务的 ToolConfig 里那份);为空时照片照常按原样读。 */
+    internal fun readFile(a: Args, ws: String, imageOps: ImageOps? = null): ToolExecution {
         val t = resolve(ws, a.str("path", max = 4096)!!, write = false) ?: return outside()
         val offset = a.int("offset", 0, Int.MAX_VALUE) ?: 0
         val limit = a.int("limit", 1, MAX_READ_BYTES) ?: DEFAULT_READ
         val g = try { sandbox.files.openRead(t.root, t.rel) } catch (e: SandboxError) { return refused(t.path, e) }
-        return g.use { readOpened(t.path, g, offset, limit) }
+        return g.use {
+            (if (sandbox.runsCommands) null else readWithoutCommands(ws, t.path, g, offset, limit, imageOps)) ?: readOpened(t.path, g, offset, limit)
+        }
+    }
+
+    /**
+     * 只有文件的工作区(商店版)没有命令可以另做一份小图、转出文字,read_file 自己多做两样:
+     * 太大或 HEIC 这类格式的照片先缩成发给模型的 JPEG;PDF、Word、Excel、PowerPoint 读出文字层([DocumentText]),
+     * 和文本文件一样按 offset/limit 分段。别的文件为 null,照常读。
+     */
+    private fun readWithoutCommands(ws: String, path: String, g: GatedFile, offset: Int, limit: Int, imageOps: ImageOps?): ToolExecution? {
+        val ext = g.name.substringAfterLast('.', "").lowercase()
+        (IMAGE_TYPES[ext] ?: PHOTO_TYPES[ext])?.let { type -> return readPhoto(path, g, ext, type, imageOps) }
+        val document = DocumentText.typeOf(ext) ?: return null
+        return readDocument(ws, path, g, document, offset, limit)
+    }
+
+    /** 小的常见格式原样交出(发给模型前本来就会缩成 JPEG,见 [ModelImage]),为 null;别的先在这里缩。 */
+    private fun readPhoto(path: String, g: GatedFile, ext: String, type: String, imageOps: ImageOps?): ToolExecution? {
+        val size = g.size
+        if (!visionEnabled) return notText(path, size, type, "This is an image, and the current model cannot view images.")
+        if (ext in IMAGE_TYPES && size <= MAX_IMAGE) return null
+        val ops = imageOps ?: return if (ext in IMAGE_TYPES) null else notText(path, size, type, "This image format cannot be shown here.")
+        if (size > MAX_PHOTO) return fail("file_too_large", "$path is ${size / MB} MB; images over ${MAX_PHOTO / MB} MB cannot be shown.")
+        val smaller = try {
+            ops.toJpeg(g.read(0, size.toInt()), ModelImage.MAX_SIDE, ModelImage.QUALITY)
+        } catch (e: OutOfMemoryError) {
+            return fail("file_too_large", "$path is too large to open on this phone.")
+        } catch (e: Exception) {
+            return notText(path, size, type, "This image could not be decoded.")
+        }
+        return ToolExecution(okObj { put("path", path); put("size", size); put("type", type); put("scaledTo", "image/jpeg") }, image = smaller)
+    }
+
+    /** 读出来的文档文字,按工作区、路径和大小留最近几份:分段读同一份时不重新解析。 */
+    private val documents = object : LinkedHashMap<String, DocumentText.Result>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, DocumentText.Result>?): Boolean = size > 3
+    }
+
+    private fun readDocument(ws: String, path: String, g: GatedFile, type: DocumentText.Type, offset: Int, limit: Int): ToolExecution {
+        val size = g.size
+        if (size > MAX_DOCUMENT) return fail("file_too_large", "$path is ${size / MB} MB; documents over ${MAX_DOCUMENT / MB} MB cannot be read here.")
+        val key = "$ws\u0000$path\u0000$size"
+        val result = synchronized(documents) { documents[key] }
+            ?: DocumentText.extract(g.read(0, size.toInt()), type).also { r -> synchronized(documents) { documents[key] = r } }
+        if (result is DocumentText.Result.Unreadable) return ToolExecution(buildJsonObject {
+            put("ok", false); put("error", result.code); put("message", "$path: ${result.message}")
+            put("recoverable", false); put("size", size); put("type", type.mime)
+        })
+        val text = result as DocumentText.Result.Text
+        val all = text.utf8
+        val bytes = if (offset >= all.size) ByteArray(0) else all.copyOfRange(offset, minOf(all.size.toLong(), offset.toLong() + limit).toInt())
+        var skip = 0
+        if (offset > 0) while (skip < 3 && skip < bytes.size && (bytes[skip].toInt() and 0xC0) == 0x80) skip++
+        val eof = offset + bytes.size >= all.size
+        val (content, used) = decodeUtf8(bytes, skip, eof) ?: return fail("read_failed", "$path: this part of the text could not be read; try another offset.")
+        val next = offset + skip + used
+        return ToolExecution(okObj {
+            put("path", path); put("size", size); put("type", type.mime)
+            put(text.unit, text.count); put("textSize", all.size)
+            put("offset", offset); put("content", content)
+            put("eof", next >= all.size)
+            if (next < all.size) put("nextOffset", next)
+        })
     }
 
     private fun readOpened(path: String, g: GatedFile, offset: Int, limit: Int): ToolExecution {
@@ -389,6 +463,41 @@ internal class SandboxTools(
     private fun sandboxPathOf(base: String, root: Path, p: Path): String {
         if (p == root) return base
         return "$base/" + p.relativeTo(root).joinToString("/") { it.name }
+    }
+
+    internal suspend fun createDocument(a: Args, ws: String): ToolExecution {
+        val format = a.str("format")!!
+        if (format !in setOf("html", "pdf", "csv")) throw ArgError("format", "Expected html, pdf or csv")
+        val doc: com.wangzan101.mika.core.document.Document
+        val bytes: ByteArray
+        try {
+            doc = com.wangzan101.mika.core.document.Document.parse(a.o["document"] as? JsonObject
+                ?: throw IllegalArgumentException("Expected document object"))
+            bytes = when (format) {
+                "html" -> doc.html().toByteArray(Charsets.UTF_8)
+                "csv" -> doc.csv(a.int("tableIndex", 0, 199)).toByteArray(Charsets.UTF_8)
+                else -> sandbox.renderDocumentPdf(doc)
+            }
+        } catch (e: IllegalArgumentException) {
+            throw ArgError("document", e.message ?: "Invalid document")
+        }
+        if (bytes.size > 20 * MB) return fail("file_too_large", "Document exceeds 20 MB")
+        if (sandbox.freeBytes() < MIN_FREE || sandbox.workspaceBytes(ws) + bytes.size > WORKSPACE_MAX)
+            return fail("storage_low", "Insufficient document storage")
+        val t = resolve(ws, "/workspace/documents", write = true) ?: return outside()
+        val (name, handle) = sandbox.files.createNumbered(t.root, t.rel, doc.fileName(format))
+        handle.use {
+            try { it.write(bytes) } catch (e: Exception) {
+                try { it.delete() } catch (cleanup: Exception) { e.addSuppressed(cleanup) }
+                throw e
+            }
+        }
+        return ToolExecution(okObj {
+            put("path", "/workspace/documents/$name")
+            put("bytesWritten", bytes.size)
+            put("next", "Use share_file with this path to save to Downloads and show a previewable attachment. This does not send it to anyone.")
+            if (format == "csv") put("notice", "UTF-8 BOM; formula-like fields are prefixed with an apostrophe. Spreadsheet software may convert dates or leading zeros.")
+        })
     }
 
     internal suspend fun shareFile(a: Args, ws: String): ToolExecution {

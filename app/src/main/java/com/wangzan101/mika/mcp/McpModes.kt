@@ -19,16 +19,21 @@ object McpModes {
 
     enum class Listen { Off, LoopbackOnly, PrivateNetworks }
 
-    fun listen(network: Boolean, usb: Boolean): Listen = when {
+    /**
+     * [relayOnly](商店版,见 PlayTransportPolicy.allowsLocalComputerAccess):电脑连接只走出站的远程网关,
+     * 本机不监听局域网和 USB,开关就算是开着的也一样。
+     */
+    fun listen(network: Boolean, usb: Boolean, relayOnly: Boolean = false): Listen = when {
+        relayOnly -> Listen.Off
         network -> Listen.PrivateNetworks
         usb -> Listen.LoopbackOnly
         else -> Listen.Off
     }
 
-    /** 服务收到的动作改哪个开关;别的动作(含没有动作)不改,只按开关现状来。 */
-    fun apply(action: String?, network: McpSettings, usb: McpUsbSettings, relay: RelaySettings? = null) {
+    /** 服务收到的动作改哪个开关;别的动作(含没有动作)不改,只按开关现状来。[relayOnly] 时不打开 USB 方式。 */
+    fun apply(action: String?, network: McpSettings, usb: McpUsbSettings, relay: RelaySettings? = null, relayOnly: Boolean = false) {
         when (action) {
-            ACTION_USB_ON -> usb.enable()
+            ACTION_USB_ON -> if (!relayOnly) usb.enable()
             ACTION_USB_OFF -> usb.disable()
             ACTION_TURN_OFF -> {
                 try { network.setEnabled(false) }

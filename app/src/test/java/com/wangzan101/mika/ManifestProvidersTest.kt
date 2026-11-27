@@ -36,32 +36,29 @@ class ManifestProvidersTest {
         assertTrue("expected at least one FileProvider", fileProviders > 0)
     }
 
+    /**
+     * WOOWTECH Play branch: the Play manifest has none of the components that only the built-in shell helper, a computer
+     * over adb or the compatibility self check could reach (phone control is out of this edition), and nothing asks for
+     * shell-level permission. The computer connection is the outbound relay only (owner decision 2026-11-18): its
+     * service is declared but not exported, so adb cannot start it to turn on the USB mode.
+     */
     @Test
-    fun helperHandoffProviderIsOnlyReachableWithShellLevelPermission() {
+    fun playManifestHasNoShellOnlyComponents() {
         val doc = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
             .newDocumentBuilder().parse(File("src/main/AndroidManifest.xml"))
-        val providers = doc.getElementsByTagName("provider")
-        val p = (0 until providers.length).map { providers.item(it) as Element }
-            .single { it.getAttributeNS(androidNs, "name") == ".shell.HelperHandoffProvider" }
-        // shell 要能调到它;普通 App 没有这个权限,连 provider 都拿不到
-        assertEquals("true", p.getAttributeNS(androidNs, "exported"))
-        assertEquals("android.permission.INTERACT_ACROSS_USERS_FULL", p.getAttributeNS(androidNs, "permission"))
-        assertEquals("\${applicationId}.helper", p.getAttributeNS(androidNs, "authorities"))
-    }
-
-    /** 电脑连接的服务对外开放只为让 adb shell 起它:普通 App 没有这个权限,起不了、也开关不了 USB 方式。 */
-    @Test
-    fun computerAccessServiceIsOnlyStartableWithShellLevelPermission() {
-        val doc = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-            .newDocumentBuilder().parse(File("src/main/AndroidManifest.xml"))
-        val services = doc.getElementsByTagName("service")
-        val s = (0 until services.length).map { services.item(it) as Element }
-            .single { it.getAttributeNS(androidNs, "name") == ".mcp.McpService" }
-        assertEquals("true", s.getAttributeNS(androidNs, "exported"))
-        assertEquals("android.permission.INTERACT_ACROSS_USERS_FULL", s.getAttributeNS(androidNs, "permission"))
-        assertEquals("specialUse", s.getAttributeNS(androidNs, "foregroundServiceType"))
-        // 没有 intent-filter:只能按组件名显式起
-        assertEquals(0, s.getElementsByTagName("intent-filter").length)
+        val components = listOf("activity", "service", "receiver", "provider").flatMap { tag ->
+            val nodes = doc.getElementsByTagName(tag)
+            (0 until nodes.length).map { nodes.item(it) as Element }
+        }
+        val names = components.map { it.getAttributeNS(androidNs, "name") }
+        for (gone in listOf(".shell.HelperHandoffProvider", ".selfcheck.SelfCheckTargetActivity")) {
+            assertTrue("$gone must not be in the Play manifest", gone !in names)
+        }
+        val relay = components.single { it.getAttributeNS(androidNs, "name") == ".mcp.McpService" }
+        assertEquals("false", relay.getAttributeNS(androidNs, "exported"))
+        for (c in components) {
+            assertTrue(c.getAttributeNS(androidNs, "name"), c.getAttributeNS(androidNs, "permission") != "android.permission.INTERACT_ACROSS_USERS_FULL")
+        }
     }
 
     /** 清单里登记的组件都按全名找得到类(搬了代码的入口留着同名的薄壳)。 */
@@ -112,26 +109,6 @@ class ManifestProvidersTest {
             .singleOrNull { it.getAttributeNS(androidNs, "name") == "android.hardware.camera" }
         assertTrue("uses-feature android.hardware.camera is missing", camera != null)
         assertEquals("false", camera!!.getAttributeNS(androidNs, "required"))
-    }
-
-    /**
-     * 兼容性自检的测试页对外开放只为让内置助手(shell)开它:调用方必须持有 INTERACT_ACROSS_USERS_FULL,普通 App 打不开;
-     * 没有 intent-filter,只能按组件名开;单独一个任务、不进最近任务。助手认的类名和清单一致。
-     */
-    @Test
-    fun selfCheckTargetIsOnlyStartableWithShellLevelPermission() {
-        val doc = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-            .newDocumentBuilder().parse(File("src/main/AndroidManifest.xml"))
-        val activities = doc.getElementsByTagName("activity")
-        val a = (0 until activities.length).map { activities.item(it) as Element }
-            .single { it.getAttributeNS(androidNs, "name") == ".selfcheck.SelfCheckTargetActivity" }
-        assertEquals("true", a.getAttributeNS(androidNs, "exported"))
-        assertEquals("android.permission.INTERACT_ACROSS_USERS_FULL", a.getAttributeNS(androidNs, "permission"))
-        assertEquals(0, a.getElementsByTagName("intent-filter").length)
-        assertEquals(com.wangzan101.mika.cap.phone.shell.SystemIntents.OWN_PAGE_CLASS, "com.wangzan101.mika" + a.getAttributeNS(androidNs, "name"))
-        assertEquals("true", a.getAttributeNS(androidNs, "excludeFromRecents"))
-        assertTrue(a.hasAttributeNS(androidNs, "taskAffinity"))
-        assertEquals("", a.getAttributeNS(androidNs, "taskAffinity"))
     }
 
     /** 内置助手进程按这个全名启动。 */

@@ -120,6 +120,9 @@ fun SettingsScreen(
         browserProxy = withContext(Dispatchers.IO) { WebProxy.mode() }
     }
     val mcpServerCount = mcpServers?.servers?.collectAsState()?.value?.size
+    // 商店版的电脑连接只有远程网关:这一行的开关状态就是它开没开
+    val mcp = remember { (context.applicationContext as com.wangzan101.mika.MikaApp).mcp }
+    val mcpRelay by mcp.relaySettings.config.collectAsState()
     val parallel = if (!speed.parallelTasks) null else ParallelSetting(
         parallelMax,
         ParallelCapability.detect(
@@ -167,6 +170,7 @@ fun SettingsScreen(
             proxy = proxy, proxyNote = proxy?.let { NetProxyCopy.subtitle(it, browserProxy) }, onOpenProxy = { editingProxy = true },
             sandbox = null, onOpenSandbox = { page = SettingsPage.Sandbox },
             showRecovery = false, onOpenRecovery = { page = SettingsPage.Recovery },
+            computerAccess = mcpRelay.enabled, onOpenComputerAccess = { page = SettingsPage.ComputerAccess },
             mcpServersCount = mcpServerCount, onOpenMcpServers = { page = SettingsPage.McpServers },
             showRoot = false, rootCommands = false, onOpenRoot = { page = SettingsPage.Root },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
@@ -192,7 +196,7 @@ fun SettingsScreen(
         SettingsPage.Sandbox -> SandboxScreen(onBack = toAdvanced)
         SettingsPage.Recovery -> RecoveryScreen(onBack = toAdvanced, onOpenSelfCheck = { page = SettingsPage.SelfCheck })
         SettingsPage.SelfCheck -> SelfCheckScreen(status, onBack = back)
-        SettingsPage.ComputerAccess -> mcpServers?.let { McpServersScreen(it, onBack = toAdvanced) }
+        SettingsPage.ComputerAccess -> McpScreen(mcp, onBack = toAdvanced)
         SettingsPage.McpServers -> mcpServers?.let { McpServersScreen(it, onBack = toAdvanced) }
         SettingsPage.Root -> RootScreen(helperRow = status.sdkInt >= Prerequisites.MIN_SDK, onBack = toAdvanced)
         SettingsPage.Developer -> DeveloperOptionsScreen(

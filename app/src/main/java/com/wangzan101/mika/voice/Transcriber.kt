@@ -37,7 +37,7 @@ class Transcriber(
     suspend fun transcribe(
         p: Provider, key: String?, model: String, method: TranscribeMethod, wav: ByteArray, language: String?,
     ): String {
-        if (!PlayModelProviderPolicy.permits(p.kind, p.baseUrl)) {
+        if (!PlayModelProviderPolicy.allows(p.kind, p.baseUrl)) {
             throw ModelError.BadResponse("This model provider is unavailable in the Play edition")
         }
         val base = p.baseUrl.trim().trimEnd('/')

@@ -1,4 +1,4 @@
-// WOOWTECH Play branch: guards restricted alarm permissions of the branded manifest.
+// WOOWTECH Play branch: guards restricted permissions and components of the branded manifest.
 package com.wangzan101.mika.core.brand
 
 import org.junit.Assert.assertEquals
@@ -10,7 +10,8 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * The Play edition has no background alarm capability or alarm permission.
+ * The Play edition schedules tasks with the user-granted exact alarm (SCHEDULE_EXACT_ALARM), never USE_EXACT_ALARM, and
+ * has no phone-control component.
  */
 class WoowtechManifestTest {
     private val androidNs = "http://schemas.android.com/apk/res/android"
@@ -35,20 +36,132 @@ class WoowtechManifestTest {
     /** A new permission in the Play build is a product decision and needs policy review. */
     @Test
     fun woowtechFlavorManifestAddsNoOtherPermission() {
-        assertEquals(setOf("android.permission.FOREGROUND_SERVICE_DATA_SYNC"), permissions("woowtech/AndroidManifest.xml").keys)
-        val removed = manifest("woowtech/AndroidManifest.xml").getElementsByTagName("uses-permission").item(0) as Element
-        assertEquals("remove", removed.getAttributeNS("http://schemas.android.com/tools", "node"))
-        // The flavor manifest has a higher priority than src/main; the package comes from the module's namespace.
-        assertFalse(manifest("woowtech/AndroidManifest.xml").hasAttribute("package"))
+        assertOnlyRemovesDataSync("woowtech/AndroidManifest.xml")
     }
 
-    /** No alarm permission may be brought into the Play build. */
+    /** Same for apporoplay: src/apporo's exact-alarm permissions must not come along. */
     @Test
-    fun playManifestHasNoExactAlarmPermissions() {
+    fun apporoplayFlavorManifestAddsNoOtherPermission() {
+        assertOnlyRemovesDataSync("apporoplay/AndroidManifest.xml")
+    }
+
+    private fun assertOnlyRemovesDataSync(path: String) {
+        assertEquals(setOf("android.permission.FOREGROUND_SERVICE_DATA_SYNC"), permissions(path).keys)
+        val removed = manifest(path).getElementsByTagName("uses-permission").item(0) as Element
+        assertEquals("remove", removed.getAttributeNS("http://schemas.android.com/tools", "node"))
+        // The flavor manifest has a higher priority than src/main; the package comes from the module's namespace.
+        assertFalse(manifest(path).hasAttribute("package"))
+    }
+
+    /** Both Play flavors take the same src/main components out (sandbox preparation, pairing-code receiver). */
+    @Test
+    fun playFlavorsRemoveTheSameComponents() {
+        fun removed(path: String): Set<String> = listOf("service", "receiver", "provider", "activity").flatMap { tag ->
+            val nodes = manifest(path).getElementsByTagName(tag)
+            (0 until nodes.length).map { nodes.item(it) as Element }
+        }.filter { it.getAttributeNS("http://schemas.android.com/tools", "node") == "remove" }
+            .map { it.getAttributeNS(androidNs, "name") }.toSet()
+        assertEquals(setOf(".sandbox.SandboxService", ".setup.PairingCodeReceiver"), removed("woowtech/AndroidManifest.xml"))
+        assertEquals(removed("woowtech/AndroidManifest.xml"), removed("apporoplay/AndroidManifest.xml"))
+    }
+
+    /** PlayTransportPolicy's HTTPS rule holds at the platform too: no cleartext except to this phone (src/main allows it). */
+    @Test
+    fun playFlavorsAllowCleartextOnlyOnThePhone() {
+        for (flavor in listOf("woowtech", "apporoplay")) {
+            val config = manifest("$flavor/res/xml/network_security_config.xml") // any XML file; asserts it exists
+            val base = config.getElementsByTagName("base-config").item(0) as Element
+            assertEquals(flavor, "false", base.getAttribute("cleartextTrafficPermitted"))
+            val domains = config.getElementsByTagName("domain")
+            assertEquals(flavor, setOf("localhost", "127.0.0.1"), (0 until domains.length).map { domains.item(it).textContent.trim() }.toSet())
+        }
+    }
+
+    /** Settings › Privacy policy (MainActivity) opens the flavor's play_privacy_policy_url; src/main leaves it empty. */
+    @Test
+    fun playFlavorsLinkTheirOwnPrivacyPolicy() {
+        val expected = mapOf(
+            "woowtech" to "https://assistant-relay.woowtech.io/privacy/play",
+            "apporoplay" to "https://assistant-relay.apporo.ai/privacy/play",
+        )
+        for ((flavor, url) in expected) {
+            val found = File(app, "$flavor/res/values").listFiles { f -> f.name.endsWith(".xml") }.orEmpty().flatMap { f ->
+                val nodes = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(f).getElementsByTagName("string")
+                (0 until nodes.length).map { nodes.item(it) as Element }
+                    .filter { it.getAttribute("name") == "play_privacy_policy_url" }.map { it.textContent }
+            }
+            assertEquals(flavor, listOf(url), found)
+        }
+    }
+
+    /**
+     * Owner decision 2026-11-18: scheduled tasks are back. Play limits USE_EXACT_ALARM to alarm, timer and calendar apps,
+     * so the Play build asks the user for SCHEDULE_EXACT_ALARM (on every API level) and never declares USE_EXACT_ALARM.
+     */
+    @Test
+    fun playManifestUsesOnlyTheUserGrantedExactAlarm() {
         val main = permissions("main/AndroidManifest.xml")
-        assertFalse("SCHEDULE_EXACT_ALARM must not be in the Play manifest", SCHEDULE_EXACT_ALARM in main)
+        assertTrue("scheduled tasks need SCHEDULE_EXACT_ALARM", SCHEDULE_EXACT_ALARM in main)
+        assertEquals("SCHEDULE_EXACT_ALARM must apply to every API level", "", main.getValue(SCHEDULE_EXACT_ALARM))
         assertFalse("USE_EXACT_ALARM must not be in the shared manifest", USE_EXACT_ALARM in main)
+        assertFalse("USE_EXACT_ALARM must not be in the Play manifest", USE_EXACT_ALARM in permissions("woowtech/AndroidManifest.xml"))
         assertFalse("the upstream flavor must not get a manifest of its own", File(app, "upstream/AndroidManifest.xml").exists())
+        val receivers = manifest("main/AndroidManifest.xml").getElementsByTagName("receiver")
+        val names = (0 until receivers.length).map { (receivers.item(it) as Element).getAttributeNS(androidNs, "name") }
+        assertTrue(names.toString(), ".task.TriggerAlarmReceiver" in names)
+    }
+
+    /**
+     * After a reboot the alarms are gone; the boot receiver re-arms them, resumes the computer connection the user left on
+     * (the outbound relay), and never starts phone recovery.
+     */
+    @Test
+    fun bootReceiverRearmsSchedulesAndNeverStartsPhoneRecovery() {
+        val receivers = manifest("main/AndroidManifest.xml").getElementsByTagName("receiver")
+        val restore = (0 until receivers.length).map { receivers.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".task.ScheduleRestoreReceiver" }
+        val actions = restore.getElementsByTagName("action")
+        assertEquals(setOf("android.intent.action.BOOT_COMPLETED", "android.intent.action.MY_PACKAGE_REPLACED",
+            "android.intent.action.TIME_SET", "android.intent.action.TIMEZONE_CHANGED",
+            "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"),
+            (0 until actions.length).map { (actions.item(it) as Element).getAttributeNS(androidNs, "name") }.toSet())
+        // 只看代码行(注释里可以提到它们)
+        val code = File(app, "main/java/com/wangzan101/mika/task/ScheduleRestoreReceiver.kt").readLines()
+            .filterNot { val t = it.trimStart(); t.startsWith("*") || t.startsWith("/*") || t.startsWith("//") }.joinToString("\n")
+        listOf("BootRestoreHandler", "PhoneServices", "cap.phone", "deviceAccess").forEach {
+            assertFalse("ScheduleRestoreReceiver must not use $it", it in code)
+        }
+    }
+
+    /**
+     * Owner decision 2026-11-18: the Play edition connects a computer only through the outbound relay, with no device
+     * permissions. The service is not exported (no adb entry that turns on the USB mode), its foreground-service
+     * declaration (also entered in Play Console) says what it keeps open, and in this flavor the runtime never listens on
+     * the phone and offers no screen state, wake or unlock.
+     */
+    @Test
+    fun computerConnectionIsTheOutboundRelayOnly() {
+        val services = manifest("main/AndroidManifest.xml").getElementsByTagName("service")
+        val relay = (0 until services.length).map { services.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".mcp.McpService" }
+        assertEquals("false", relay.getAttributeNS(androidNs, "exported"))
+        assertEquals("", relay.getAttributeNS(androidNs, "permission"))
+        assertEquals("specialUse", relay.getAttributeNS(androidNs, "foregroundServiceType"))
+        val properties = relay.getElementsByTagName("property")
+        val subtype = (0 until properties.length).map { properties.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" }
+            .getAttributeNS(androidNs, "value")
+        assertTrue(subtype, "outbound connection to the user's paired remote gateway" in subtype)
+        assertTrue(subtype, "no screen, wake or unlock access" in subtype)
+        assertFalse(subtype, "private-network" in subtype || "USB" in subtype)
+        val runtime = File(app, "main/java/com/wangzan101/mika/mcp/McpRuntime.kt").readText()
+        assertTrue("McpRuntime listens on the phone in the Play edition",
+            "relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess" in runtime)
+        assertTrue("McpRuntime offers screen state, wake or unlock", "device = null" in runtime && "deviceAccess = false" in runtime)
+        val service = File(app, "main/java/com/wangzan101/mika/mcp/McpService.kt").readText()
+        assertTrue("McpService turns on USB for adb in the Play edition", "relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess" in service)
+        val relayUi = File(app, "main/java/com/wangzan101/mika/ui/RelaySection.kt").readText()
+        assertFalse("the relay page offers wake and unlock", "setRelayDeviceAccess" in relayUi)
     }
 
     @Test
@@ -60,7 +173,7 @@ class WoowtechManifestTest {
             "android.permission.WRITE_SECURE_SETTINGS",
             "android.permission.READ_MEDIA_IMAGES",
             "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "com.android.alarm.permission.SET_ALARM",
         ).forEach { assertFalse("Play manifest requests $it", it in requested) }
         val components = listOf("service", "provider", "receiver", "activity")
             .flatMap { tag -> main.getElementsByTagName(tag).let { nodes ->
@@ -70,13 +183,44 @@ class WoowtechManifestTest {
             .forEach { forbidden -> assertFalse("Play manifest still exposes $forbidden", components.any { it.endsWith(forbidden) }) }
     }
 
+    /**
+     * Owner decision 2026-11-18: the Play edition keeps the one web page the user asked to keep open after a task, like the
+     * direct-download edition. The foreground-service declaration (also entered in Play Console) has to say so, and the
+     * browser must not drop its page keeper for this flavor again.
+     */
+    @Test
+    fun taskServiceDeclaresTheKeptPage() {
+        val services = manifest("main/AndroidManifest.xml").getElementsByTagName("service")
+        val task = (0 until services.length).map { services.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".task.TaskService" }
+        val properties = task.getElementsByTagName("property")
+        val subtype = (0 until properties.length).map { properties.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" }
+            .getAttributeNS(androidNs, "value")
+        assertTrue(subtype, "keeps the one web page the user asked to keep open" in subtype)
+        assertTrue(subtype, "at most two hours" in subtype)
+        assertFalse(subtype, "phone task" in subtype || "virtual display" in subtype)
+        val webStack = File(app, "main/java/com/wangzan101/mika/cap/web/WebStack.kt").readText()
+        assertFalse("WebStack drops the page keeper for the Play flavor", "FLAVOR == \"woowtech\"" in webStack)
+    }
+
     @Test
     fun browserEntryIsIsolatedAndUsesTheInstalledPackageScheme() {
-        val root = manifest("woowtech/AndroidManifest.xml")
+        assertIsolatedBrowserEntry("woowtech/AndroidManifest.xml", ".woowtech.BrowserOpenActivity")
+    }
+
+    /** apporoplay registers Apporo's entry class (its own copy in src/apporoplay/java). */
+    @Test
+    fun apporoplayBrowserEntryIsIsolatedAndUsesTheInstalledPackageScheme() {
+        assertIsolatedBrowserEntry("apporoplay/AndroidManifest.xml", ".apporo.BrowserOpenActivity")
+    }
+
+    private fun assertIsolatedBrowserEntry(path: String, activityName: String) {
+        val root = manifest(path)
         val activities = root.getElementsByTagName("activity")
         assertEquals(1, activities.length)
         val entry = activities.item(0) as Element
-        assertEquals(".woowtech.BrowserOpenActivity", entry.getAttributeNS(androidNs, "name"))
+        assertEquals(activityName, entry.getAttributeNS(androidNs, "name"))
         assertEquals("true", entry.getAttributeNS(androidNs, "exported"))
         assertEquals("true", entry.getAttributeNS(androidNs, "noHistory"))
         assertEquals("", entry.getAttributeNS(androidNs, "taskAffinity"))

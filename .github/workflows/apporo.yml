@@ -28,6 +28,8 @@ jobs:
         run: python3 .github/scripts/bootstrap-gradle.py
       - name: Prepare verified private compiler repository
         timeout-minutes: 6
+        env:
+          COMPILER_DOWNLOAD_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/prepare-compiler-repository.py
       - name: Source and CLI contracts
         run: |

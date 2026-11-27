@@ -44,6 +44,13 @@ class ModelCatalogTest {
         assertNull(server.takeRequest().getHeader("Authorization"))
     }
 
+    @Test fun anthropicListGivesEachModelsReplyLimit() = runTest {
+        server.enqueue(ok("""{"data":[{"type":"model","id":"claude-a","display_name":"A","max_input_tokens":1000000,"max_tokens":128000},
+            {"type":"model","id":"claude-b","display_name":"B","max_tokens":0}],"has_more":false,"last_id":"claude-b"}"""))
+        val list = models(catalog.anthropic(base, "ak"))
+        assertEquals(listOf(128_000, null), list.map { it.maxOutputTokens })
+    }
+
     @Test fun anthropicPagesAndReadsCapabilities() = runTest {
         server.enqueue(ok("""{"data":[{"type":"model","id":"claude-a","display_name":"A","max_input_tokens":1000000,
             "capabilities":{"image_input":{"supported":true},"thinking":{"supported":true}}}],"has_more":true,"last_id":"claude-a"}"""))
