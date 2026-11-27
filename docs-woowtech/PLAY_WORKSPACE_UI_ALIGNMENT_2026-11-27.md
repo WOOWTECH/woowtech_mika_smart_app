@@ -43,3 +43,19 @@ or key written). Screenshots (half size) in `docs-woowtech/woowtechbot/evidence/
 
 The layout, popovers, sheets of the name page and dialogs match the direct-download edition's screenshots in PR #52; only the
 woowtechbot buttons are absent and Apporo's focus and cursor colour is its gold.
+
+## Signed production update submission — 2026-11-27
+
+Release source `c4692123d7c54571ef1ac6c7012c4500e8770290` (PR #55: version metadata only, on the Play trunk after #42, #46 and #53). Owner approved
+publishing on 2026-11-27 and signed in to Play Console for the submission.
+
+- WOOWTECH `io.woowtech.assistant` `0.1.37-play.5` (code 5), AAB SHA-256 `4031f5585ea4fa1fd0f1ffcd7bbbdae4e4c0951202d47eab291537a11db66a1d`.
+- Apporo `com.apporo.assistant.play` `0.1.37-play.3` (code 3), AAB SHA-256 `3afbdd9b30005875512c5d5c2273edcb11b861bb2f9e6ed4c8bf1f11d0777773`.
+- Both signed with their existing upload keys. Checks (receipt `~/.local/share/woowtech-mika/release/workspace-ui-20261127/verified-bundles.json`):
+  jarsigner, upload certificate equal to the 2026-11-21 submission, `bundletool validate`, package / version / not debuggable,
+  permissions equal to the previous submission, no forbidden permissions or accessibility service, native libraries 16 KB aligned.
+- Before submitting, Console showed play.4 (11 countries) and play.2 (8 countries) as the live production releases and nothing in review.
+- Production, full rollout in the existing countries, release notes in zh-TW and en-US ("interface update ... new design ... dark and light").
+  Console listed the same two nonblocking warnings as last time (no deobfuscation file, no native debug symbols) and no change in
+  supported devices. Both changes were sent for review; Console shows "changes in review" with the automated quick checks running.
+  This is not approval or availability, which Google controls.
