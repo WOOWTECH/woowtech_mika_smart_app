@@ -708,6 +708,17 @@ private struct MemoryPalette {
     let ok: Color
     let bad: Color
 
+    #if WOOWTECHBOT
+    /// Android's Direct theme paints this page from the same tokens as the rest of the app.
+    init(dark: Bool) {
+        let direct = MikaVisualPalette(dark ? .dark : .light)
+        background = direct.background; surface = direct.surface; fill = direct.glass
+        selectedSegment = dark ? direct.raised : .white
+        ink = direct.ink; ink2 = direct.secondaryInk; ink3 = direct.hintInk
+        hair = direct.hair; edge = direct.edge; accent = direct.accent
+        ok = direct.ok; bad = direct.destructive
+    }
+    #else
     init(dark: Bool) {
         background = Color(hex: dark ? 0x0E0E10 : 0xF7F7F8)
         surface = Color(hex: dark ? 0x1A1A1D : 0xFFFFFF)
@@ -722,6 +733,7 @@ private struct MemoryPalette {
         ok = Color(hex: dark ? 0x3CCF7A : 0x1F9D55)
         bad = Color(hex: dark ? 0xFF6961 : 0xE5483D)
     }
+    #endif
 }
 
 private extension Color {

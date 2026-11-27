@@ -220,6 +220,16 @@ struct BrowserPalette {
     let tertiary: Color
     let edge: Color
 
+    #if WOOWTECHBOT
+    /// Android's Direct theme paints this page from the same tokens as the rest of the app.
+    init(_ scheme: ColorScheme) {
+        let direct = MikaVisualPalette(scheme)
+        background = direct.background; surface = direct.surface
+        neutral = direct.ink.opacity(scheme == .dark ? 0.07 : 0.05)
+        primary = direct.ink; secondary = direct.secondaryInk; tertiary = direct.hintInk
+        edge = direct.edge
+    }
+    #else
     init(_ scheme: ColorScheme) {
         let dark = scheme == .dark
         background = dark ? Color(red: 14.0/255, green: 14.0/255, blue: 16.0/255)
@@ -234,4 +244,5 @@ struct BrowserPalette {
                         : Color(red: 154.0/255, green: 155.0/255, blue: 163.0/255)
         edge = dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05)
     }
+    #endif
 }

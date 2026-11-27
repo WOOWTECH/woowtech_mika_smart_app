@@ -166,16 +166,56 @@ public struct BotNotificationTarget: Equatable, Sendable {
     }
 }
 
+/// A conversation's identity tile, the same data Android keeps (`BotUiProfile`). `palette` 1 is the
+/// original six colours, where `face` was an expression; 2 is woowtechbot's eleven-colour palette, where
+/// `face` is 0 automatic / 1 white / 2 black. Data saved before the palette change reads as 1, so no
+/// conversation changes colour; the editor saves generation 2.
 public struct BotConversationAvatar: Codable, Equatable, Sendable {
     public var robot = 0
-    public var color = 0
+    public var color = 1
     public var face = 0
     public var jpeg: Data?
+    public var palette = 2
+    public static let colorCount = 11
+    private static let legacyColorCount = 6
+    /// blue, green, orange, purple, pink, cyan (the old six) → the same hues in the eleven.
+    private static let legacyToCurrent = [1, 0, 3, 4, 6, 5]
     public init() {}
+
+    private enum CodingKeys: String, CodingKey { case robot, color, face, jpeg, palette }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        robot = try values.decodeIfPresent(Int.self, forKey: .robot) ?? 0
+        face = try values.decodeIfPresent(Int.self, forKey: .face) ?? 0
+        jpeg = try values.decodeIfPresent(Data.self, forKey: .jpeg)
+        palette = try values.decodeIfPresent(Int.self, forKey: .palette) ?? 1
+        color = try values.decodeIfPresent(Int.self, forKey: .color) ?? 0
+    }
+
     public func validate() throws {
-        guard (0...2).contains(robot), (0...5).contains(color), (0...2).contains(face),
+        guard (0...2).contains(robot), (1...2).contains(palette),
+              (0..<(palette >= 2 ? Self.colorCount : Self.legacyColorCount)).contains(color), (0...2).contains(face),
               jpeg.map({ $0.count <= 512_000 && $0.count > 3 && $0.starts(with: [0xff, 0xd8, 0xff]) }) ?? true
         else { throw BotServiceError.invalidData }
+    }
+
+    /// Index into the eleven-colour palette, whichever generation this was saved with.
+    public var colorIndex: Int {
+        palette >= 2 ? color : Self.legacyToCurrent[min(max(color, 0), Self.legacyColorCount - 1)]
+    }
+    /// 0 automatic (dark ink on orange, yellow and silver, otherwise white), 1 white, 2 black.
+    public var faceMode: Int { palette >= 2 ? face : 0 }
+    /// The same look expressed in the current palette, for editing and saving.
+    public func upgraded() -> BotConversationAvatar {
+        guard palette < 2 else { return self }
+        var copy = self
+        copy.color = colorIndex; copy.face = 0; copy.palette = 2
+        return copy
+    }
+    /// Still the built-in blue robot a new conversation starts with.
+    public var isDefault: Bool {
+        let value = upgraded()
+        return value.robot == 0 && value.color == 1 && value.face == 0 && value.jpeg == nil
     }
 }
 

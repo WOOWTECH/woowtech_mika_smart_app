@@ -9,7 +9,7 @@ struct BotChatPresentation: Codable, Equatable {
     var avatar = BotConversationAvatar()
     var draft = ""
     var updatedAt = Date()
-    var hasSavedContent: Bool { !draft.isEmpty || title != nil || avatar != BotConversationAvatar() }
+    var hasSavedContent: Bool { !draft.isEmpty || title != nil || !avatar.isDefault }
 }
 
 enum BotWorkspaceNotice {
@@ -62,6 +62,8 @@ struct BotWorkspaceSnapshot: Codable {
     @Published private(set) var available = false
     @Published var notice: BotWorkspaceNotice?
     @Published var selectedService: UUID?
+    /// Set with `selectedService` when the service's own "…" asked to open its management sheet (not persisted).
+    @Published var manageOnOpen = false
     private let vault: EncryptedLearningFile?
     private var sessions: [UUID: BotWebSession] = [:]
     private var dataStores: [UUID: WKWebsiteDataStore] = [:]

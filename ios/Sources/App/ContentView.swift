@@ -14,6 +14,9 @@ struct ContentView: View {
     @State private var showsDrawer = true
     @StateObject private var botWorkspace = BotWorkspaceStore.shared
     @State private var botSheet: BotChatSheet?
+    @State private var botPage: BotChatPage?
+    @State private var botChatMenu: BotChatMenu?
+    @State private var botChatMenuFrame: CGRect?
     @State private var botDraftSave: Task<Void, Never>?
     @State private var botRestored = false
     #else
@@ -61,21 +64,30 @@ struct ContentView: View {
                     .id(web.service.profileID)
             }
         }
-        .sheet(item: $botSheet) { sheet in
-            switch sheet {
+        .fullScreenCover(item: $botPage) { page in
+            switch page {
             case .edit:
                 if let archive = session.archive {
-                    BotConversationEditor(id: session.conversationID, archive: archive, workspace: botWorkspace, localizer: localizer)
+                    BotProfileEditor(id: session.conversationID, archive: archive, workspace: botWorkspace, localizer: localizer) { botPage = nil }
                 }
-            case .search: BotConversationSearch(chat: session, localizer: localizer)
-            case .files: BotConversationFiles(chat: session, localizer: localizer)
-            case .notifications:
-                BotNotificationSettingsView(store: notifications, localizer: localizer)
+            case .search: BotConversationSearch(chat: session, localizer: localizer) { botPage = nil }
+            case .files: BotConversationFiles(chat: session, localizer: localizer) { botPage = nil }
             }
         }
-        .alert(botText("提示", "Notice"), isPresented: Binding(get: { botWorkspace.notice != nil }, set: { if !$0 { botWorkspace.notice = nil } })) {
-            Button(botText("確認", "OK")) { botWorkspace.notice = nil }
-        } message: { Text(botWorkspace.notice?.text(localizer) ?? "") }
+        .sheet(item: $botSheet) { sheet in
+            switch sheet {
+            case .notifications: BotNotificationsSheet(localizer: localizer) { botSheet = nil }
+            }
+        }
+        // A notice (signed out, a change that could not be saved...) in the app's own dialog, not the system alert.
+        .botDialog(isPresented: botWorkspace.notice != nil, dismiss: { botWorkspace.notice = nil }) {
+            BotDialogSurface {
+                BotDialogTitle(text: botText("提示", "Notice"))
+                BotDialogBody(text: botWorkspace.notice?.text(localizer) ?? "")
+                BotDialogButton(title: botText("確認", "OK"), kind: .confirm, identifier: "bot.notice.ok") { botWorkspace.notice = nil }
+                    .padding(.top, 24)
+            }
+        }
         .onReceive(session.draftModel.$text) { text in
             guard botRestored else { return }
             botDraftSave?.cancel()
@@ -233,6 +245,9 @@ struct ContentView: View {
         ZStack(alignment: .leading) {
           NavigationStack {
             sectionContent
+            #if WOOWTECHBOT
+            .safeAreaInset(edge: .top, spacing: 0) { if selection == .chat { botChatHeader } }
+            #endif
             .navigationTitle(selection == .chat ? localizer.text(.shellBrandTitle) : selection.title(using: localizer))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(palette.background, for: .navigationBar)
@@ -242,6 +257,10 @@ struct ContentView: View {
             // iPad with the keyboard open, including the system status bar.
             .toolbarColorScheme(colorScheme, for: .navigationBar)
             .toolbar { rootToolbar }
+            #if WOOWTECHBOT
+            // The chat has its own header (back, name capsule, menu); the other sections keep the system bar.
+            .toolbar(selection == .chat ? .hidden : .visible, for: .navigationBar)
+            #endif
             .safeAreaInset(edge: .bottom, spacing: 0) { fixtureObservation }
           }
           .id(notificationNavigationID)
@@ -312,6 +331,10 @@ struct ContentView: View {
               }
               #endif
           }
+          #if WOOWTECHBOT
+          // The chat header's "…" popover sits above everything in the shell, so a tap anywhere else reaches it first.
+          BotPopoverLayer(active: $botChatMenu, frame: botChatMenuFrame) { _ in botChatMenuView }
+          #endif
         }
     }
 
@@ -336,6 +359,10 @@ struct ContentView: View {
                             let destination = selection == .browser ? browserReturnSection : .chat
                             browserReturnSection = .chat
                             selection = destination
+                            #if WOOWTECHBOT
+                            // Android: the tool and settings pages are entered from History, so Back returns to History.
+                            if destination == .chat { showsDrawer = true }
+                            #endif
                         } label: {
                             Image(systemName: "chevron.backward")
                                 .foregroundStyle(palette.accent)
@@ -350,12 +377,7 @@ struct ContentView: View {
                 if selection == .chat {
                     ToolbarItem(placement: .principal) {
                         #if WOOWTECHBOT
-                        Button { botSheet = .edit } label: {
-                            HStack(spacing: 8) {
-                                BotAvatar(avatar: botWorkspace.presentation(session.conversationID).avatar).frame(width: 28, height: 28)
-                                Text(botCurrentTitle).font(.headline).lineLimit(1)
-                            }.padding(.horizontal, 12).padding(.vertical, 6).background(palette.assistant, in: Capsule())
-                        }.buttonStyle(.plain).accessibilityIdentifier("bot.chat.identity")
+                        EmptyView()
                         #else
                         VStack(spacing: 1) {
                             Text(localizer.text(.shellBrandTitle))
@@ -374,13 +396,7 @@ struct ContentView: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         #if WOOWTECHBOT
-                        Menu {
-                            Button(botText("名稱與圖示", "Name & icon"), systemImage: "pencil") { botSheet = .edit }
-                            Button(botText("新增對話", "New conversation"), systemImage: "plus", action: requestNewConversation).disabled(session.isSubmitting)
-                            Button(botText("在對話中尋找", "Find in conversation"), systemImage: "magnifyingglass") { botSheet = .search }
-                            Button(botText("檔案", "Files"), systemImage: "folder") { botSheet = .files }
-                        } label: { Image(systemName: "ellipsis.circle").frame(width: 40, height: 40) }
-                        .accessibilityIdentifier("bot.chat.menu")
+                        EmptyView()
                         #else
                         Button(action: requestNewConversation) {
                             Image(systemName: "square.and.pencil")
@@ -489,11 +505,46 @@ struct ContentView: View {
     private func botText(_ zh: String, _ en: String) -> String { localizer.language == .english ? en : zh }
     private var botCurrentTitle: String {
         let record = session.archive?.conversations.first { $0.id.uuidString == session.conversationID }
-        return record?.customTitle ?? botWorkspace.presentation(session.conversationID).title ?? record?.title ?? botText("新對話", "New conversation")
+        return record?.customTitle ?? botWorkspace.presentation(session.conversationID).title ?? record?.title ?? BotBrand.appName(localizer)
     }
+    /// Android `BotUiChatHeader`: a round back button, a capsule with the identity tile and name that hugs its content and sits
+    /// in the middle, and a round "…" whose popover has name and icon, new chat, find and files.
+    private var botChatHeader: some View {
+        HStack(spacing: 0) {
+            BotRoundButton(symbol: "chevron.left", label: botText("歷史對話", "Conversation history"), identifier: "chat.menu") { showsDrawer = true }
+                .accessibilityFocused($menuHasVoiceOverFocus)
+            ZStack {
+                Button { botChatMenu = nil; botPage = .edit } label: {
+                    HStack(spacing: 8) {
+                        BotAvatar(avatar: botWorkspace.presentation(session.conversationID).avatar).frame(width: 24, height: 24)
+                        Text(botCurrentTitle).scaledFont(size: 14, weight: .semibold).foregroundStyle(palette.ink).lineLimit(1)
+                    }
+                    .padding(.leading, 8).padding(.trailing, 14).frame(height: 40)
+                    .background(palette.glass, in: Capsule()).contentShape(Capsule())
+                }.buttonStyle(.plain).accessibilityIdentifier("bot.chat.identity")
+            }.frame(maxWidth: .infinity).dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            BotRoundButton(symbol: "ellipsis", label: botText("對話選單", "Conversation menu"), identifier: "bot.chat.menu") {
+                withAnimation(BotMotion.pop) { botChatMenu = botChatMenu == .more ? nil : .more }
+            }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { botChatMenuFrame = $0 }
+        }
+        // The page colour reaches up behind the status bar only: a background that also ignored the other edges painted over the chat.
+        .padding(.horizontal, 8).background(palette.background, ignoresSafeAreaEdges: .top)
+    }
+
+    @ViewBuilder private var botChatMenuView: some View {
+        BotPopoverSurface {
+            BotPopoverRow(symbol: "pencil", title: botText("名稱與圖示", "Name and icon"), identifier: "bot.chat.menu.edit") { botChatMenu = nil; botPage = .edit }
+            BotPopoverRow(symbol: "square.and.pencil", title: botText("新對話", "New chat"), enabled: !session.isSubmitting,
+                          identifier: "bot.chat.menu.new") { botChatMenu = nil; requestNewConversation() }
+            BotPopoverRow(symbol: "magnifyingglass", title: botText("對話中尋找", "Find in conversation"), identifier: "bot.chat.menu.find") { botChatMenu = nil; botPage = .search }
+            BotPopoverRow(symbol: "doc.text", title: botText("檔案", "Files"), identifier: "bot.chat.menu.files") { botChatMenu = nil; botPage = .files }
+        }
+    }
+
     private func botSelect(_ destination: BotLocalDestination) {
         switch destination {
-        case .files: botSheet = .files; return
+        case .files: botPage = .files; return
         case .notifications: botSheet = .notifications; return
         case .tools: selection = .tools
         case .memory: selection = .memory
@@ -552,22 +603,55 @@ struct ContentView: View {
 /// Keep these visual tokens local to the shell; model and browser policy are unchanged.
 struct MikaVisualPalette {
     private let dark: Bool
-    init(_ scheme: ColorScheme) { dark = scheme == .dark }
     private func rgb(_ red: Double, _ green: Double, _ blue: Double) -> Color {
         Color(red: red / 255, green: green / 255, blue: blue / 255)
     }
 
     #if WOOWTECHBOT
-    var background: Color { dark ? rgb(18, 18, 18) : rgb(252, 252, 252) }
-    var surface: Color { dark ? rgb(31, 31, 31) : rgb(239, 239, 239) }
+    /// The woowtechbot website has a phone-only Midnight set (below its 768 px breakpoint) and a
+    /// separate set for the sheets that mirror its settings dialogs on every width; Daylight keeps one
+    /// set (white cards in those sheets). Android's Colors.kt carries the same two (`WoowDarkColors`
+    /// and `WoowSheetDarkColors`); Mika's own settings pages use the first.
+    enum Look { case app, sheet }
+    private let phoneMidnight: Bool
+    private let sheet: Bool
+    init(_ scheme: ColorScheme, look: Look = .app) {
+        dark = scheme == .dark
+        sheet = look == .sheet
+        phoneMidnight = scheme == .dark && look == .app && UIDevice.current.userInterfaceIdiom == .phone
+    }
+    var background: Color { dark ? (phoneMidnight ? rgb(20, 20, 20) : rgb(18, 18, 18)) : rgb(252, 252, 252) }
+    var surface: Color { dark ? (phoneMidnight ? rgb(36, 36, 38) : rgb(31, 31, 31)) : (sheet ? .white : rgb(239, 239, 239)) }
     var ink: Color { dark ? rgb(245, 245, 245) : rgb(28, 28, 28) }
     var secondaryInk: Color { ink.opacity(dark ? 168.0 / 255 : 173.0 / 255) }
+    /// Android ink3: hints and quiet glyphs.
+    var hintInk: Color { ink.opacity(dark ? 145.0 / 255 : 166.0 / 255) }
     var accent: Color { dark ? rgb(127, 192, 255) : rgb(11, 105, 204) }
     var assistant: Color { surface }
-    var glass: Color { dark ? rgb(40, 40, 40) : rgb(227, 227, 227) }
+    var glass: Color { dark ? (phoneMidnight ? rgb(44, 44, 46) : rgb(40, 40, 40)) : rgb(227, 227, 227) }
     var disabledControl: Color { glass }
-    var hair: Color { dark ? rgb(56, 56, 56) : ink.opacity(61.0 / 255) }
+    var hair: Color { dark ? (phoneMidnight ? rgb(58, 58, 60) : rgb(56, 56, 56)) : ink.opacity(61.0 / 255) }
+    /// The 0.5 pt card edge and card dividers: ink at 9 % / 10 % in the sheets, 6 % / 12 % on the page.
+    var edge: Color { ink.opacity(sheet ? (dark ? 23.0 / 255 : 26.0 / 255) : (dark ? 15.0 / 255 : 31.0 / 255)) }
+    /// Android `hair.copy(alpha = .5f)` REPLACES the alpha: half of the opaque Midnight hairline, but ink at 50 % on Daylight
+    /// (not 24 % x 50 %). Popover and dialog borders and the popover divider.
+    var hair50: Color { dark ? hair.opacity(0.5) : ink.opacity(0.5) }
+    /// The composer pill's 0.5 pt edge (`glassEdge`): the Midnight hairline, ink at 12 % on Daylight.
+    var glassEdge: Color { dark ? hair : ink.opacity(31.0 / 255) }
+    /// Popovers, menus and dialogs.
+    var menu: Color { dark ? (phoneMidnight ? rgb(44, 44, 46) : rgb(31, 31, 31)) : .white }
+    var inset: Color { dark ? (phoneMidnight ? rgb(28, 28, 30) : rgb(27, 27, 27)) : rgb(233, 233, 233) }
+    var menuRadius: CGFloat { phoneMidnight ? 22 : 12 }
+    /// Hover/selected fills on controls: tabs, picked tiles, segmented tracks.
+    var raised: Color { dark ? (phoneMidnight ? rgb(58, 58, 60) : rgb(44, 44, 44)) : rgb(216, 216, 216) }
+    var destructive: Color { dark ? rgb(255, 86, 103) : rgb(205, 40, 52) }
+    var warn: Color { dark ? rgb(255, 179, 64) : rgb(184, 110, 0) }
+    var ok: Color { dark ? rgb(56, 213, 145) : rgb(0, 122, 68) }
+    /// Android Direct's user bubble: grey on Midnight, near-black on Daylight, with #F5F5F5 text.
+    var userBubble: Color { dark ? rgb(90, 90, 90) : rgb(28, 28, 28) }
+    var onUserBubble: Color { rgb(245, 245, 245) }
     #else
+    init(_ scheme: ColorScheme) { dark = scheme == .dark }
     var background: Color { dark ? rgb(14, 14, 16) : rgb(247, 247, 248) }
     var surface: Color { dark ? rgb(26, 26, 29) : .white }
     var ink: Color { dark ? rgb(242, 242, 244) : rgb(28, 28, 30) }
@@ -890,13 +974,30 @@ private struct ChatView: View {
         }
     }
 
+    private func toggleAttachPanel() {
+        voice.cancel()
+        // Like Android: × brings the keyboard back and the panel goes away.
+        if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
+        else { isEditingDraft = false; showsAttachPanel = true }
+    }
+
+    #if WOOWTECHBOT
+    /// Android Direct: the plus is its own 48-point circle on the card colour, beside the input bar rather than inside it.
+    private var botAttachToggle: some View {
+        Button(action: toggleAttachPanel) {
+            Image(systemName: "plus").dynamicTypeSize(...Self.fixedControlTypeSize).foregroundStyle(palette.ink)
+                .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
+                .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
+                .frame(width: 48, height: 48).background(palette.surface, in: Circle()).contentShape(Circle())
+        }
+        .accessibilityLabel(showsAttachPanel ? attachmentText.close : attachmentText.add)
+        .disabled(session.isSubmitting || session.isAddingAttachments)
+        .accessibilityIdentifier("chat.attach.toggle")
+    }
+    #endif
+
     private var attachToggle: some View {
-        Button {
-            voice.cancel()
-            // Like Android: × brings the keyboard back and the panel goes away.
-            if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
-            else { isEditingDraft = false; showsAttachPanel = true }
-        } label: {
+        Button(action: toggleAttachPanel) {
             Image(systemName: "plus").dynamicTypeSize(...Self.fixedControlTypeSize).frame(width: 40, height: 40)
                 .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
                 .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
@@ -974,19 +1075,38 @@ private struct ChatView: View {
                                         targets: ChatMessageActionTargets) -> some View {
         let user = entry.role == "user"
         let reply = user ? nil : ChatReplyMarkdown.parse(entry.content)
-        return HStack {
+        let bubble = bubbleText(user: user, words: words, reply: reply)
+            .font(.system(size: messageFontSize))
+            .lineSpacing(user ? 1 : 4)
+            #if WOOWTECHBOT
+            .foregroundStyle(user ? palette.onUserBubble : palette.ink)
+            #else
+            .foregroundStyle(user ? Color.white : palette.ink)
+            #endif
+            .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
+            .padding(.horizontal, 14).padding(.vertical, user ? 10 : 12)
+            #if WOOWTECHBOT
+            // Android Direct: the assistant's answer fills the row (20 / 20 / 20 and 6 on the bottom-start corner); your own
+            // message is a tail-less 18-point bubble at most 80 % of the row wide.
+            .frame(maxWidth: user ? nil : .infinity, alignment: .leading)
+            .background(user ? palette.userBubble : palette.assistant,
+                        in: user ? AnyShape(RoundedRectangle(cornerRadius: 18))
+                                 : AnyShape(UnevenRoundedRectangle(topLeadingRadius: 20, bottomLeadingRadius: 6,
+                                                                   bottomTrailingRadius: 20, topTrailingRadius: 20)))
+            #else
+            .background(user ? palette.accent : palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+            #endif
+            .modifier(ChatMessageMenu(entry: entry, targets: targets, text: menuText,
+                                      perform: { perform($0, on: entry) }))
+        #if WOOWTECHBOT
+        return AnyView(user ? AnyView(BotFractionWidth(fraction: 0.8) { bubble }) : AnyView(bubble))
+        #else
+        return AnyView(HStack {
             if user { Spacer(minLength: 40) }
-            bubbleText(user: user, words: words, reply: reply)
-                .font(.system(size: messageFontSize))
-                .lineSpacing(user ? 1 : 4)
-                .foregroundStyle(user ? Color.white : palette.ink)
-                .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
-                .padding(.horizontal, 14).padding(.vertical, user ? 10 : 12)
-                .background(user ? palette.accent : palette.assistant, in: RoundedRectangle(cornerRadius: 20))
-                .modifier(ChatMessageMenu(entry: entry, targets: targets, text: menuText,
-                                          perform: { perform($0, on: entry) }))
+            bubble
             if !user { Spacer(minLength: 0) }
-        }
+        })
+        #endif
     }
 
     /// Like Android, a reply with a table or a code block lays them out as
@@ -1559,9 +1679,15 @@ private struct ChatView: View {
         // can consume the whole viewport. Keep editing scrollable in one line.
         let lines = dynamicTypeSize.isAccessibilitySize ? (availableHeight < 400 ? 1...1 : 1...3) : 1...5
         // Same pill at one line; bounded corners leave room for multiline text.
+        #if WOOWTECHBOT
+        let shape = RoundedRectangle(cornerRadius: 27, style: .continuous)
+        #else
         let shape = RoundedRectangle(cornerRadius: 32, style: .continuous)
-        return HStack(alignment: .bottom, spacing: 4) {
+        #endif
+        let pill = HStack(alignment: .bottom, spacing: 4) {
+            #if !WOOWTECHBOT
             attachToggle
+            #endif
             // Return adds a line; the Done bar closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
                       text: draft, axis: .vertical)
@@ -1576,6 +1702,42 @@ private struct ChatView: View {
                 .disabled(session.isSubmitting)
                 .accessibilityLabel(localizer.text(.shellMessageDraft))
                 .accessibilityIdentifier("chat.draft")
+            #if WOOWTECHBOT
+            // Android Direct: the mic shows when there is nothing to send (or while typing), a task shows stop, and the send
+            // button exists only when there is something to send - both ink circles with page-coloured glyphs.
+            if (session.draft.isEmpty && !session.isSubmitting) || isEditingDraft {
+                ChatVoicePressControl(label: localizer.text(.voiceLabel), hint: localizer.text(.voiceHint),
+                                      cancelLabel: localizer.text(.voiceAccessibilityCancel),
+                                      active: voice.isActive, enabled: !session.isSubmitting,
+                                      begin: { time in isEditingDraft = false; voice.begin(startedAt: time) },
+                                      drag: { voice.drag($0) }, release: { voice.release() },
+                                      cancel: { voice.cancel() })
+                    .frame(width: 40, height: 40)
+            }
+            if session.isSubmitting {
+                Button { session.cancel() } label: {
+                    Image(systemName: "stop.fill").font(.system(size: 15, weight: .regular)).dynamicTypeSize(...Self.fixedControlTypeSize)
+                        .foregroundStyle(palette.background).frame(width: 40, height: 40).background(palette.ink, in: Circle())
+                }
+                .accessibilityLabel(localizer.text(.shellStop))
+                .accessibilityIdentifier("chat.cancel")
+            }
+            if session.canAttemptSend {
+                Button {
+                    voice.cancel()
+                    isEditingDraft = false
+                    showsAttachPanel = false
+                    session.attemptSend(mcp: mcp)
+                    if session.isSubmitting { navigateTranscript(.latest) }
+                } label: {
+                    Image(systemName: "arrow.up")
+                        .scaledFont(size: 20, weight: .semibold).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                        .foregroundStyle(palette.background).frame(width: 40, height: 40).background(palette.ink, in: Circle())
+                }
+                .accessibilityLabel(localizer.text(.shellSend))
+                .accessibilityIdentifier("chat.send")
+            }
+            #else
             ChatVoicePressControl(label: localizer.text(.voiceLabel), hint: localizer.text(.voiceHint),
                                   cancelLabel: localizer.text(.voiceAccessibilityCancel),
                                   active: voice.isActive, enabled: !session.isSubmitting,
@@ -1611,6 +1773,7 @@ private struct ChatView: View {
             .disabled(!session.canAttemptSend)
             .accessibilityLabel(localizer.text(.shellSend))
             .accessibilityIdentifier("chat.send")
+            #endif
         }
         .onChange(of: dynamicTypeSize) { _, _ in
             guard session.draft.isEmpty, !isEditingDraft else { return }
@@ -1627,8 +1790,21 @@ private struct ChatView: View {
                     .overlay(shape.fill(palette.glass))
             }
         }
+        #if WOOWTECHBOT
+        .overlay(shape.stroke(palette.glassEdge, lineWidth: 0.5))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.3), radius: 14, y: 4)
+        #else
         .overlay(shape.stroke(palette.hair, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.12), radius: 14, y: 4)
+        #endif
+        #if WOOWTECHBOT
+        return HStack(alignment: .bottom, spacing: 8) {
+            botAttachToggle
+            pill
+        }
+        #else
+        return pill
+        #endif
     }
 
     private var photoPickerLimit: Int { max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count) }

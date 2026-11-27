@@ -277,3 +277,43 @@ was the UI driver's `toggle` step not registering on this simulator, not the app
 a coordinate tap switches the push toggle, saves it and shows "Push is off".
 Not verified: real woowtechbot pages, real camera QR, authenticated pairing,
 push delivery, the Android sub-page popovers (still in progress on Android).
+
+## Native sub-screens aligned to woowtechbot (Android `feat/woow-native-subpages-alignment`) on 2026-11-27
+
+The Android line measured the real woowtechbot website (phone Midnight tokens, popover and sheet geometry) and rebuilt its native
+screens from one component family (`BotUiPopovers.kt`, `BotUiSheet.kt`, `components/Dialog.kt`, `BotUiAvatar.kt`). The iOS Bot variant
+follows the same numbers, compiled only with `WOOWTECHBOT`:
+
+| Android | iOS (`ios/Sources/App`) |
+| --- | --- |
+| `WoowDark/LightColors` (page `#141414`, card `#242426`, control `#2c2c2e`, hairline `#3a3a3c`, popover radius 22) | `MikaVisualPalette(.app)`; phone Midnight only on iPhone, the desktop set (`#121212` / `#1f1f1f`) on iPad, as the website does at 768 px |
+| `WoowSheetDark/LightColors` (`#121212`, cards `#1f1f1f`, white cards in Daylight) | `MikaVisualPalette(look: .sheet)` for the bottom sheets only; Mika's own settings pages keep the app look, as on Android |
+| `hair.copy(alpha = .5f)` replaces alpha | `hair50` (half of the opaque Midnight hairline, ink at 50 % on Daylight) |
+| popover (anchor box, 8 gap, 8 from the edge, min 200/220/240, max min(screen − 24, 320), `pop-in` 0.2 s) | `BotUIComponents.swift` `BotPopoverLayer` + `BotPopoverLayout`; anchors are window frames, the layer is above the screen it serves |
+| sheet (grabber 32 × 4, 44 header, 16 / 6 / 16 / 24 body, cards 12) | `BotSheetScaffold` inside the system sheet (rise, 16 pt corners, drag to dismiss) |
+| `MikaDialog` (menu colour, 20/26 title, 14.5/23 body, 6 % / 10 % ink pills, red destructive) | `BotDialogHost` / `BotDialogSurface` / `BotDialogButton`; also used for notices and the external-link and pairing confirmations |
+| `BotUiAvatar` (32-unit art, 11 colours, face auto / white / black, legacy six mapped) | `BotAvatarView.swift` draws the same paths (`BotSVGPath`); `BotConversationAvatar.palette` 1 / 2 with legacy decoding (unit test) |
+
+Screens and behaviours aligned: history (four round controls, title row with "Back to conversation", rows without separators, current
+unsaved row, running → pinned → latest order, time format, row "…" popover, bottom bar with the shortcuts popover and the search
+pill, delete dialog), gear popover (Settings, About), plus popover (New chat, Add woowtechbot service), switch assistant / service
+sheet (local assistant row, services card with check and "…", add dialog with the same validation message), service manage sheet
+(scan QR, reload, share, disconnect, log out, remove) with the shared confirmation, Bot notifications sheet (switch enabled rule,
+retry row, system settings row, one row per enabled service), chat header (round back, name capsule that opens the name page, "…"
+popover with name and icon / new chat / find / files), name and icon page (round ✓ ✕, 68 pt tile with pencil, inline name,
+robot / upload tabs, three styles, eleven colours, face), Find and Files pages, chat bubbles (user `#5A5A5A` / `#1C1C1C`, 18 pt, at most
+80 % wide; assistant full width, 20 / 20 / 20 / 6), composer (the plus is its own 48 pt circle, mic only when empty, send only when
+there is something to send, stop while a task runs).
+
+Deliberate differences (platform): SF Symbols instead of Android's stroke icons; the shortcuts popover lists the tools iOS has
+(Memory & skills, MCP servers, Browser, Files; not scheduled tasks, connect a computer, background screens); the manage sheet adds
+Downloads (iOS has no per-download document picker); the notification sheet speaks APNs and opens iOS notification settings; the
+service screen's fallback bar keeps a Back chevron (there is no system back); pairing also accepts a pasted link; the Files page keeps
+Save to Files and Share for generated files; the composer keeps iOS's separate hold-to-talk mic button instead of Android's
+hold-anywhere placeholder.
+
+Verified on candidate 34 (simulator iPhone, dark and light, English and Traditional Chinese, accessibility size 5 for the history,
+popover and services sheet): popovers, dialogs, sheets, chat header and menu, name and icon page, find and files pages, chat bubbles and
+composer (Debug build with the fake model), service screen fallback bar, injected controls, manage sheet, cancel and confirm logout,
+relogin, removal, a second service on the same origin staying independent, add dialog validation. Not verified: real woowtechbot pages
+behind a pairing, camera QR scanning, push delivery.

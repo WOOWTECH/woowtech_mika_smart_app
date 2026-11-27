@@ -54,6 +54,11 @@ import WebKit
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
     }
+    /// What shows until the page paints (Android sets the WebView to the same): #121212 on Midnight, #FCFCFC on Daylight.
+    static let prePaintColor = UIColor { traits in
+        traits.userInterfaceStyle == .dark ? UIColor(red: 18 / 255, green: 18 / 255, blue: 18 / 255, alpha: 1)
+                                           : UIColor(red: 252 / 255, green: 252 / 255, blue: 252 / 255, alpha: 1)
+    }
     /// A function body for callAsyncJavaScript: true only when a sidebar slot of the app holds both controls.
     private static let controlsInstalledProbe =
         "return Array.from(document.querySelectorAll('[data-look=\"app\"] [data-sidebar-top-slot]')).some(function (slot) { var controls = slot.querySelector(':scope > .woow-workspace-controls'); return !!controls && ['services', 'notifications'].every(function (action) { return !!controls.querySelector('a[href=\"woowtech-ui://' + action + '\"]'); }); });"
@@ -64,9 +69,9 @@ import WebKit
             if workspaceControlsReady { workspaceControlsReady = false }; return
         }
         webView.isOpaque = false
-        let palette = MikaVisualPalette(dark ? .dark : .light)
-        webView.backgroundColor = UIColor(palette.background)
-        webView.scrollView.backgroundColor = UIColor(palette.background)
+        let pre = Self.prePaintColor
+        webView.backgroundColor = pre
+        webView.scrollView.backgroundColor = pre
         // This isolated script changes presentation only; the page cannot call
         // native methods or read any native data through it.
         // Inject (idempotent), then ask separately whether complete controls are installed:
@@ -191,6 +196,10 @@ private struct BotWebSurface: UIViewRepresentable {
     func updateUIView(_ container: UIView, context: Context) {
         let web = session.webView
         container.accessibilityIdentifier = "bot.surface.\(session.service.id)"
+        container.backgroundColor = BotWebSession.prePaintColor
+        web.isOpaque = false
+        web.backgroundColor = BotWebSession.prePaintColor
+        web.scrollView.backgroundColor = BotWebSession.prePaintColor
         guard container.subviews.first !== web else { return }
         container.subviews.forEach { $0.removeFromSuperview() }
         web.removeFromSuperview()
@@ -212,53 +221,69 @@ struct BotServiceScreen: View {
     let localizer: AppLocalizer
     let close: () -> Void
     let attach: (URL) async -> Bool
+    @ObservedObject private var workspace = BotWorkspaceStore.shared
     @State private var showsDownloads = false
     @State private var showsPairing = false
     @State private var promptText = ""
     @State private var showsServices = false
     @State private var showsNotifications = false
+    @State private var showsManage = false
+    @State private var retiring: Retirement?
+    @State private var busy = false
     @State private var serviceFollowUp: ServiceFollowUp?
-    private enum ServiceFollowUp { case local, service(UUID), downloads, pairing }
+    private enum ServiceFollowUp { case local, service(UUID, manage: Bool), manage, downloads, pairing }
+    private struct Retirement: Identifiable { let remove: Bool; var id: Bool { remove } }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     private func t(_ zh: String, _ en: String) -> String { localizer.language == .english ? en : zh }
 
     var body: some View {
         NavigationStack {
             ZStack {
+                // The page colour fills the status-bar and home-indicator strips around the website (Android: the Scaffold's colour).
+                palette.background.ignoresSafeArea()
                 BotWebSurface(session: web).id(web.service.profileID)
                 if web.failed {
-                    ContentUnavailableView {
-                        Label(t("暫時無法開啟服務", "Service unavailable"), systemImage: "wifi.exclamationmark")
-                    } description: {
-                        Text(t("請確認網路或服務狀態。其他服務與本機助理仍可使用。", "Check your network or service. Local chats and other services remain available."))
-                    } actions: {
-                        Button(t("重試", "Retry"), action: web.retry).accessibilityIdentifier("bot.retry")
-                    }.background(.background)
+                    // Android: a status line with a text button to retry; the rest of the page stays the page colour.
+                    VStack(spacing: 0) {
+                        HStack(spacing: 8) {
+                            Text(t("無法載入服務，請檢查網址與網路後重試。", "Unable to load the service. Check the address and network, then retry."))
+                                .scaledFont(size: 13).foregroundStyle(palette.ink).frame(maxWidth: .infinity, alignment: .leading)
+                            Button(t("重試", "Retry"), action: web.retry).scaledFont(size: 14, weight: .medium)
+                                .foregroundStyle(palette.accent).accessibilityIdentifier("bot.retry")
+                        }.padding(12)
+                        Spacer(minLength: 0)
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(palette.background)
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 if web.loading { ProgressView().frame(maxWidth: .infinity).accessibilityIdentifier("bot.loading") }
             }
+            // Android's fallback bar (shown until the website's own sidebar takes over): the name, the service switcher
+            // and the manage sheet. iOS has no system back, so the way out of the service stays on the left.
             .navigationTitle(web.service.name).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .principal) {
+                    // Android: the name on one line, the address in small type under it.
+                    VStack(spacing: 0) {
+                        Text(web.service.name).font(.headline).lineLimit(1)
+                        Text(web.service.origin).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }.accessibilityElement(children: .combine)
+                }
+                ToolbarItemGroup(placement: .topBarLeading) {
                     Button(action: close) { Label(t("返回", "Back"), systemImage: "chevron.backward") }
                         .accessibilityIdentifier("bot.back")
+                    Button(t("服務", "Services")) { showsServices = true }.accessibilityIdentifier("bot.switch")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button(t("掃描配對 QR", "Scan pairing QR"), systemImage: "qrcode.viewfinder") { showsPairing = true }
-                        Button(t("重新載入", "Reload"), systemImage: "arrow.clockwise", action: web.retry)
-                        Button(t("下載項目", "Downloads"), systemImage: "arrow.down.circle") { showsDownloads = true }
-                        ShareLink(item: web.service.policy.url) { Label(t("分享服務網址", "Share service address"), systemImage: "square.and.arrow.up") }
-                    } label: { Image(systemName: "ellipsis.circle") }
-                    .accessibilityIdentifier("bot.menu")
+                    Button(t("更多", "More")) { showsManage = true }.accessibilityIdentifier("bot.menu")
                 }
             }
+            .toolbarBackground(palette.background, for: .navigationBar)
             .toolbar(web.workspaceControlsReady ? .hidden : .visible, for: .navigationBar)
-            .tint(MikaVisualPalette(colorScheme).accent)
+            .tint(palette.accent)
         }
         .modifier(BrowserDownloadPresentations(manager: web.downloads, chat: chat, showsList: $showsDownloads,
                                                localizer: localizer, attach: attach))
@@ -269,33 +294,56 @@ struct BotServiceScreen: View {
                 do { try await Task.sleep(for: .seconds(2)) } catch { return }
             }
         }
+        .onAppear {
+            // A service's own "…" in the switcher opens this screen with its manage sheet.
+            if workspace.manageOnOpen { workspace.manageOnOpen = false; showsManage = true }
+        }
         .onChange(of: web.presentationAction) { _, action in
             guard let action else { return }; web.presentationAction = nil
-            guard !showsServices, !showsNotifications, !showsPairing, !showsDownloads,
-                  web.dialog == nil, web.externalURL == nil else { return }
+            guard !showsServices, !showsNotifications, !showsPairing, !showsDownloads, !showsManage,
+                  web.dialog == nil, web.externalURL == nil, retiring == nil else { return }
             switch action {
             case .services: showsServices = true
             case .notifications: showsNotifications = true
             }
         }
         .sheet(isPresented: $showsServices, onDismiss: finishServiceSwitch) {
-            BotServicesView(workspace: .shared, localizer: localizer,
-                actions: BotServiceActions(name: web.service.name, url: web.service.policy.url,
-                    local: { queue(.local) }, downloads: { queue(.downloads) }, pairing: { queue(.pairing) })) { id in
-                    queue(.service(id))
-                }
+            BotServicesSheet(workspace: workspace, localizer: localizer, selectedID: web.service.id,
+                             onLocal: { queue(.local) },
+                             onOpen: { id in if id == web.service.id { showsServices = false } else { queue(.service(id, manage: false)) } },
+                             onManage: { id in if id == web.service.id { queue(.manage) } else { queue(.service(id, manage: true)) } },
+                             onClose: { showsServices = false })
         }
         .sheet(isPresented: $showsNotifications) {
-            BotNotificationSettingsView(store: notifications, localizer: localizer)
+            BotNotificationsSheet(localizer: localizer) { showsNotifications = false }
+        }
+        .sheet(isPresented: $showsManage, onDismiss: finishServiceSwitch) {
+            BotManageSheet(service: web.service, localizer: localizer,
+                           scan: { queue(.pairing) }, reload: { showsManage = false; web.retry() },
+                           downloads: { queue(.downloads) },
+                           disconnect: { showsManage = false; try? workspace.setEnabled(web.service.id, false) },
+                           logout: { showsManage = false; retiring = .init(remove: false) },
+                           remove: { showsManage = false; retiring = .init(remove: true) },
+                           close: { showsManage = false })
         }
         .sheet(isPresented: $showsPairing) {
             BotPairingView(service: web.service, localizer: localizer, connect: web.open)
         }
-        .alert(t("在瀏覽器開啟外部連結？", "Open external link in browser?"), isPresented: Binding(
-            get: { web.externalURL != nil }, set: { if !$0 { web.externalURL = nil } })) {
-            Button(t("開啟", "Open")) { if let url = web.externalURL { openURL(url) }; web.externalURL = nil }
-            Button(t("取消", "Cancel"), role: .cancel) { web.externalURL = nil }
-        } message: { Text(web.externalURL?.host ?? "") }
+        .botDialog(isPresented: retiring != nil || web.externalURL != nil, dismiss: { retiring = nil; web.externalURL = nil }) {
+            if let retiring {
+                BotRetireDialog(remove: retiring.remove, localizer: localizer, confirm: { retire(retiring) }, cancel: { self.retiring = nil })
+            } else if let url = web.externalURL {
+                BotDialogSurface {
+                    BotDialogTitle(text: t("在外部瀏覽器開啟連結？", "Open link in your browser?"))
+                    BotDialogBody(text: url.host ?? "")
+                    HStack(spacing: 10) {
+                        BotDialogButton(title: t("取消", "Cancel"), kind: .dismiss, identifier: "bot.external.cancel") { web.externalURL = nil }
+                        BotDialogButton(title: t("開啟", "Open"), kind: .confirm, identifier: "bot.external.open") { openURL(url); web.externalURL = nil }
+                    }.padding(.top, 24)
+                }
+            }
+        }
+        .disabled(busy)
         .alert(web.service.name, isPresented: Binding(get: { web.dialog != nil }, set: { _ in }), presenting: web.dialog) { dialog in
             if case .input = dialog.kind { TextField(t("輸入內容", "Input"), text: $promptText) }
             Button(t("確認", "OK")) { dialog.finish(promptText); web.dialog = nil; promptText = "" }
@@ -307,18 +355,29 @@ struct BotServiceScreen: View {
             if case .input(let value) = web.dialog?.kind { promptText = value }
         }
     }
+
+    private func retire(_ action: Retirement) {
+        retiring = nil; busy = true
+        Task {
+            defer { busy = false }
+            do { try await workspace.retire(web.service.id, remove: action.remove) }
+            catch { workspace.notice = .changesUnsaved }
+        }
+    }
     private func queue(_ followUp: ServiceFollowUp) {
-        serviceFollowUp = followUp; showsServices = false
+        serviceFollowUp = followUp
+        if showsManage { showsManage = false }
+        if showsServices { showsServices = false }
     }
     private func finishServiceSwitch() {
         guard let action = serviceFollowUp else { return }; serviceFollowUp = nil
         switch action {
         case .local: close()
-        case .service(let id): BotWorkspaceStore.shared.selectedService = id
+        case .service(let id, let manage): workspace.manageOnOpen = manage; workspace.selectedService = id
+        case .manage: showsManage = true
         case .downloads: showsDownloads = true
         case .pairing: showsPairing = true
         }
     }
-
 }
 #endif

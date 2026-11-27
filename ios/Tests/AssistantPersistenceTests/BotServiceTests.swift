@@ -66,9 +66,32 @@ final class BotServiceTests: XCTestCase {
         var registry = BotServiceRegistry(); try registry.add(record)
         XCTAssertThrowsError(try registry.add(record))
         XCTAssertEqual(registry.services.count, 1)
-        var avatar = BotConversationAvatar(); avatar.color = 6
+        var avatar = BotConversationAvatar(); avatar.color = 11
         XCTAssertThrowsError(try avatar.validate())
-        avatar.color = 0; avatar.jpeg = Data("not an image".utf8)
+        avatar.color = 10; XCTAssertNoThrow(try avatar.validate())
+        avatar.palette = 1; avatar.color = 6
         XCTAssertThrowsError(try avatar.validate())
+        avatar.palette = 2; avatar.color = 0; avatar.jpeg = Data("not an image".utf8)
+        XCTAssertThrowsError(try avatar.validate())
+    }
+
+    /// Avatars saved before the eleven-colour palette have no `palette` key: they must read as the six
+    /// original colours, keep their look when upgraded, and not count as a customised conversation.
+    func testLegacyAvatarKeepsItsLookWhenUpgraded() throws {
+        let legacy = try JSONDecoder().decode(BotConversationAvatar.self, from: Data(#"{"robot":2,"color":3,"face":1}"#.utf8))
+        XCTAssertEqual(legacy.palette, 1)
+        XCTAssertNoThrow(try legacy.validate())
+        XCTAssertEqual(legacy.colorIndex, 4)      // purple stays purple
+        XCTAssertEqual(legacy.faceMode, 0)        // the old expression is not a face colour
+        let upgraded = legacy.upgraded()
+        XCTAssertEqual(upgraded.palette, 2)
+        XCTAssertEqual(upgraded.color, 4)
+        XCTAssertEqual(upgraded.robot, 2)
+        XCTAssertFalse(legacy.isDefault)
+        let plain = try JSONDecoder().decode(BotConversationAvatar.self, from: Data("{}".utf8))
+        XCTAssertTrue(plain.isDefault)            // legacy blue robot == the new default
+        XCTAssertTrue(BotConversationAvatar().isDefault)
+        let round = try JSONDecoder().decode(BotConversationAvatar.self, from: JSONEncoder().encode(upgraded))
+        XCTAssertEqual(round, upgraded)
     }
 }
