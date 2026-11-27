@@ -98,9 +98,8 @@ class BotUiConversationDeviceTest {
         compose.onNodeWithTag("bot_ui_profile_name").performTextReplacement("Personal Alpha")
         android.os.ParcelFileDescriptor.AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent 4")).use { it.readBytes() }
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.bot_ui_avatar)).performScrollTo().performClick()
-        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
-        compose.onNodeWithTag("bot_ui_robot_2").performClick()
+        compose.onNodeWithTag("bot_ui_avatar_button").performClick()
+        compose.onNodeWithTag("bot_ui_robot_2").performScrollTo().performClick()
         compose.onNodeWithContentDescription(text(R.string.save)).performClick()
         compose.waitUntil(5_000) { store.title("a") == "Personal Alpha" }
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("bot_ui_profile_name").fetchSemanticsNodes().isEmpty() }
@@ -121,6 +120,8 @@ class BotUiConversationDeviceTest {
         restoration.setContent { Content() }
         compose.onNodeWithTag("bot_ui_test_draft").performTextReplacement("Alpha unsent 中文")
         compose.onNodeWithContentDescription(text(R.string.bot_ui_more)).performClick()
+        // The popover plays its entrance once its own window is on screen, so wait for the item instead of assuming it is there.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.chat_new)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText(text(R.string.chat_new)).performClick()
         compose.onNodeWithTag("bot_ui_test_draft").assertTextEquals("")
         compose.onNodeWithTag("bot_ui_test_draft").performTextReplacement("New unsent")

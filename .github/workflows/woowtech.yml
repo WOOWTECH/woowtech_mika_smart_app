@@ -75,7 +75,9 @@ jobs:
                   out.write("WOOWTECHBOT_FIREBASE_PROPERTIES=" + str(path) + "\n")
           PYCODE
       - name: Build woowtech release (unsigned) and debug
-        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleWoowtechRelease :app:assembleWoowtechDebug --stacktrace
+        # Both variants compile cold in one run; the Kotlin daemon inherits the 2 GB of gradle.properties and ran out
+        # ("GC overhead limit exceeded") on 2026-11-26 and 11-27. 3 GB for the daemon only, so the runner's 7 GB is still enough.
+        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleWoowtechRelease :app:assembleWoowtechDebug -Pkotlin.daemon.jvmargs=-Xmx3g --stacktrace
       - name: Brand checks (APK)
         run: |
           for apk in app/build/outputs/apk/woowtech/release/*.apk; do

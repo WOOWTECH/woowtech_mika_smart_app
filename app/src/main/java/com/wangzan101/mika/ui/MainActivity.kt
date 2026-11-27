@@ -366,6 +366,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 onReopened = nav::drawerReopened,
                 externalOpenRevision = conversationOpenRevision,
                 onBotServices = { context.startActivity(com.wangzan101.mika.woowbot.BotServicesActivity.intent(context)) },
+                onBotAddService = { context.startActivity(com.wangzan101.mika.woowbot.BotServicesActivity.intent(context).putExtra(com.wangzan101.mika.woowbot.BotServicesActivity.EXTRA_ADD, true)) },
                 onBotNotifications = { context.startActivity(Intent(context, com.wangzan101.mika.woowbot.push.BotPushSettingsActivity::class.java)) },
             ) { openDrawer ->
                 ChatScreen(
