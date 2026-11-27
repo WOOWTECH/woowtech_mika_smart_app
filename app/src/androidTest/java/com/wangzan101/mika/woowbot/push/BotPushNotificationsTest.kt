@@ -55,6 +55,15 @@ class BotPushNotificationsTest {
         renderer.receive(target("event_3").copy(reason = "permission").data())
         awaitCount(3)
         assertEquals(1, own().count { it.notification.channelId == BotPushNotifications.ACTION })
+        // A failed run: the results channel, its own generic text, still no content.
+        renderer.receive(target("event_4").copy(reason = "failed").data())
+        awaitCount(4)
+        val failed = own().single { it.tag.endsWith("|event_4") }.notification
+        assertEquals(BotPushNotifications.DONE, failed.channelId)
+        assertEquals(Notification.VISIBILITY_SECRET, failed.visibility)
+        val failedText = failed.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
+        assertNotEquals(own().single { it.tag.endsWith("|event_1") }.notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString(), failedText)
+        assertFalse(failedText.contains("thread_1"))
     }
     @Test fun rejectedServiceAndContentNeverProduceNotification() {
         renderer({ false }).receive(target().data())
