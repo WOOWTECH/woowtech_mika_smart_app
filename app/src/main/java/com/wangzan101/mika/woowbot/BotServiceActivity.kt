@@ -11,7 +11,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.wangzan101.mika.chat.BotUiProfile
+import com.wangzan101.mika.ui.BotUiAvatar
+import com.wangzan101.mika.ui.BotUiRoundButton
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
@@ -32,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
 import androidx.webkit.ProfileStore
 import androidx.webkit.WebViewCompat
 import com.wangzan101.mika.BuildConfig
@@ -40,6 +56,7 @@ import com.wangzan101.mika.i18n.AppLanguage
 import com.wangzan101.mika.ui.theme.MikaTheme
 import kotlinx.coroutines.*
 import java.io.ByteArrayInputStream
+import kotlin.coroutines.resume
 
 /** Hosts the complete mobile website with two bounded, presentation-only host actions. No native JS interface. */
 class BotServiceActivity : ComponentActivity() {
@@ -61,6 +78,21 @@ class BotServiceActivity : ComponentActivity() {
     private var pairing by mutableStateOf<Pair<BotService, String>?>(null)
     private var scanning by mutableStateOf(false)
     private var integrated by mutableStateOf(false)
+    /**
+     * Owner 2026-11-27: no connecting screen and no bare bar with the address while a service opens; a transition page covers
+     * them. Opening or switching to a service lands on its bot list ([landOnList]): the phone website always starts on the
+     * selected bot's chat with its list closed, so the list is opened once with the site's own button. A push target, a reload
+     * and a recreated activity keep the page the website shows.
+     */
+    private var revealed by mutableStateOf(false)
+    private var landOnList = true
+    private var transitionText by mutableIntStateOf(R.string.bot_services_opening_list)
+    private var transition by mutableIntStateOf(0)
+    /** Main-frame page starts in the shown web view; a transition only reads pages started after [transitionFrom]. */
+    private var pageStarts = 0
+    private var transitionFrom = 0
+    private var finishedAt = 0L
+    private var touchedAt = 0L
     private var darkAppearance = false
     private var choosing by mutableStateOf(false)
     private var managing by mutableStateOf(false)
@@ -97,6 +129,8 @@ class BotServiceActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectedService = intent.getStringExtra(EXTRA_SERVICE)
+        landOnList = savedInstanceState == null && !intent.hasExtra(EXTRA_BOT) && !intent.hasExtra(EXTRA_THREAD)
+        if (!landOnList) transitionText = R.string.bot_services_opening_chat
         managing = intent.getBooleanExtra(EXTRA_MANAGE, false)
         if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityCreate restored=" + (savedInstanceState != null))
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
@@ -125,14 +159,61 @@ class BotServiceActivity : ComponentActivity() {
             }
             return
         }
-        BackHandler { val view = webView; if (view?.canGoBack() == true) view.goBack() else finish() }
+        BackHandler { val view = webView; if (revealed && view?.canGoBack() == true) view.goBack() else finish() }
+        // While the transition page is up the page is asked every 0.2 s what it shows (structure only). It goes when the bot list
+        // is open, or the page is a sign-in page or not a woowtechbot workspace, or after 20 s. For 2.5 s after that the list is
+        // opened again if the website closes it by itself (until the first touch). After a sign-in page, or a workspace still
+        // starting or connecting at 20 s, the list is still opened once, when the workspace appears.
+        LaunchedEffect(service.profileName, transition) {
+            val started = System.currentTimeMillis()
+            var openSeen = 0
+            var emptySince = 0L
+            var settleFrom = 0L
+            var last: String? = null
+            while (!revealed || landOnList) {
+                delay(if (!revealed || settleFrom != 0L) 200L else 1_000L)
+                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
+                val now = System.currentTimeMillis()
+                if (settleFrom != 0L && (touchedAt > settleFrom || now - settleFrom > 2_500L)) { landOnList = false; break }
+                if (status != null || now - started > 600_000L) { landOnList = false; revealed = true; break }
+                if (!revealed && now - started > 20_000L) { revealed = true; if (last != "boot" && last != "connecting") landOnList = false }
+                val view = webView ?: continue
+                if (pageStarts <= transitionFrom) continue
+                applyAppearance(view)
+                val shown = evaluate(view, BotWorkspaceList.script(this@BotServiceActivity, open = landOnList))
+                if (shown != null) last = shown
+                if (shown != "app") emptySince = 0L
+                if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "transition shown=$shown ms=" + (now - started) +
+                    " list=$landOnList revealed=$revealed integrated=$integrated")
+                when (shown) {
+                    "form" -> revealed = true
+                    "none" -> if (finishedAt != 0L && now - finishedAt > 4_000L) { landOnList = false; revealed = true }
+                    // The app without bots in its list and without its loading screen (an onboarding page, say) shows after 5 s.
+                    "app" -> if (emptySince == 0L) emptySince = now
+                        else if (now - emptySince > 5_000L) { landOnList = false; revealed = true }
+                    "wide", "closed" -> { landOnList = false; revealed = true }
+                    "opening" -> openSeen = 0
+                    "open" -> if (!landOnList) revealed = true
+                        else if (++openSeen >= 2 && settleFrom == 0L) { revealed = true; settleFrom = now }
+                }
+            }
+        }
+        // A site that is not a woowtechbot workspace keeps a bar of its own, in the app's style: services, name, more.
+        // Without a page (unsupported device, disconnected service) there is nothing to wait for, so the bar shows at once.
+        val chrome = (revealed || !isolated || !service.enabled) && !integrated
         Scaffold(containerColor = MikaTheme.colors.bg, topBar = {
-            if (!integrated) TopAppBar(title = { Text(service.name, maxLines = 1) }, navigationIcon = {
-                TextButton(onClick = { choosing = true }) { Text(stringResource(R.string.bot_services_switch)) }
-            }, actions = { TextButton(onClick = { managing = true }) { Text(stringResource(R.string.bot_services_more)) } })
+            if (chrome) Row(Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                BotUiRoundButton(MikaIcons.WorkspaceSwitch, stringResource(R.string.bot_services_switch)) { choosing = true }
+                Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(service.name, color = MikaTheme.colors.ink, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(service.origin, color = MikaTheme.colors.ink3, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                BotUiRoundButton(MikaIcons.More, stringResource(R.string.bot_services_more)) { managing = true }
+            }
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-                if (!integrated) Text(service.origin, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelSmall)
                 status?.let { message ->
                     Row(Modifier.padding(horizontal = 12.dp)) {
                         Text(stringResource(message), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
@@ -143,14 +224,26 @@ class BotServiceActivity : ComponentActivity() {
                 else if (!service.enabled) {
                     Text(stringResource(R.string.bot_services_disconnected), Modifier.padding(16.dp))
                     Button(onClick = {
+                        startTransition(list = true, R.string.bot_services_opening_list)
                         runCatching { registry.setEnabled(service.id, true) }.onFailure { status = R.string.bot_services_action_error }
                     }, modifier = Modifier.padding(16.dp)) { Text(stringResource(R.string.bot_services_connect)) }
                 } else {
-                    if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (loading && revealed) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    // Notes the first touch (without taking it) so the list is never reopened against the user.
+                    Box(Modifier.fillMaxSize().pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                if (awaitPointerEvent(PointerEventPass.Initial).type == PointerEventType.Press) touchedAt = System.currentTimeMillis()
+                            }
+                        }
+                    }) {
                     key(service.profileName, reload) {
                         val view = remember(service.profileName, reload) {
                             runCatching {
-                                parked.remove(service.profileName)?.also { webView = it; activeService = service; it.onResume(); applyAppearance(it) }
+                                parked.remove(service.profileName)?.also {
+                                    webView = it; activeService = service; it.onResume()
+                                    if (landOnList) { transitionFrom = pageStarts; it.loadUrl(BotWebTarget.url(service)) } else applyAppearance(it)
+                                }
                                     ?: createWebView(service)
                             }.getOrElse { status = R.string.bot_services_load_failed; null }
                         }
@@ -165,6 +258,8 @@ class BotServiceActivity : ComponentActivity() {
                             } }
                         }
                     }
+                    ServiceTransitionOverlay(!revealed, service.name, stringResource(transitionText))
+                    }
                 }
             }
         }
@@ -176,10 +271,14 @@ class BotServiceActivity : ComponentActivity() {
                 choosing = false
                 if (id != selectedService) {
                     selectedService = id; intent = intent(this, id); integrated = false; status = null
+                    startTransition(list = true, R.string.bot_services_opening_list)
                 }
             }, onClose = { choosing = false }, selectedId = service.id, onManage = { id ->
                 choosing = false
-                if (id != selectedService) { selectedService = id; intent = intent(this, id); integrated = false; status = null }
+                if (id != selectedService) {
+                    selectedService = id; intent = intent(this, id); integrated = false; status = null
+                    startTransition(list = true, R.string.bot_services_opening_list)
+                }
                 managing = true
             })
         }
@@ -246,12 +345,28 @@ class BotServiceActivity : ComponentActivity() {
         ) }
     }
 
+    /** Runs a fixed script on the service's own shown page; null when the page changed or went away meanwhile. */
+    private suspend fun evaluate(view: WebView, script: String): String? {
+        val owner = owners[view] ?: return null
+        if (destroyed.contains(view) || !current(owner) || !owner.policy.allows(view.url.orEmpty())) return null
+        val page = pageStarts
+        val result = withTimeoutOrNull(2_000L) {
+            suspendCancellableCoroutine<String> { done -> view.evaluateJavascript(script) { if (done.isActive) done.resume(it) } }
+        }
+        return result?.takeIf { webView === view && pageStarts == page }?.removeSurrounding("\"")
+    }
+
+    private fun startTransition(list: Boolean, text: Int) {
+        landOnList = list; transitionText = text; transitionFrom = pageStarts; revealed = false; transition++
+    }
+
     private fun applyAppearance(view: WebView) {
         val owner = owners[view] ?: return
         if (destroyed.contains(view) || !current(owner) || !owner.policy.allows(view.url.orEmpty())) return
         view.setBackgroundColor(if (darkAppearance) 0xff121212.toInt() else 0xfffcfcfc.toInt())
+        val page = pageStarts
         view.evaluateJavascript(BotWorkspaceAppearance.script(this, darkAppearance)) { result ->
-            if (webView === view) integrated = result == "true"
+            if (webView === view && pageStarts == page) integrated = result == "true"
         }
     }
 
@@ -286,6 +401,8 @@ class BotServiceActivity : ComponentActivity() {
             )
             view.isSaveEnabled = false
             view.isSaveFromParentEnabled = false
+            // The page colour from the first frame, not white until the page has loaded.
+            view.setBackgroundColor(if (darkAppearance) 0xff121212.toInt() else 0xfffcfcfc.toInt())
             owners[view] = service
             activeService = service
             webView = view
@@ -335,7 +452,13 @@ class BotServiceActivity : ComponentActivity() {
                     return if (allowed) null else WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(byteArrayOf()))
                 }
                 override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-                    if (webView === view) { loading = true; integrated = false }
+                    if (webView === view) {
+                        pageStarts++; loading = true; integrated = false; finishedAt = 0L
+                        // A sign-in page was shown; the next page is the workspace, whose list opens behind the transition page.
+                        if (revealed && landOnList) {
+                            transitionFrom = pageStarts - 1; transitionText = R.string.bot_services_opening_list; revealed = false; transition++
+                        }
+                    }
                     if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) {
                         val uri = runCatching { Uri.parse(url) }.getOrNull()
                         android.util.Log.i("BotRouteQA", "pageStart sameOrigin=" + service.policy.allows(url.orEmpty()) +
@@ -344,7 +467,7 @@ class BotServiceActivity : ComponentActivity() {
                     }
                 }
                 override fun onPageFinished(view: WebView, url: String?) {
-                    if (webView === view) loading = false
+                    if (webView === view) { loading = false; finishedAt = System.currentTimeMillis() }
                     applyAppearance(view)
                     for (delay in listOf(250L, 1000L, 3000L)) view.postDelayed({
                         if (webView === view && !isDestroyed) applyAppearance(view)
@@ -405,7 +528,8 @@ class BotServiceActivity : ComponentActivity() {
             val url = runCatching { BotWebTarget.url(service, intent.getStringExtra(EXTRA_BOT), intent.getStringExtra(EXTRA_THREAD)) }
                 .getOrElse { status = R.string.bot_services_navigation_blocked; BotWebTarget.url(service) }
             val explicitTarget = intent.hasExtra(EXTRA_BOT) || intent.hasExtra(EXTRA_THREAD)
-            val restored = !explicitTarget && BotWebSessions.restore(service, view)
+            transitionFrom = pageStarts
+            val restored = !explicitTarget && !landOnList && BotWebSessions.restore(service, view)
             if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA",
                 "initial explicitTarget=$explicitTarget restored=$restored threadPresent=" + (requestedThread != null))
             if (!restored) view.loadUrl(url)
@@ -445,7 +569,10 @@ class BotServiceActivity : ComponentActivity() {
         latest?.enabled == true && latest.profileName == service.profileName
     }.getOrDefault(false)
     private fun destroyWebView() { webView?.let(::destroy) }
-    private fun retry() { webView?.reload() ?: run { reload++ } }
+    private fun retry() {
+        startTransition(list = false, R.string.bot_services_reloading)
+        webView?.reload() ?: run { reload++ }
+    }
     private fun destroy(view: WebView) {
         if (!destroyed.add(view)) return
         parked.entries.removeAll { it.value === view }
@@ -496,5 +623,34 @@ class BotServiceActivity : ComponentActivity() {
             val uri = java.net.URI(url)
             url.length <= BotOrigin.MAX_URL && uri.scheme == "https" && uri.host != null && uri.rawUserInfo == null
         }.getOrDefault(false)
+    }
+}
+
+/**
+ * Outside any layout scope, so the plain AnimatedVisibility is the one used. It covers at once (a fade-in would show the new
+ * page's first frame, and HyperOS then turns the status bar white for a moment) and fades out onto the bot list.
+ */
+@Composable
+private fun ServiceTransitionOverlay(visible: Boolean, name: String, text: String) {
+    AnimatedVisibility(visible, enter = EnterTransition.None, exit = fadeOut(tween(220))) { ServiceTransition(name, text) }
+}
+
+/**
+ * Shown while a service opens, instead of the website's own connecting screen and a bare bar with the address: the page
+ * colour, the robot tile, the service name and a quiet spinner. It takes the taps meant for the page under it.
+ */
+@Composable
+private fun ServiceTransition(name: String, text: String) {
+    val c = MikaTheme.colors
+    Column(Modifier.fillMaxSize().background(c.bg).pointerInput(Unit) { detectTapGestures { } },
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        BotUiAvatar(BotUiProfile(color = 1, palette = 2), Modifier.size(56.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(name, Modifier.padding(horizontal = 32.dp), color = c.ink, fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(6.dp))
+        Text(text, Modifier.padding(horizontal = 32.dp), color = c.ink2, fontSize = 14.sp, lineHeight = 20.sp)
+        Spacer(Modifier.height(20.dp))
+        CircularProgressIndicator(Modifier.size(20.dp), color = c.ink3, strokeWidth = 2.dp, trackColor = Color.Transparent)
     }
 }
