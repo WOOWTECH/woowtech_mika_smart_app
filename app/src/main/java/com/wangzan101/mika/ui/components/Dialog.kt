@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LocalContentColor
@@ -48,7 +49,8 @@ fun MikaDialog(
     val direct = com.wangzan101.mika.BuildConfig.WOOWTECHBOT_ENABLED
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        modifier = modifier,
+        // WOOWTECH fork: at most 420 dp wide on a tablet, as on the iPad (iOS parity k8); phones are narrower anyway.
+        modifier = modifier.widthIn(max = Adaptive.DialogMax),
         title = title?.let { content ->
             {
                 CompositionLocalProvider(

@@ -51,11 +51,13 @@ fun SubPage(
     PageBackground {
         Column(Modifier.fillMaxSize()) {
             TopBar(title, MikaIcons.Back, onBack, stringResource(R.string.back), right = right)
-            Column(
-                modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-                content = content,
-            )
+            // WOOWTECH fork: content at most 720 dp wide and centred on a wide window (see Adaptive); full-width scroll.
+            Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
+                Column(
+                    Modifier.contentColumn().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                    content = content,
+                )
+            }
         }
     }
 }

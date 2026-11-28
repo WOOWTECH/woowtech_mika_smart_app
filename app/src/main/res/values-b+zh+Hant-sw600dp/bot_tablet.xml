@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WOOWTECH fork: 平板（最小寬度 600 dp 以上）上說「這台裝置」，不說「這支手機」（owner 2026-11-28）。 -->
+<resources>
+    <string name="bot_ui_local">這台裝置</string>
+    <string name="bot_workspace_device">這台裝置</string>
+    <string name="bot_services_disconnected">已在這台裝置中斷連線</string>
+    <string name="bot_services_download_no_app">這台裝置沒有可以開啟這種檔案的 App，檔案已在「下載」資料夾。</string>
+    <string name="bot_services_logged_out">已在這台裝置登出。</string>
+    <string name="selfcheck_row_sub">看看這台裝置上哪些能用，方便回報</string>
+    <string name="relay_device_access_sub">預設關閉。還需開啟本頁的「允許遠端喚醒螢幕與解鎖」；兩項都開啟時，持有存取權杖的人可以經網際網路喚醒並解鎖這台裝置。</string>
+</resources>

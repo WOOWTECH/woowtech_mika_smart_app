@@ -88,6 +88,12 @@ import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.WoowSheetDarkColors
 import com.wangzan101.mika.ui.theme.WoowSheetLightColors
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.platform.LocalConfiguration
+import com.wangzan101.mika.ui.components.Adaptive
+import com.wangzan101.mika.ui.components.windowWidth
 
 private val SheetEasing = CubicBezierEasing(.22f, 1f, .36f, 1f)
 
@@ -119,7 +125,11 @@ internal fun BotUiSheet(
     BackHandler(onBack = dismiss)
     val reduce = MikaTheme.reduceMotion
     val rise = with(LocalDensity.current) { 32.dp.roundToPx() }
-    val shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    // WOOWTECH fork: on a tablet-wide window the sheet is a centred window 580 dp wide, like an iPad form sheet
+    // (owner 2026-11-28); it keeps its header and close button, without the grabber or the drag-down gesture.
+    val wide = Adaptive.sheetWindow(windowWidth())
+    val windowHeight = LocalConfiguration.current.screenHeightDp.dp
+    val shape = if (wide) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     CompositionLocalProvider(LocalMikaColors provides colors) {
         Box(Modifier.fillMaxSize()) {
             AnimatedVisibility(
@@ -133,21 +143,23 @@ internal fun BotUiSheet(
             }
             AnimatedVisibility(
                 visibleState = visible,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier.align(if (wide) Alignment.Center else Alignment.BottomCenter),
                 enter = if (reduce) EnterTransition.None else fadeIn(tween(260, easing = SheetEasing)) +
                     slideInVertically(tween(260, easing = SheetEasing)) { rise },
                 exit = if (reduce) ExitTransition.None else fadeOut(tween(200, easing = SheetEasing)) +
                     slideOutVertically(tween(200, easing = SheetEasing)) { rise },
             ) {
                 Column(
-                    Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(top = 12.dp)
+                    (if (wide) Modifier.width(Adaptive.SheetWindow).heightIn(max = windowHeight * .86f)
+                    else Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(top = 12.dp))
                         .clip(shape).background(colors.bg).border(1.dp, colors.ink.copy(alpha = .12f), shape)
                         // Taps on the panel must not reach the scrim behind it.
                         .pointerInput(Unit) { detectTapGestures { } },
                 ) {
                     var drag by remember { mutableFloatStateOf(0f) }
                     Column(
-                        Modifier.fillMaxWidth().pointerInput(Unit) {
+                        Modifier.fillMaxWidth().pointerInput(wide) {
+                            if (wide) return@pointerInput
                             detectVerticalDragGestures(onDragEnd = { drag = 0f }, onDragCancel = { drag = 0f }) { _, dy ->
                                 drag += dy
                                 if (drag > 140f) { drag = 0f; dismiss() }
@@ -155,7 +167,8 @@ internal fun BotUiSheet(
                         },
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Box(Modifier.padding(top = 8.dp).size(width = 32.dp, height = 4.dp).clip(RoundedCornerShape(2.dp))
+                        if (wide) Spacer(Modifier.height(8.dp))
+                        else Box(Modifier.padding(top = 8.dp).size(width = 32.dp, height = 4.dp).clip(RoundedCornerShape(2.dp))
                             .background(colors.ink.copy(alpha = .15f)))
                         Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(44.dp))
@@ -167,8 +180,9 @@ internal fun BotUiSheet(
                         }
                     }
                     Column(
-                        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp).navigationBarsPadding().imePadding(),
+                        Modifier.weight(1f, fill = !wide).fillMaxWidth().verticalScroll(rememberScrollState())
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp)
+                            .then(if (wide) Modifier else Modifier.navigationBarsPadding()).imePadding(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         content = content,
                     )
@@ -321,10 +335,10 @@ internal fun BotUiSearchPill(
     ) {
         Icon(MikaIcons.Search, null, Modifier.size(20.dp), tint = c.ink2)
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (query.isEmpty()) Text(placeholder, color = c.ink2, fontSize = 16.sp, lineHeight = 22.sp, maxLines = 1)
+            if (query.isEmpty()) Text(placeholder, color = c.ink2, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 1)
             BasicTextField(query, onQueryChange,
                 Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
-                singleLine = true, textStyle = TextStyle(color = c.ink, fontSize = 16.sp, lineHeight = 22.sp), cursorBrush = SolidColor(c.accent))
+                singleLine = true, textStyle = TextStyle(color = c.ink, fontSize = 15.sp, lineHeight = 22.sp), cursorBrush = SolidColor(c.accent))
         }
         if (query.isNotEmpty()) Box(Modifier.size(28.dp).clip(CircleShape).clickable { onQueryChange("") }, contentAlignment = Alignment.Center) {
             Icon(MikaIcons.Close, stringResource(R.string.bot_ui_close), Modifier.size(16.dp), tint = c.ink2)

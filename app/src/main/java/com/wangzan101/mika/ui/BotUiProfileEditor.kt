@@ -125,7 +125,10 @@ internal fun BotUiChatHeader(vm: ChatViewModel, ui: ChatUi, subtitle: String?, o
     val c = MikaTheme.colors
     Column(Modifier.fillMaxWidth().background(c.bg).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            BotUiRoundButton(MikaIcons.Back, stringResource(R.string.bot_ui_history), onClick = onHistory)
+            // WOOWTECH fork: while the inbox is docked beside the chat (wide window) its button would reopen what is already
+            // shown; an empty 48 dp space keeps the name capsule centred.
+            if (LocalBotUiInboxDocked.current) Spacer(Modifier.size(48.dp))
+            else BotUiRoundButton(MikaIcons.Back, stringResource(R.string.bot_ui_history), onClick = onHistory)
             // `.conversation-title`: a 40 dp pill on the control colour that hugs its content and sits in the middle,
             // 24 dp identity tile, 14 sp / 600 name.
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {

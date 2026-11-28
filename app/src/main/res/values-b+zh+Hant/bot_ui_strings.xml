@@ -2,7 +2,9 @@
 <resources>
     <string name="bot_ui_avatar">對話圖示</string>
     <string name="bot_ui_close">關閉</string>
-    <string name="bot_ui_history">歷史對話</string>
+    <string name="bot_ui_history">收件匣</string>
+    <string name="bot_ui_local_assistant">本機助理</string>
+    <string name="bot_ui_new_chat_hint">和%1$s開始新的對話</string>
     <string name="bot_ui_more">對話選單</string>
     <string name="bot_ui_profile">名稱與圖示</string>
     <string name="bot_ui_find">對話中尋找</string>
@@ -18,7 +20,7 @@
     <string name="bot_ui_save_error">無法讀取圖片或儲存變更。原有設定仍保留，請重試。</string>
     <string name="bot_ui_matches">%1$d 個符合結果</string>
     <string name="bot_ui_no_files">這段對話尚無匯出檔案。</string>
-    <string name="bot_ui_search_history">搜尋對話</string>
+    <string name="bot_ui_search_history">搜尋</string>
     <string name="bot_ui_services">切換助理／服務</string>
     <string name="bot_ui_notifications">通知</string>
     <string name="bot_ui_shortcuts">快捷功能</string>

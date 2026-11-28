@@ -153,6 +153,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalTime
+import com.wangzan101.mika.ui.components.Adaptive
+import com.wangzan101.mika.ui.components.windowWidth
 
 /**
  * 对话页:顶栏(左边打开侧栏、中间对话标题和此刻在做什么、右边新对话),对话在顶栏和玻璃输入栏之间滚动。
@@ -294,6 +296,10 @@ fun ChatScreen(
     }
     val menuHost = remember(selecting) { MessageMenuHost(selecting) { menu = it } }
     val menuOpen = menu != null
+    // WOOWTECH fork: on a wide window the conversation is a centred column at most 720 dp wide (iOS parity); the list
+    // itself stays full width so the margins scroll. A docked inbox takes its own width first.
+    val chatWidth = if (LocalBotUiInboxDocked.current) windowWidth() - Adaptive.DockWidth - 1.dp else windowWidth()
+    val side = Adaptive.side(chatWidth, 16.dp)
     PageBackground {
         CompositionLocalProvider(LocalMessageMenu provides menuHost) {
             LazyColumn(
@@ -301,7 +307,7 @@ fun ChatScreen(
                 state = listState,
                 contentPadding = with(density) {
                     PaddingValues(
-                        start = 16.dp, end = 16.dp, top = topHeight.toDp() + 4.dp, bottom = composerHeight.toDp() + 12.dp,
+                        start = side, end = side, top = topHeight.toDp() + 4.dp, bottom = composerHeight.toDp() + 12.dp,
                     )
                 },
             ) {
@@ -1277,8 +1283,10 @@ internal fun Composer(
             .background(fade)
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
             .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 6.dp),
+        // WOOWTECH fork: the composer lines up with the 720 dp conversation column on a wide window.
+        contentAlignment = Alignment.TopCenter,
     ) {
-        Column(Modifier.fillMaxWidth()) {
+        Column(Modifier.widthIn(max = Adaptive.ContentMax).fillMaxWidth()) {
             quote?.let { QuoteChip(it, onRemoveQuote, Modifier.padding(bottom = 6.dp)) }
             if (attachments.isNotEmpty()) PendingTray(attachments, onRemove, Modifier.padding(bottom = 2.dp))
             if (importing || rejected.isNotEmpty() || overLimit > 0) {
