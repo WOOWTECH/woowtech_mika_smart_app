@@ -20,7 +20,7 @@ import java.io.File
 import java.util.Properties
 
 /** Brand releases made on the current upstream version: versionName gets `-woow.<N>`, versionCode `×100 + N`. */
-val woowtechRevision = 29
+val woowtechRevision = 30
 require(woowtechRevision in 1..99) { "woowtechRevision must be 1..99 to preserve versionCode ordering" }
 
 val brandProps = Properties().apply {
