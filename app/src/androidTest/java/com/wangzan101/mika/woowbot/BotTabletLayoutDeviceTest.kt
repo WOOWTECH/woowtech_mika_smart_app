@@ -3,6 +3,7 @@ package com.wangzan101.mika.woowbot
 import android.app.UiAutomation
 import android.graphics.Bitmap
 import android.os.SystemClock
+import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -14,7 +15,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.wangzan101.mika.BuildConfig
@@ -109,9 +109,9 @@ class BotTabletLayoutDeviceTest {
         compose.onNodeWithText(context.getString(R.string.bot_services_add)).performClick()
         settle()
         shot("3-landscape-add-service-dialog")
-        Espresso.pressBackUnconditionally()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         settle()
-        Espresso.pressBackUnconditionally()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         settle()
 
         // Portrait: no longer docked; coming from docked the chat shows, not the inbox.
