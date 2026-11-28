@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
+import androidx.webkit.WebViewFeature
 import androidx.webkit.ProfileStore
 import androidx.webkit.WebViewCompat
 import com.wangzan101.mika.BuildConfig
@@ -67,7 +68,11 @@ class BotServiceActivity : ComponentActivity() {
     private var activeService: BotService? = null
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var fileOwner: String? = null
-    private var pendingDownload: Download? = null
+    /** The download shown above the page: running, saved or failed (owner 2026-11-28: every file type downloads). */
+    private var download by mutableStateOf<DownloadState?>(null)
+    private var downloadJob: Job? = null
+    /** A download from another site waits for the user's yes. */
+    private var foreignDownload by mutableStateOf<ForeignDownload?>(null)
     private var sessionHints: Job? = null
     private var status by mutableStateOf<Int?>(null)
     private var loading by mutableStateOf(false)
@@ -98,7 +103,9 @@ class BotServiceActivity : ComponentActivity() {
     private var managing by mutableStateOf(false)
     private var selectedService by mutableStateOf<String?>(null)
     private val parked = LinkedHashMap<String, WebView>()
-    private data class Download(val service: BotService, val url: String, val cookie: String?)
+    private class DownloadState(val name: String, val written: Long = 0, val total: Long? = null, val saved: Uri? = null,
+                                val type: String? = null, val error: Int? = null, val errorArg: String? = null)
+    private class ForeignDownload(val service: BotService, val url: String, val disposition: String?, val type: String?, val name: String, val host: String)
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val callback = fileCallback
@@ -110,21 +117,6 @@ class BotServiceActivity : ComponentActivity() {
         callback?.onReceiveValue(uris)
         fileOwner = null
     }
-    private val saveDocument = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        val download = pendingDownload
-        pendingDownload = null
-        if (uri != null && download != null && current(download.service)) scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    requireNotNull(contentResolver.openOutputStream(uri, "wt")).use {
-                        BotWebTransfers.download(download.service, download.url, download.cookie, it)
-                    }
-                }.isSuccess
-            }
-            status = if (ok) R.string.bot_services_download_done else R.string.bot_services_download_failed
-        }
-    }
-
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -228,6 +220,7 @@ class BotServiceActivity : ComponentActivity() {
                         TextButton(onClick = { status = null; retry() }) { Text(stringResource(R.string.bot_services_retry)) }
                     }
                 }
+                download?.let { DownloadRow(it) }
                 if (!isolated) Text(stringResource(R.string.bot_services_unsupported), Modifier.padding(16.dp))
                 else if (!service.enabled) {
                     Text(stringResource(R.string.bot_services_disconnected), Modifier.padding(16.dp))
@@ -341,6 +334,15 @@ class BotServiceActivity : ComponentActivity() {
             }) { Text(stringResource(R.string.bot_services_connect)) } },
             dismissButton = { TextButton(onClick = { pairing = null }) { Text(stringResource(R.string.bot_services_cancel)) } },
         ) }
+        foreignDownload?.let { pending -> MikaDialog(onDismissRequest = { foreignDownload = null },
+            title = { Text(stringResource(R.string.bot_services_download_foreign)) },
+            text = { Text(pending.name + "\n" + pending.host) },
+            confirmButton = { TextButton(onClick = {
+                foreignDownload = null
+                if (current(pending.service)) startHttpDownload(pending.service, pending.url, pending.disposition, pending.type, foreign = true)
+            }) { Text(stringResource(R.string.bot_services_download_confirm)) } },
+            dismissButton = { TextButton(onClick = { foreignDownload = null }) { Text(stringResource(R.string.bot_services_cancel)) } },
+        ) }
         externalUrl?.let { url -> MikaDialog(onDismissRequest = { externalUrl = null },
             title = { Text(stringResource(R.string.bot_services_external)) },
             text = { Text(runCatching { java.net.URI(url).host }.getOrNull().orEmpty()) },
@@ -375,6 +377,155 @@ class BotServiceActivity : ComponentActivity() {
         val page = pageStarts
         view.evaluateJavascript(BotWorkspaceAppearance.script(this, darkAppearance)) { result ->
             if (webView === view && pageStarts == page) integrated = result == "true"
+        }
+        view.evaluateJavascript(BotWorkspaceDownloads.script(this), null)
+    }
+
+    /**
+     * A download the page started: the service's own file, an object URL its page made, a data: URL, or (after the user
+     * agrees) another site's https file. Only shortly after the user touched the page, as on iOS.
+     */
+    private fun onDownload(view: WebView, service: BotService, url: String, disposition: String?, type: String?) {
+        if (System.currentTimeMillis() - touchedAt > BotDownloadLimits.GESTURE_MS) {
+            download = DownloadState("", error = R.string.bot_services_download_not_tapped); return
+        }
+        if (downloadJob?.isActive == true) {
+            download = DownloadState("", error = R.string.bot_services_download_busy); return
+        }
+        when {
+            url.startsWith("blob:") ->
+                if (blobOfService(url, service)) startBlobDownload(view, service, url, disposition, type)
+                else download = DownloadState("", error = R.string.bot_services_download_unsupported)
+            url.regionMatches(0, "data:", 0, 5, ignoreCase = true) -> startDataDownload(view, service, url, disposition)
+            url.length <= BotOrigin.MAX_URL && service.policy.allows(url) -> startHttpDownload(service, url, disposition, type, foreign = false, view)
+            url.length <= BotOrigin.MAX_URL && url.startsWith("https://") -> {
+                val name = names(null, disposition, url, type).first
+                foreignDownload = ForeignDownload(service, url, disposition, type, name, runCatching { java.net.URI(url).host }.getOrNull().orEmpty())
+            }
+            else -> download = DownloadState("", error = R.string.bot_services_download_unsupported)
+        }
+    }
+
+    private fun names(explicit: String?, disposition: String?, url: String?, type: String?) =
+        BotDownloadNames.resolve(explicit, disposition, url, type, { BotDownloadStore.systemType(it) }, { BotDownloadStore.systemExtension(it) })
+
+    private fun startHttpDownload(service: BotService, url: String, disposition: String?, type: String?, foreign: Boolean, view: WebView? = null) {
+        val cookie = if (foreign) null else runCatching { webView?.let { WebViewCompat.getProfile(it).cookieManager.getCookie(url) } }.getOrNull()
+        val first = names(null, disposition, url, type).first
+        val page = pageStarts
+        runDownload(first) { store, report ->
+            // The page's own <a download="name"> wins, as in a browser.
+            val anchor = view?.let { BotBlobReader(it, BotWorkspaceDownloads.script(this@BotServiceActivity)) { webView === it && pageStarts == page }.anchorName(url) }
+            var saved: Pair<Uri, Pair<String, String>>? = null
+            try {
+                withContext(Dispatchers.IO) {
+                    BotWebTransfers.download(service, url, cookie, foreign, open = { head ->
+                        val (name, kind) = names(anchor, head.disposition ?: disposition, head.url, head.type ?: type)
+                        val uri = store.create(name, kind)
+                        saved = uri to (name to kind)
+                        store.output(uri)
+                    }, progress = { written, total -> report(written, total) }, active = { isActive })
+                }
+                saved ?: throw BotDownloadException(R.string.bot_services_download_failed)
+            } catch (error: Throwable) {
+                saved?.let { store.discard(it.first) }
+                throw error
+            }
+        }
+    }
+
+    private fun startBlobDownload(view: WebView, service: BotService, url: String, disposition: String?, type: String?) {
+        val page = pageStarts
+        val reader = BotBlobReader(view, BotWorkspaceDownloads.script(this)) { webView === view && pageStarts == page && current(service) }
+        runDownload(names(null, disposition, null, type).first) { store, report ->
+            try {
+                val info = reader.open(url)
+                val (name, kind) = names(info.name.ifBlank { null }, disposition, null, info.type.ifBlank { null } ?: type)
+                val uri = store.create(name, kind)
+                try {
+                    withContext(Dispatchers.IO) { store.output(uri) }.use { out -> reader.copy(info, out) { report(it, info.size) } }
+                } catch (error: Throwable) { store.discard(uri); throw error }
+                uri to (name to kind)
+            } finally { reader.close() }
+        }
+    }
+
+    private fun startDataDownload(view: WebView, service: BotService, url: String, disposition: String?) {
+        val page = pageStarts
+        runDownload(names(null, disposition, null, null).first) { store, report ->
+            val anchor = BotBlobReader(view, BotWorkspaceDownloads.script(this@BotServiceActivity)) { webView === view && pageStarts == page && current(service) }
+                .anchorName(url)
+            val decoded = withContext(Dispatchers.Default) { BotDataUrl.decode(url) }
+            val (name, kind) = names(anchor, disposition, null, decoded.type)
+            val uri = store.create(name, kind)
+            try {
+                withContext(Dispatchers.IO) { store.output(uri).use { it.write(decoded.bytes) } }
+                report(decoded.bytes.size.toLong(), decoded.bytes.size.toLong())
+            } catch (error: Throwable) { store.discard(uri); throw error }
+            uri to (name to kind)
+        }
+    }
+
+    /** One download at a time; [work] returns the saved item, its name and type. */
+    private fun runDownload(name: String, work: suspend kotlinx.coroutines.CoroutineScope.(BotDownloadStore, (Long, Long?) -> Unit) -> Pair<Uri, Pair<String, String>>) {
+        val store = BotDownloadStore(this)
+        download = DownloadState(name)
+        downloadJob = scope.launch {
+            var lastShown = 0L
+            try {
+                val (uri, named) = work(store) { written, total ->
+                    val now = System.currentTimeMillis()
+                    if (now - lastShown > 150 || written == total) {
+                        lastShown = now
+                        launch(Dispatchers.Main) { download = DownloadState(download?.name ?: name, written, total) }
+                    }
+                }
+                val stored = withContext(Dispatchers.IO) { store.finish(uri, named.first) }
+                download = DownloadState(stored, saved = uri, type = named.second)
+            } catch (cancel: CancellationException) {
+                download = null
+                throw cancel
+            } catch (error: BotDownloadException) {
+                download = DownloadState(name, error = error.reason, errorArg = error.arg)
+            } catch (_: Exception) {
+                download = DownloadState(name, error = R.string.bot_services_download_failed)
+            }
+        }
+    }
+
+    private fun openDownload(state: DownloadState) {
+        val uri = state.saved ?: return
+        runCatching { startActivity(BotDownloadStore(this).openIntent(uri, state.type ?: "application/octet-stream")) }
+            .onFailure { download = DownloadState(state.name, error = R.string.bot_services_download_no_app) }
+    }
+
+    @Composable
+    private fun DownloadRow(state: DownloadState) {
+        val running = state.saved == null && state.error == null
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val text = when {
+                    state.error != null -> if (state.errorArg != null) stringResource(state.error, state.errorArg) else stringResource(state.error)
+                    state.saved != null -> stringResource(R.string.bot_services_download_saved, state.name)
+                    state.total != null && state.total > 0 -> stringResource(R.string.bot_services_download_running, state.name) +
+                        " " + (state.written * 100 / state.total).coerceIn(0, 100) + "%"
+                    else -> stringResource(R.string.bot_services_download_running, state.name)
+                }
+                Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                when {
+                    running -> TextButton(onClick = { downloadJob?.cancel() }) { Text(stringResource(R.string.bot_services_cancel)) }
+                    state.saved != null -> {
+                        TextButton(onClick = { openDownload(state) }) { Text(stringResource(R.string.bot_services_download_open)) }
+                        TextButton(onClick = { download = null }) { Text(stringResource(R.string.bot_ui_close)) }
+                    }
+                    else -> TextButton(onClick = { download = null }) { Text(stringResource(R.string.bot_services_download_dismiss)) }
+                }
+            }
+            if (running) {
+                val total = state.total
+                if (total != null && total > 0) LinearProgressIndicator(progress = { (state.written.toFloat() / total).coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
+                else LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
         }
     }
 
@@ -432,6 +583,9 @@ class BotServiceActivity : ComponentActivity() {
                 displayZoomControls = false
             }
             WebViewCompat.getProfile(view).cookieManager.setAcceptThirdPartyCookies(view, false)
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) runCatching {
+                WebViewCompat.addDocumentStartJavaScript(view, BotWorkspaceDownloads.script(this), setOf(service.origin))
+            }
             view.webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
@@ -524,14 +678,8 @@ class BotServiceActivity : ComponentActivity() {
                 }
             }
             view.setDownloadListener { url, _, disposition, mime, _ ->
-                if (!current(service) || !service.policy.allows(url) || url.length > BotOrigin.MAX_URL) {
-                    status = R.string.bot_services_download_unsupported
-                } else if (pendingDownload == null) {
-                    pendingDownload = Download(service, url, WebViewCompat.getProfile(view).cookieManager.getCookie(url))
-                    val filename = URLUtil.guessFileName(url, disposition, mime).substringAfterLast('/').substringAfterLast('\\')
-                        .filterNot { it.isISOControl() }.take(120).ifBlank { "download" }
-                    runCatching { saveDocument.launch(filename) }.onFailure { pendingDownload = null; status = R.string.bot_services_download_failed }
-                }
+                if (webView !== view || !current(service)) return@setDownloadListener
+                onDownload(view, service, url, disposition, mime)
             }
             val url = runCatching { BotWebTarget.url(service, intent.getStringExtra(EXTRA_BOT), intent.getStringExtra(EXTRA_THREAD)) }
                 .getOrElse { status = R.string.bot_services_navigation_blocked; BotWebTarget.url(service) }
@@ -558,7 +706,7 @@ class BotServiceActivity : ComponentActivity() {
             if (remove) registry.remove(service.id) else registry.logout(service.id)
             BotWebSessions.clear(service.profileName)
             destroyWebView()
-            pendingDownload = null
+            downloadJob?.cancel(); download = null; foreignDownload = null
             runCatching { profile.cookieManager.removeAllCookies { profile.cookieManager.flush() } }
             runCatching { profile.webStorage.deleteAllData() }
             cleanupScope.launch {
