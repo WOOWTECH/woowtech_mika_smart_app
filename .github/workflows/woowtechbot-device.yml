@@ -1,0 +1,99 @@
+# WOOWTECH fork: woowtechbot device tests on a GitHub-hosted emulator (owner 2026-11-28: test on an emulator or on GitHub
+# while no phone is at hand). Real app and WebView on AOSP x86_64 images; servers are stood in for inside the tests.
+name: woowtechbot device tests
+
+on:
+  pull_request:
+    paths:
+      - "app/src/main/java/com/wangzan101/mika/woowbot/**"
+      - "app/src/main/java/com/wangzan101/mika/ui/MainActivity.kt"
+      - "app/src/woowtech/**"
+      - "app/src/androidTest/java/com/wangzan101/mika/woowbot/**"
+      - "core/src/main/kotlin/com/wangzan101/mika/core/woowbot/**"
+      - "woowtech/tools/woowtechbot-device-test.py"
+      - ".github/workflows/woowtechbot-device.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: woowtechbot-device-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build app and device tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py
+      - name: Prepare verified private compiler repository
+        timeout-minutes: 6
+        env:
+          COMPILER_DOWNLOAD_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/prepare-compiler-repository.py
+      - name: Build the woowtech debug app and its device tests
+        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleWoowtechDebug :app:assembleWoowtechDebugAndroidTest -PwoowtechbotTests -Pkotlin.daemon.jvmargs=-Xmx3g --stacktrace
+      - uses: actions/upload-artifact@v7
+        with:
+          name: woowtechbot-device-apks-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/woowtech/debug/*.apk
+            app/build/outputs/apk/androidTest/woowtech/debug/*.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  device:
+    name: device tests
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [35, 36]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools"
+      - uses: actions/download-artifact@v8
+        with:
+          name: woowtechbot-device-apks-${{ github.sha }}
+          path: device-apks
+      # GitHub's documented KVM permissions for disposable hosted Linux runners.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=10
+          for attempt in {1..10}; do
+            if test -r /dev/kvm && test -w /dev/kvm; then break; fi
+            sleep 1
+          done
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: woowtechbot device tests
+        run: python3 woowtech/tools/woowtechbot-device-test.py --api ${{ matrix.api }} --apks device-apks --out device-evidence
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: woowtechbot-device-api${{ matrix.api }}-${{ github.sha }}
+          path: device-evidence/
+          retention-days: 7
+          if-no-files-found: ignore

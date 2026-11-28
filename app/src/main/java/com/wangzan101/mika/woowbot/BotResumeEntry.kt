@@ -8,16 +8,16 @@ import com.wangzan101.mika.BuildConfig
 /**
  * Owner 2026-11-28: leaving the app while a bot page is open and opening it again returns to that bot page, not to the
  * local history. MainActivity is singleTask, so the launcher intent clears the service screen above it; this reopens it.
- * Only the service ID is kept, and only while the user is away from that screen.
+ * Only the service ID is kept, from the first time the screen goes out of sight until the user closes it.
  */
 object BotResumeEntry {
     private const val PREFS = "bot_resume"
     private const val KEY = "serviceId"
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** The service screen went to the background without the user closing it. */
+    /** The service screen went out of sight without the user closing it; it stays recorded while it is open. */
     fun left(context: Context, serviceId: String) { prefs(context).edit().putString(KEY, serviceId).apply() }
-    /** The service screen is in front again, or the user closed it. */
+    /** The user closed the service screen. */
     fun returned(context: Context) { prefs(context).edit().remove(KEY).apply() }
 
     /** Call for the launch intent and onNewIntent of the launcher activity. */

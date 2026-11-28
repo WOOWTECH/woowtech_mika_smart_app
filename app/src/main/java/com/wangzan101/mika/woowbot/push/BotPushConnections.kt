@@ -11,14 +11,15 @@ import kotlinx.coroutines.withTimeout
 import java.util.concurrent.ConcurrentHashMap
 
 /** Only cookies in process memory; durable ledger remains identity-only. All profile reads run on main. */
-internal class BotPushConnections(private val registry: BotServiceRegistry, private val pending: () -> Set<BotPushBinding>) {
+internal class BotPushConnections(private val registry: BotServiceRegistry, private val pending: () -> Set<BotPushBinding>,
+    transport: BotPushHttpTransport = BotPushOkHttpTransport()) {
     val discovery = kotlinx.coroutines.flow.MutableStateFlow<Map<String, BotPushDiscovery>>(emptyMap())
     private fun report(id: String, state: BotPushDiscovery) { discovery.value = discovery.value + (id to state) }
     private val sessions = ConcurrentHashMap<BotPushBinding, BotPushSession>()
     private val retiringCredentials = ConcurrentHashMap<String, BotPushCredentials>()
     @Volatile private var eligible: Set<BotPushBinding> = emptySet()
     @Volatile private var epoch = -1L
-    val api = BotPushHttpApi(BotPushOkHttpTransport(), { sessions[it] }, ::current) {
+    val api = BotPushHttpApi(transport, { sessions[it] }, ::current) {
         epoch == BotPushRuntime.epoch.get()
     }
     fun bindings(): Set<BotPushBinding> = eligible.filterTo(mutableSetOf()) { binding ->

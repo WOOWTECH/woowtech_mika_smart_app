@@ -118,7 +118,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         conversationRequests.restore(intent, savedInstanceState)
         com.wangzan101.mika.woowbot.push.BotPushTapEntry.handle(this, intent)
-        com.wangzan101.mika.woowbot.BotResumeEntry.handle(this, intent)
+        // A recreated history keeps its old launch intent; a launch after that arrives through onNewIntent.
+        if (savedInstanceState == null) com.wangzan101.mika.woowbot.BotResumeEntry.handle(this, intent)
         monitor = SystemStatusMonitor(this, PhoneServices.of(this).shellControl)
         val store = ProviderStore.get(this)
         setContent {
