@@ -93,8 +93,10 @@ class BrandValuesTest {
     fun woowtechBrandFileIsComplete() {
         val props = brandFile()
         val b = BrandValues(props)
-        listOf("name", "name.zh", "token", "persona", "repo", "repo.label", "releases.api", "search.url", "download.folder", "ui.languages")
+        listOf("name", "name.zh", "token", "persona", "repo", "repo.label", "releases.api", "search.url", "download.folder", "ui.languages", "ui.chinese")
             .forEach { assertTrue("brand.properties misses $it", !props.getProperty(it).isNullOrBlank()) }
+        // 简体中文、粤语的手机显示的是繁体中文界面(和 iOS 一样)
+        assertTrue(b.chineseUi.orEmpty(), b.chineseUi.orEmpty().startsWith("zh-Hant") && "zh-Hant" in b.uiLanguages)
         assertFalse(b.token.contains(' '))
         assertTrue(b.latestReleaseApi, b.latestReleaseApi.startsWith("https://api.github.com/repos/") && "wangzan101" !in b.latestReleaseApi)
         assertTrue(b.repo, b.repo.startsWith("https://github.com/") && "wangzan101" !in b.repo)

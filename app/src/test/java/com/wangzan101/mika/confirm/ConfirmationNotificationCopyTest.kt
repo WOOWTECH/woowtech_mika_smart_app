@@ -101,12 +101,12 @@ class ConfirmationNotificationCopyTest {
         assertEquals("在 整部手机(root) · 内容:rm -rf /sdcard/Download/x", ConfirmationCopy.notificationBody(r, "root"))
     }
 
-    /** 繁中、英文读起来自然:繁中就是「要你同意:下單 NT$590」。 */
+    /** 繁中、英文读起来自然:繁中就是「要你同意：下單 NT$590」(全形标点,和 iOS 一样)。 */
     @Test fun readsNaturallyInTraditionalChineseAndEnglish() {
         UiText.source = ResFileTexts.traditional
         val hant = req("NT\$590", content = "耳機", target = "渥屋測試商店")
-        assertEquals("要你同意:下單 NT\$590", ConfirmationCopy.notificationTitle(hant))
-        assertEquals("金額:NT\$590 · 在 商店 · 目標:渥屋測試商店 · 內容:耳機", ConfirmationCopy.notificationBody(hant, "商店"))
+        assertEquals("要你同意：下單 NT\$590", ConfirmationCopy.notificationTitle(hant))
+        assertEquals("金額：NT\$590 · 在 商店 · 目標：渥屋測試商店 · 內容：耳機", ConfirmationCopy.notificationBody(hant, "商店"))
         UiText.source = ResFileTexts.english
         val en = req("NT\$590", content = "Headphones", target = "Test Shop")
         assertEquals("Needs your OK: Place order NT\$590", ConfirmationCopy.notificationTitle(en))

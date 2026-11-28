@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="welcome_title">你好,我是 Mika</string>
+    <string name="welcome_title">你好，我是 Mika</string>
     <string name="welcome_lead">在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。</string>
     <string name="welcome_note">先設定自己的模型帳號或 API Key，即可開始使用。</string>
     <string name="welcome_start">開始設定</string>
@@ -11,13 +11,13 @@
     <string name="welcome_memory">記憶</string>
     <string name="welcome_memory_body">保留往後對話需要的資訊</string>
     <string name="welcome_apps">操作 App</string>
-    <string name="welcome_apps_body">在背景的一塊螢幕上點、輸入、翻頁,不佔用你的螢幕</string>
+    <string name="welcome_apps_body">在背景的一塊螢幕上點、輸入、翻頁，不佔用你的螢幕</string>
     <string name="welcome_web">上網查</string>
-    <string name="welcome_web_body">內建瀏覽器,讀網頁、比價、查資料</string>
+    <string name="welcome_web_body">內建瀏覽器，讀網頁、比價、查資料</string>
     <string name="welcome_files">處理檔案</string>
-    <string name="welcome_files_body">表格、PDF、資料,在獨立的環境裡算和整理</string>
+    <string name="welcome_files_body">表格、PDF、資料，在獨立的環境裡算和整理</string>
     <string name="welcome_schedule">按時去做</string>
-    <string name="welcome_schedule_body">每天、每週,或者條件滿足時自動去做</string>
+    <string name="welcome_schedule_body">每天、每週，或者條件滿足時自動去做</string>
     <string name="back">返回</string>
     <string name="hide">隱藏</string>
     <string name="show">顯示</string>
