@@ -163,8 +163,8 @@ data class AddForm(
     val presetKindMismatch: Boolean
         get() = suggestedPreset?.let { s -> ProviderPresets.forBaseUrl(baseUrl.trim()) == s && kind != s.kind } == true
 
-    /** 举模型名的例子按哪一类接口:地址对得上某个预设的按那个预设,否则按选的接口类型。 */
-    val exampleKind: ProviderConfig.Kind get() = suggestedPreset?.kind ?: kind
+    /** 举模型名的例子按哪一类接口:地址对得上某个预设的按那个预设,否则按选的接口类型(WOOWTECH fork:选的预设也算,见 [ProviderPresets.exampleKind])。 */
+    val exampleKind: ProviderConfig.Kind get() = ProviderPresets.exampleKind(suggestedPreset ?: presetFor(preset).takeUnless { isCustom }, kind)
 
     /** 自定义没起名字时用的名字:地址的主机名(地址是某家预设的就用预设名)。 */
     val defaultName: String get() = ProviderConnection.nameForUrl(baseUrl)
@@ -1049,7 +1049,7 @@ class ModelSetupViewModel(
     /** 试转没通过的原因:账号没开通、找不到模型用选主模型时同一套说法,其余照服务商回的原话。 */
     private fun speechFailure(model: String, p: Provider, e: ModelError): String = when (e) {
         is ModelError.ModelNotAvailable -> tr(R.string.model_probe_not_available, model, e.detail.ifEmpty { e.message.orEmpty() })
-        is ModelError.ModelNotFound -> tr(R.string.model_probe_not_found, model, ModelSetupCopy.modelExample(ProviderPresets.forHost(p.baseUrl)?.kind ?: p.kind))
+        is ModelError.ModelNotFound -> tr(R.string.model_probe_not_found, model, ModelSetupCopy.modelExample(ProviderPresets.exampleKind(ProviderPresets.forHost(p.baseUrl), p.kind)))
         is ModelError.Proxy -> tr(R.string.speech_pick_failed, proxyReason(e))
         // WOOWTECH fork: 原因按界面语言写,见 ModelErrorCopy
         else -> tr(R.string.speech_pick_failed, ModelErrorCopy.reason(e))

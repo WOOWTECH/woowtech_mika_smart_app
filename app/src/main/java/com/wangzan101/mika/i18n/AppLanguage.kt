@@ -16,6 +16,7 @@ import java.util.Locale
  * App 界面的语言:跟随系统,或者选定下面的一种。资源里英文是默认(`values/`),简体中文在 `values-zh/`、繁体中文在 `values-b+zh+Hant/`,
  * 阿拉伯语在 `values-ar/`,其他语言各在 `values-<语言>/`(印尼语沿用安卓的旧代码 `values-in/`)。安卓按语言和文字体系挑资源,
  * 所以「跟随系统」时系统语言有译文就显示它,没有就显示英文;某种语言缺了哪条,那条也显示英文。
+ * WOOWTECH fork: 品牌设了 ui.chinese 时,中文(简体也算)和粤语的手机显示繁体中文,和 iOS 一样(见 [followSystem])。
  *
  * 安卓 13 起由系统的「应用语言」管(LocaleManager):系统记住选择、套到整个进程、重建界面,
  * 系统设置里的「应用语言」和这里的开关是同一个值。安卓 11、12 没有这项,由这里记在本地,
@@ -102,7 +103,9 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
                 context.getSystemService(LocaleManager::class.java).applicationLocales =
                     language.tag?.let(LocaleList::forLanguageTags) ?: LocaleList.getEmptyLocaleList()
                 // WOOWTECH fork: 进程的默认语言马上跟着换:无障碍服务在跑时系统不再替进程换(见 [applyDefaultLocale])
-                LocaleList.setDefault(language.tag?.let(LocaleList::forLanguageTags) ?: Resources.getSystem().configuration.locales)
+                val chinese = if (language.tag == null) systemOverride() else null
+                LocaleList.setDefault(language.tag?.let(LocaleList::forLanguageTags) ?: chinese ?: Resources.getSystem().configuration.locales)
+                defaultFollowsChinese = chinese != null
                 // WOOWTECH fork: 已有的通知频道名也马上换成这个语言的(无障碍服务在跑时,系统不会为这次换语言通知进程;见 [ChannelNames])
                 ChannelNames.refresh(context)
                 return
@@ -127,20 +130,22 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
          * 跟随系统时不动。
          */
         fun applyDefaultLocale(context: Context) {
+            // WOOWTECH fork: 跟随系统而界面换成了繁体中文时([followSystem])也设;系统语言改掉以后换回系统的
+            val chinese = if (selected(context) == null) systemOverride() else null
             if (systemManaged) {
                 val app = context.getSystemService(LocaleManager::class.java).applicationLocales
-                if (!app.isEmpty && LocaleList.getDefault()[0] != app[0]) LocaleList.setDefault(app)
+                val want = app.takeUnless { it.isEmpty } ?: chinese ?: Resources.getSystem().configuration.locales.takeIf { defaultFollowsChinese }
+                defaultFollowsChinese = app.isEmpty && chinese != null
+                if (want != null && LocaleList.getDefault()[0] != want[0]) LocaleList.setDefault(want)
                 return
             }
-            val locales = legacyLocales(context) ?: Resources.getSystem().configuration.locales
+            val locales = legacyLocales(context) ?: chinese ?: Resources.getSystem().configuration.locales
             Locale.setDefault(locales[0])
         }
 
         /** Apply the selected locale even while Android is delivering a first-launch locale change. */
         fun wrap(base: Context): Context {
-            val locales = if (systemManaged) {
-                base.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }
-            } else legacyLocales(base)
+            val locales = selected(base) ?: systemOverride()
             if (locales == null || base.resources.configuration.locales == locales) return base
             return base.createConfigurationContext(Configuration().apply { setLocales(locales) })
         }
@@ -151,11 +156,7 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
          * 浮层里 stringResource 取的字(按住说话、屏幕分享的同意框、胶囊上的按钮)就成了系统语言。跟随系统时原样返回。
          */
         fun wrapOverlay(base: Context): Context {
-            val locales = if (systemManaged) {
-                base.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }
-            } else {
-                legacyLocales(base)
-            }
+            val locales = selected(base) ?: systemOverride()
             return locales?.let { base.createConfigurationContext(Configuration().apply { setLocales(it) }) } ?: base
         }
 
@@ -164,16 +165,60 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
          * 不直接用 Application 的资源:进程不是系统按 App 正常拉起时(如测试启动),那份资源还是系统语言。
          */
         fun resources(app: Context): Resources {
-            val tag = if (systemManaged) {
+            val tag = (if (systemManaged) {
                 app.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }?.toLanguageTags()
             } else {
                 legacy(app)
-            }
+            }) ?: systemOverride()?.toLanguageTags()
             if (tag == null) return app.resources
             cached?.takeIf { it.first == tag }?.let { return it.second }
             val r = app.createConfigurationContext(Configuration().apply { setLocales(LocaleList.forLanguageTags(tag)) }).resources
             cached = tag to r
             return r
+        }
+
+        /** 选定的 App 语言(安卓 13 起系统记的,之前本地记的);跟随系统时为 null。 */
+        private fun selected(context: Context): LocaleList? = if (systemManaged) {
+            context.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }
+        } else legacyLocales(context)
+
+        /**
+         * WOOWTECH fork(和 iOS 对齐 Q14,owner 2026-11-28):跟随系统时按哪个语言显示。系统语言依序看,第一个有界面的决定:
+         * 英文是英文;中文(简体也算:zh-Hans、zh-CN、zh-SG、只写 zh)和粤语是 [chineseUi](品牌的繁体中文);其他没有界面的语言跳过;
+         * 都没有是英文。只在要换成 [chineseUi] 时有值:英文、本来就是繁体的中文,安卓自己就挑对了,为 null;品牌没设时也是 null。
+         * 构建时已把繁体字串复制给简体和粤语(app/brand.gradle.kts),系统自己显示的字(桌面上的名字、通知频道)靠那份;
+         * 这里再把界面的语言换掉,程序库的字、读屏、字形和数字格式才跟着是繁体。只换界面,不动提示词和用户的资料。
+         */
+        internal fun followSystem(system: List<Locale>, chineseUi: String?, likelyScript: (Locale) -> String): Locale? {
+            if (chineseUi.isNullOrEmpty()) return null
+            for (l in system) {
+                when (modernCode(l.language)) {
+                    "en" -> return null
+                    "yue" -> return Locale.forLanguageTag(chineseUi)
+                    "zh" -> return if (l.script.ifEmpty { likelyScript(l) } == "Hant") null else Locale.forLanguageTag(chineseUi)
+                }
+            }
+            return null
+        }
+
+        /** [followSystem] 按 ICU 的常见写法补文字体系(zh-CN 是 Hans、zh-HK 是 Hant)。 */
+        internal fun followSystem(system: List<Locale>, chineseUi: String?): Locale? =
+            followSystem(system, chineseUi) { ULocale.addLikelySubtags(ULocale.forLocale(it)).script }
+
+        /** 进程的默认语言是 [applyDefaultLocale] 按 [followSystem] 换成的;系统语言改掉以后要换回系统的。 */
+        @Volatile
+        private var defaultFollowsChinese = false
+
+        /** [followSystem] 对现在的系统语言的结果,跟着系统语言缓存(界面以外每取一次字都要问)。 */
+        @Volatile
+        private var systemChinese: Pair<LocaleList, LocaleList?>? = null
+
+        private fun systemOverride(): LocaleList? {
+            val system = Resources.getSystem().configuration.locales
+            systemChinese?.takeIf { it.first == system }?.let { return it.second }
+            val result = followSystem((0 until system.size()).map(system::get), com.wangzan101.mika.core.brand.Brand.chineseUi)?.let { LocaleList(it) }
+            systemChinese = system to result
+            return result
         }
 
         private fun legacyLocales(context: Context): LocaleList? =

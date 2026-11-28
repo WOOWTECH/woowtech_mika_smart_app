@@ -8,6 +8,8 @@ enum class OnboardingStep { Welcome, Model, Phone }
 /**
  * 首次打开时走哪几步(纯函数,便于测试)。和手机引导一样按「看过没有」判断,不每次都弹:
  * - 欢迎和配置模型:还没有主模型、也没在上手流程里配过模型时才走。已经配过模型的(包括老用户)直接跳过。
+ *   WOOWTECH fork(和 iOS 对齐 Q18,owner 2026-11-28):存了 woowtechbot 服务的(扫码配对或手动添加,连不连得上都算)也跳过,
+ *   他们用的是服务上的机器人;服务全删了、又没有主模型,下次打开再走。
  * - 手机操作:系统够新、手机操作还没就绪、引导没看过时走。
  */
 object Onboarding {
@@ -17,10 +19,12 @@ object Onboarding {
         /** 系统够新且手机操作还没就绪。 */
         val phoneNeeded: Boolean,
         val phoneGuideSeen: Boolean,
+        /** WOOWTECH fork: 存了至少一个 woowtechbot 服务(打开 App 时看一次)。 */
+        val botServicesSaved: Boolean = false,
     )
 
     fun start(i: Inputs): OnboardingStep? = when {
-        !i.hasMainModel && !i.modelSetupDone -> OnboardingStep.Welcome
+        !i.hasMainModel && !i.modelSetupDone && !i.botServicesSaved -> OnboardingStep.Welcome
         i.phoneNeeded && !i.phoneGuideSeen -> OnboardingStep.Phone
         else -> null
     }

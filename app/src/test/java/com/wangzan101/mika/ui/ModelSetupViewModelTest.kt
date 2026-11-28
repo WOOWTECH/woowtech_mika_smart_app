@@ -726,6 +726,10 @@ class ModelSetupViewModelTest {
             ModelSetupCopy.presetSuggestion(f),
         )
         assertEquals(ProviderConfig.Kind.Gemini, f.exampleKind)
+        // WOOWTECH fork: xAI 的 Key 走兼容接口,手填模型名的例子仍是 Grok 的(选 xAI 预设、或自定义填了它的地址都一样)
+        vm.setBaseUrl("https://api.x.ai/v1")
+        assertEquals(ProviderConfig.Kind.Xai, vm.state.value.form.exampleKind)
+        vm.setBaseUrl("https://generativelanguage.googleapis.com")
         // 同一主机的别的路径(如它的兼容接口):照样建议,但不说接口类型不对
         vm.setBaseUrl("https://generativelanguage.googleapis.com/v1beta/openai")
         assertEquals("Gemini", vm.state.value.form.suggestedPreset?.label)

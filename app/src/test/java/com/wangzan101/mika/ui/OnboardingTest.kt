@@ -32,6 +32,14 @@ class OnboardingTest {
         assertNull(Onboarding.next(OnboardingStep.Model, inputs(phoneSeen = true)))
     }
 
+    /** WOOWTECH fork(和 iOS 对齐 Q18):存了 woowtechbot 服务就不走欢迎和配置模型;手机操作那一步照旧。 */
+    @Test fun savedBotServiceSkipsWelcomeAndModel() {
+        val saved = inputs().copy(botServicesSaved = true)
+        assertEquals(OnboardingStep.Phone, Onboarding.start(saved))
+        assertNull(Onboarding.start(saved.copy(phoneGuideSeen = true)))
+        assertEquals(OnboardingStep.Welcome, Onboarding.start(inputs().copy(botServicesSaved = false)))
+    }
+
     @Test fun dotsFollowSteps() {
         assertEquals(listOf(0, 1, 2), OnboardingStep.entries.map(Onboarding::dot))
     }

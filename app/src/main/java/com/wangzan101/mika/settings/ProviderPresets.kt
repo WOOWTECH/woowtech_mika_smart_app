@@ -38,6 +38,16 @@ object ProviderPresets {
         return all.firstOrNull { !it.selfHosted && it.baseUrl.isNotEmpty() && it.baseUrl.toHttpUrlOrNull()?.host == host }
     }
 
+    /**
+     * 手填模型名时按哪一类接口举例子:[preset] 的接口类型,没有模板时按 [kind]。
+     * WOOWTECH fork(和 iOS 对齐,owner 2026-11-28):xAI 的 API Key 走 OpenAI 兼容接口,模型名却是 grok-4 这样的,
+     * 例子用 xAI 登录那一句,不用兼容接口的 mistral-large-latest。
+     */
+    fun exampleKind(preset: ProviderPreset?, kind: ProviderConfig.Kind): ProviderConfig.Kind =
+        if (preset != null && preset.baseUrl.toHttpUrlOrNull()?.host == XAI_HOST) ProviderConfig.Kind.Xai else preset?.kind ?: kind
+
+    private const val XAI_HOST = "api.x.ai"
+
     val all: List<ProviderPreset> = listOf(
         ProviderPreset("OpenRouter", ProviderConfig.Kind.OpenAiCompat, "https://openrouter.ai/api/v1", caps()),
         ProviderPreset("Requesty", ProviderConfig.Kind.OpenAiCompat, "https://router.requesty.ai/v1", caps()),

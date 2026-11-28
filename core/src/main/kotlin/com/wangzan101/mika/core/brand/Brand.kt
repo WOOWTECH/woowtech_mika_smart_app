@@ -51,6 +51,12 @@ open class BrandValues(private val props: Properties) {
     /** 「复制诊断信息」的第一行(用户会贴到 issue 里);没设为 null,用上游那句、换上产品名。 */
     val defaultLanguage: String? = optional("ui.default.language")
 
+    /**
+     * WOOWTECH fork: 跟随系统时,系统语言是中文(简体也算)或粤语就显示这个界面语言(BCP 47,如 zh-Hant-TW);没设时照安卓的规则。
+     * 见 app 的 AppLanguage.followSystem 和 app/brand.gradle.kts。
+     */
+    val chineseUi: String? = optional("ui.chinese")
+
     /** Initial capsule height; saved user positions take precedence. */
     val capsuleDefaultFraction: Float = optional("capsule.default.fraction")
         ?.toFloatOrNull()?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f

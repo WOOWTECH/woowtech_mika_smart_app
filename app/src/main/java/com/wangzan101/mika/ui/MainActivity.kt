@@ -292,7 +292,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
         }
     }
     val release = remember { Build.VERSION.RELEASE }
-    // 结果卡片上点了「看看」:打开技能分段
+    // 结果卡片上点了「看看」:打开待确认分段
     val memoryRuntime = remember { MemoryRuntime.of(context) }
     val phoneSetup = remember { PhoneServices.of(context).setupPrompt }
     val openMemory by memoryRuntime.openRequest.collectAsState()
@@ -304,6 +304,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
         modelSetupDone = onboardingState.modelSetupDone(),
         phoneNeeded = status.builtinShell != BuiltinShellStatus.Running && status.sdkInt >= Prerequisites.MIN_SDK,
         phoneGuideSeen = phoneSetup.guideSeen(),
+        botServicesSaved = BuildConfig.WOOWTECHBOT_ENABLED &&
+            com.wangzan101.mika.woowbot.BotServices.registry(context).state.value.services.isNotEmpty(),
     )
     fun goOnboarding(step: OnboardingStep?) {
         onboarding = step
@@ -459,8 +461,9 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 }
             }
             vm?.let { m ->
-                // 从结果卡片的「看看」进来:直接看技能分段
-                LaunchedEffect(m) { if (memoryRuntime.openRequest.value != null) m.select(Segment.Skills) }
+                // 从结果卡片的「看看」进来:直接看待确认分段。WOOWTECH fork(和 iOS 对齐,owner 2026-11-28):新学的技能草稿在「待确认」,
+                // 上游打开的「技能」只有收下了的技能,看不到这份草稿
+                LaunchedEffect(m) { if (memoryRuntime.openRequest.value != null) m.select(Segment.Pending) }
                 MemoryDataScreen(
                     m, webSites, routeCount,
                     onClearRoutes = {

@@ -264,7 +264,7 @@ internal fun ManualModel(p: Provider, state: ListState?, first: Boolean, onUse: 
     var name by rememberSaveable { mutableStateOf("") }
     val running = state == ListState.Running
     val enabled = name.isNotBlank() && !running
-    val example = ModelSetupCopy.modelExample(ProviderPresets.forHost(p.baseUrl)?.kind ?: p.kind)
+    val example = ModelSetupCopy.modelExample(ProviderPresets.exampleKind(ProviderPresets.forHost(p.baseUrl), p.kind))
     InputRow(ModelsCopy.MODEL_NAME, name, { name = it }, example, first = first, modifier = Modifier.testTag("manual-model"), stacked = true) {
         Text(
             if (running) ModelSetupCopy.TESTING else ModelsCopy.USE, Modifier.clickable(enabled = enabled) { onUse(name.trim()) }.testTag("manual-model-use"),

@@ -159,9 +159,12 @@ private fun AddServiceDialog(registry: BotServiceRegistry, onDone: () -> Unit) {
             }
         },
         confirmButton = {
-            BotUiPillButton(stringResource(R.string.bot_services_add), primary = true, fill = false, onClick = {
-                runCatching { registry.add(name, address, lan) }.onSuccess { onDone() }.onFailure { invalid = true }
-            })
+            // The pill keeps its own size and look inside the dialog's capsule (MikaDialog gives the slot the capsule's size).
+            Box(contentAlignment = Alignment.Center) {
+                BotUiPillButton(stringResource(R.string.bot_services_add), primary = true, fill = false, onClick = {
+                    runCatching { registry.add(name, address, lan) }.onSuccess { onDone() }.onFailure { invalid = true }
+                })
+            }
         },
         dismissButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.bot_services_cancel), color = c.ink2) } },
     )

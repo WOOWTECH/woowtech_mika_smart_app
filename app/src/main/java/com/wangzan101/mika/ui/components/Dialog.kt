@@ -85,9 +85,12 @@ fun MikaDialog(
 @Composable
 private fun DialogAction(modifier: Modifier, background: Color, inkLabels: Boolean = false, content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
+    // WOOWTECH fork (iOS parity k4, owner 2026-11-28): the whole capsule is the button, not just its label. The button inside
+    // is given the capsule's full size (its own background is transparent), so a tap anywhere on the capsule presses it.
     Box(
         modifier.heightIn(min = 44.dp).background(background, shape).clip(shape),
         contentAlignment = Alignment.Center,
+        propagateMinConstraints = true,
     ) {
         // The website's dialog buttons read in ink; destructive ones keep their own error colour. Text buttons take their
         // label colour from the scheme's primary, so only this button is given a scheme whose primary is the ink colour.

@@ -63,4 +63,15 @@ class ProviderPresetsTest {
         assertEquals(emptyList<String>(), requesty.familyTokens)
         assertEquals("Requesty", ProviderPresets.forHost("https://router.requesty.ai/v1/")?.label)
     }
+
+    /** WOOWTECH fork(和 iOS 对齐):xAI 的 Key 走 OpenAI 兼容接口,手填模型名的例子仍按 xAI 登录(grok-4);别家照旧按模板的接口类型。 */
+    @Test fun xaiPresetGivesTheGrokExample() {
+        val xai = ProviderPresets.all.first { it.label == "xAI" }
+        assertEquals(ProviderConfig.Kind.OpenAiCompat, xai.kind)
+        assertEquals(ProviderConfig.Kind.Xai, ProviderPresets.exampleKind(xai, xai.kind))
+        assertEquals(ProviderConfig.Kind.Xai, AddForm(xai.label, xai.kind, xai.baseUrl, "k").exampleKind)
+        val mistral = ProviderPresets.all.first { it.label == "Mistral" }
+        assertEquals(ProviderConfig.Kind.OpenAiCompat, ProviderPresets.exampleKind(mistral, mistral.kind))
+        assertEquals(ProviderConfig.Kind.Gemini, ProviderPresets.exampleKind(null, ProviderConfig.Kind.Gemini))
+    }
 }
