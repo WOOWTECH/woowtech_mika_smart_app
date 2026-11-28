@@ -26,7 +26,7 @@ targets:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WOOWTECHBOT"
         PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.bot
         INFOPLIST_KEY_CFBundleDisplayName: 渥屋助理 Bot
-        CURRENT_PROJECT_VERSION: "294"
+        CURRENT_PROJECT_VERSION: "295"
         INFOPLIST_FILE: Configuration/Info-WoowtechBot.plist
         CODE_SIGN_ENTITLEMENTS: Configuration/WoowtechBot.entitlements
       configs:
@@ -46,7 +46,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.bot.NotificationService
-        CURRENT_PROJECT_VERSION: "294"
+        CURRENT_PROJECT_VERSION: "295"
         INFOPLIST_FILE: Configuration/BotNotificationService/Info.plist
         CODE_SIGN_ENTITLEMENTS: Configuration/BotNotificationService.entitlements
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
