@@ -40,8 +40,8 @@ struct BotWorkspaceSnapshot: Codable {
     var openedEvents: [String] = []
     // Optional preserves decoding of pre-push encrypted workspaces.
     var push: BotPushPreferences?
-    /// The service shown when the app went to the background, kept until it is in front again or closed (owner
-    /// 2026-11-28, Android `BotResumeEntry`): reopening the app after it was closed returns there. Only the service ID.
+    /// The service shown when the app last went out of sight, kept until the user closes that screen (owner 2026-11-28,
+    /// Android `BotResumeEntry` as of woow.27): reopening the app after it was closed returns there. Only the service ID.
     var resume: UUID?
     func validate() throws {
         try registry.validate()
@@ -120,12 +120,12 @@ struct BotWorkspaceSnapshot: Codable {
         selectedService = id
     }
 
-    /// The service screen went to the background without the user closing it.
+    /// The service screen went out of sight without the user closing it; it stays recorded while it is open.
     func rememberResume(_ id: UUID) {
         guard state.resume != id else { return }
         try? change { $0.resume = id }
     }
-    /// The service screen is in front again, or the user closed it.
+    /// The user closed the service screen.
     func forgetResume() {
         guard state.resume != nil else { return }
         try? change { $0.resume = nil }
@@ -156,7 +156,8 @@ struct BotWorkspaceSnapshot: Codable {
     }
 
     func setEnabled(_ id: UUID, _ enabled: Bool) throws {
-        try change { try $0.registry.setEnabled(id, enabled) }
+        // Disconnecting closes its screen: reopening the app no longer returns to it.
+        try change { try $0.registry.setEnabled(id, enabled); if !enabled, $0.resume == id { $0.resume = nil } }
         if !enabled {
             if selectedService == id { selectedService = nil }
             sessions.removeValue(forKey: id)?.invalidate()
@@ -169,7 +170,7 @@ struct BotWorkspaceSnapshot: Codable {
     func retire(_ id: UUID, remove: Bool) async throws {
         guard let record = services.first(where: { $0.id == id }) else { throw BotServiceError.stale }
         let dataStore = websiteDataStore(record.profileID)
-        try change { _ = try $0.registry.retire(id, remove: remove) }
+        try change { _ = try $0.registry.retire(id, remove: remove); if $0.resume == id { $0.resume = nil } }
         if selectedService == id { selectedService = nil }
         sessions.removeValue(forKey: id)?.invalidate()
         let cookies = await dataStore.httpCookieStore.allCookies()

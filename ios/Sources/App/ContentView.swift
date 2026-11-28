@@ -58,7 +58,7 @@ struct ContentView: View {
                 BotServiceScreen(web: web, chat: session, notifications: notifications, localizer: localizer,
                     close: { botWorkspace.forgetResume(); botWorkspace.selectedService = nil }, attach: { url in
                         let attached = await attachDownload(url)
-                        if attached { botWorkspace.selectedService = nil }
+                        if attached { botWorkspace.forgetResume(); botWorkspace.selectedService = nil }
                         return attached
                     })
                     .id(web.service.profileID)
@@ -117,10 +117,10 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { BotPushController.shared.schedule() }
-            // Left for the home screen or another app with a service shown: opening the app again after it was closed comes
-            // back to it. Back in front in the same process, the screen itself is still there.
-            if phase == .background, let id = botWorkspace.selectedService { botWorkspace.rememberResume(id) }
-            if phase == .active, botWorkspace.selectedService != nil { botWorkspace.forgetResume() }
+            // Out of sight with a service shown (Home, the app switcher, another app): opening the app again after it was closed
+            // comes back to it. On inactive, not background: the app switcher can end the app before it is backgrounded (Android
+            // woow.27 records on pause for the same reason). It stays recorded until the user closes the screen.
+            if phase != .active, let id = botWorkspace.selectedService { botWorkspace.rememberResume(id) }
             if phase == .active && !botWorkspace.available {
                 do { try botWorkspace.reload() }
                 catch { botWorkspace.notice = .unreadable }

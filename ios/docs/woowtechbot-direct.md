@@ -376,9 +376,11 @@ The owner asked for the iOS variant to match Android woow.26's four changes.
    `mutable-content` (bot-mode); an app without the extension shows the generic text. The bot notifications sheet's privacy
    line says this.
 3. **Reopening the app returns to the bot page.** iOS keeps the service screen while the app is in the background, so
-   only a closed app needed this: the workspace sidecar keeps the shown service's ID when the app goes to the background
-   (`resume`), clears it when the screen is in front again or closed, and at launch reopens that service with
-   "正在回到剛才的畫面…" / "Returning to where you were…" (no bot list: the website shows its last bot).
+   only a closed app needed this: the workspace sidecar keeps the shown service's ID (`resume`) from the first time the
+   app goes out of sight (inactive, so the app switcher's quit is covered, as Android woow.27 records on pause) until the
+   user closes the screen (Back, the local assistant, attaching a download) or the service is disconnected or removed, and
+   at launch reopens that service with "正在回到剛才的畫面…" / "Returning to where you were…" (no bot list: the website
+   shows its last bot). A removed or disabled service is never reopened.
 4. **The server's pairing QR.** `BotPairingLink` also accepts `openmausbot://pair?address=<server>&code=<code>` when the
    address is the shown service, and turns it into that service's own `/pair#code=` link (Android's `BotPairingQr` rules
    and test cases, plus a padded address and a port on the app link).
