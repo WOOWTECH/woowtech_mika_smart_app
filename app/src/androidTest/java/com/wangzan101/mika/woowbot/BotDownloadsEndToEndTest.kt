@@ -161,7 +161,8 @@ class BotDownloadsEndToEndTest {
         tap(page)
         js(page, "document.querySelector('a[download=\"data-表格.csv\"]').click()")
         val (csv, csvType, csvName) = awaitSaved("data-表格", "csv")
-        assertEquals("text/csv", csvType)
+        // MediaStore records .csv under Android's own name for the type (API 35 and 36); the app opens it as text/csv.
+        assertTrue(csvType, csvType in setOf("text/csv", "text/comma-separated-values"))
         assertEquals("data-表格.csv", csvName)
         assertEquals("項目,數量\n蘋果,3\n", context.contentResolver.openInputStream(csv)!!.use { String(it.readBytes(), Charsets.UTF_8) })
 
