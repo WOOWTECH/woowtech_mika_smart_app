@@ -97,3 +97,40 @@ jobs:
           path: device-evidence/
           retention-days: 7
           if-no-files-found: ignore
+
+  tablet:
+    name: tablet layout (Pixel Tablet, API 35)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools"
+      - uses: actions/download-artifact@v8
+        with:
+          name: woowtechbot-device-apks-${{ github.sha }}
+          path: device-apks
+      # GitHub's documented KVM permissions for disposable hosted Linux runners.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=10
+          for attempt in {1..10}; do
+            if test -r /dev/kvm && test -w /dev/kvm; then break; fi
+            sleep 1
+          done
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: tablet layout test and screenshots
+        run: python3 woowtech/tools/woowtechbot-device-test.py --api 35 --device pixel_tablet --tests com.wangzan101.mika.woowbot.BotTabletLayoutDeviceTest --shots --apks device-apks --out device-evidence
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: woowtechbot-tablet-${{ github.sha }}
+          path: device-evidence/
+          retention-days: 7
+          if-no-files-found: ignore

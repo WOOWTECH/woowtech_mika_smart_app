@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WOOWTECH fork: on a tablet (smallest width 600 dp and up) the app says "this device", not "this phone" (owner 2026-11-28). -->
+<resources>
+    <string name="bot_ui_local">On this device</string>
+    <string name="bot_workspace_device">This device</string>
+    <string name="bot_services_disconnected">Disconnected on this device</string>
+    <string name="bot_services_download_no_app">No app on this device opens this kind of file. It\'s in Downloads.</string>
+    <string name="bot_services_logged_out">Signed out on this device.</string>
+    <string name="selfcheck_row_sub">See what works on this device and report it</string>
+    <string name="relay_device_access_sub">Off by default. Also needs “Allow remote wake and unlock” on this page. When both are on, anyone with the access token can wake and unlock this device over the internet.</string>
+</resources>

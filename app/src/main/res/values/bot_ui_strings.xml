@@ -2,7 +2,9 @@
 <resources>
     <string name="bot_ui_avatar">Conversation icon</string>
     <string name="bot_ui_close">Close</string>
-    <string name="bot_ui_history">Conversation history</string>
+    <string name="bot_ui_history">Inbox</string>
+    <string name="bot_ui_local_assistant">Local assistant</string>
+    <string name="bot_ui_new_chat_hint">Start a new chat with %1$s</string>
     <string name="bot_ui_more">Conversation menu</string>
     <string name="bot_ui_profile">Name and icon</string>
     <string name="bot_ui_find">Find in conversation</string>
@@ -18,7 +20,7 @@
     <string name="bot_ui_save_error">Could not load the image or save changes. Your previous profile is preserved. Please try again.</string>
     <string name="bot_ui_matches">%1$d matches</string>
     <string name="bot_ui_no_files">No exported files in this conversation yet.</string>
-    <string name="bot_ui_search_history">Search conversations</string>
+    <string name="bot_ui_search_history">Search</string>
     <string name="bot_ui_services">Switch assistant or service</string>
     <string name="bot_ui_notifications">Notifications</string>
     <string name="bot_ui_shortcuts">Shortcuts</string>

@@ -33,15 +33,18 @@ fun PageScaffold(
     PageBackground(modifier) {
         Column(Modifier.fillMaxSize()) {
             TopBar(title, MikaIcons.Back, onBack, stringResource(R.string.back))
+            // WOOWTECH fork: on a wide window the content is a centred column at most 720 dp wide (iOS parity); the scroll
+            // itself stays full width so the margins scroll too.
             Column(
                 Modifier.weight(1f).fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = MikaSpace.Page),
+                    .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
-                Spacer(Modifier.height(MikaSpace.S4))
-                content()
-                Spacer(Modifier.height(MikaSpace.S24))
+                Column(Modifier.contentColumn().padding(horizontal = MikaSpace.Page)) {
+                    Spacer(Modifier.height(MikaSpace.S4))
+                    content()
+                    Spacer(Modifier.height(MikaSpace.S24))
+                }
             }
         }
     }

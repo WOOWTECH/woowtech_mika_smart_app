@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -78,11 +79,12 @@ internal fun BotUiButton(icon: ImageVector, label: String, enabled: Boolean = tr
 }
 
 @Composable
-internal fun BotUiRoundButton(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun BotUiRoundButton(icon: ImageVector, label: String, enabled: Boolean = true, diameter: Dp = 40.dp, onClick: () -> Unit) {
     val c = MikaTheme.colors
-    // `.icon-button`: a 40 dp circle on the card colour with a hairline, inside a 48 dp touch target.
-    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-        IconButton(onClick, enabled = enabled, modifier = Modifier.size(40.dp)
+    // `.icon-button`: a 40 dp circle on the card colour with a hairline, inside a 48 dp touch target. The inbox's tools
+    // button is the website's 44 dp `size-11` circle.
+    Box(Modifier.size(maxOf(48.dp, diameter)), contentAlignment = Alignment.Center) {
+        IconButton(onClick, enabled = enabled, modifier = Modifier.size(diameter)
             .clip(CircleShape).background(c.surface).border(1.dp, c.hair, CircleShape)) {
             Icon(icon, label, Modifier.size(20.dp), tint = c.ink.copy(alpha = if (enabled) 1f else .4f))
         }

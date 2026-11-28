@@ -37,6 +37,11 @@ def main():
     parser.add_argument('--api', type=int, required=True)
     parser.add_argument('--apks', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
+    # A tablet run (owner 2026-11-28: tablets follow the iPad rules) uses a tablet profile, its own test class and keeps the
+    # screenshots the test saves into the app's files/tablet-shots.
+    parser.add_argument('--device', default='pixel_6')
+    parser.add_argument('--tests', default=','.join(TESTS))
+    parser.add_argument('--shots', action='store_true')
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     signal.alarm(2100)
@@ -71,8 +76,16 @@ def main():
     avd_home = Path(os.environ['RUNNER_TEMP']) / 'woowtechbot-avd'
     avd_home.mkdir(parents=True, exist_ok=True)
     os.environ['ANDROID_AVD_HOME'] = str(avd_home)
-    run('avd-create.log', [avdmanager, 'create', 'avd', '--force', '--name', 'woowtechbot', '--path',
-                           str(avd_home / 'woowtechbot.avd'), '--package', image, '--device', 'pixel_6'], input_data=b'no\n')
+    # Older command-line tools lack the Pixel Tablet profile; the Pixel C is the other tablet they all have.
+    for device_profile in [args.device] + (['pixel_c'] if args.device == 'pixel_tablet' else []):
+        created = run('avd-create.log', [avdmanager, 'create', 'avd', '--force', '--name', 'woowtechbot', '--path',
+                                         str(avd_home / 'woowtechbot.avd'), '--package', image, '--device', device_profile],
+                      input_data=b'no\n', check=False)
+        if (avd_home / 'woowtechbot.avd' / 'config.ini').exists():
+            summary['device_profile'] = device_profile
+            break
+    else:
+        raise RuntimeError('avd-create.log: no device profile worked')
     emulator_log = (args.out / 'emulator.log').open('wb')
     proc = subprocess.Popen([emulator, '-avd', 'woowtechbot', '-port', '5554', '-no-window', '-no-audio', '-no-boot-anim',
                              '-no-snapshot', '-wipe-data', '-accel', 'on', '-gpu', 'swiftshader', '-memory', '2560', '-cores', '2',
@@ -121,7 +134,7 @@ def main():
             except Exception:
                 time.sleep(1)
         try:
-            out = run('instrument.txt', [adb, '-s', SERIAL, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'class', ','.join(TESTS),
+            out = run('instrument.txt', [adb, '-s', SERIAL, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'class', args.tests,
                                          '-e', 'downloadsFixture', f'http://10.0.2.2:{FIXTURE_PORT}', f'{test_package}/{runner}'],
                       timeout=1500, check=False)
         finally:
@@ -136,6 +149,10 @@ def main():
                 name = current.get('class', '?').rsplit('.', 1)[-1] + '.' + current['test']
                 summary['tests'][name] = STATUS.get(m.group(1), m.group(1))
         summary['instrumentation_ok'] = 'INSTRUMENTATION_CODE: -1' in out and 'FAILURES!!!' not in out
+        if args.shots:
+            (args.out / 'shots').mkdir(exist_ok=True)
+            run('shots-pull.txt', [adb, '-s', SERIAL, 'pull', f'/sdcard/Android/data/{target}/files/tablet-shots/.', str(args.out / 'shots')],
+                timeout=120, check=False)
         save('screen-end.png', subprocess.run([adb, '-s', SERIAL, 'exec-out', 'screencap', '-p'], capture_output=True, timeout=30).stdout)
     finally:
         try:
