@@ -19,6 +19,8 @@ targets:
         product: FirebaseCore
       - package: Firebase
         product: FirebaseMessaging
+      # Shows the bot and an excerpt in notifications (owner 2026-11-28, Android woow.26); embedded in PlugIns.
+      - target: BotNotificationService
     settings:
       base:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WOOWTECHBOT"
@@ -30,3 +32,28 @@ targets:
       configs:
         Debug:
           INFOPLIST_FILE: Configuration/Info-WoowtechBot.plist
+
+  # Rewrites a bot notification with the bot's name and the start of its reply, read from the service with the session
+  # the app shares through one keychain access group (BotPushPreviewKeychain). It links the app's AssistantPersistence.
+  BotNotificationService:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Sources/BotNotificationService]
+    dependencies:
+      - target: AssistantPersistence
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.bot.NotificationService
+        CURRENT_PROJECT_VERSION: "294"
+        INFOPLIST_FILE: Configuration/BotNotificationService/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Configuration/BotNotificationService.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+        APPLICATION_EXTENSION_API_ONLY: YES
+
+  # The extension links it, so only extension-safe APIs (Foundation, CryptoKit, Security) are allowed in it.
+  AssistantPersistence:
+    settings:
+      base:
+        APPLICATION_EXTENSION_API_ONLY: YES

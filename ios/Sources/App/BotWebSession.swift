@@ -6,8 +6,9 @@ import SwiftUI
 import UIKit.UIGestureRecognizerSubclass
 import WebKit
 
-/// What the transition page says while a service opens: its bot list, a push target's conversation, or a reload.
-enum BotTransitionText { case list, chat, reload }
+/// What the transition page says while a service opens: its bot list, a push target's conversation, a reload, or the page
+/// the app was left on (reopened after the app was closed, owner 2026-11-28 as Android woow.26).
+enum BotTransitionText { case list, chat, reload, resume }
 
 @MainActor final class BotWebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WKHTTPCookieStoreObserver {
     let service: BotServiceRecord
@@ -69,6 +70,8 @@ enum BotTransitionText { case list, chat, reload }
     /// A push target keeps the conversation the website opens for it.
     func openTarget(_ url: URL) { begin(.chat, list: false); open(url) }
     func retry() { begin(.reload, list: false); open(service.policy.url) }
+    /// Reopening the app after it was closed while this service was shown: the website shows its last bot (no list).
+    func openResume() { begin(.resume, list: false); open(service.policy.url) }
     private func begin(_ text: BotTransitionText, list: Bool) {
         landOnList = list; cover = text; transitionFrom = pageCommits; transitionID += 1
     }
@@ -480,6 +483,7 @@ struct BotServiceScreen: View {
         case .list: t("正在打開機器人列表…", "Opening the bot list…")
         case .chat: t("正在打開對話…", "Opening the conversation…")
         case .reload: t("正在重新載入…", "Reloading…")
+        case .resume: t("正在回到剛才的畫面…", "Returning to where you were…")
         }
     }
 

@@ -227,13 +227,42 @@ public enum BotPairingLink {
     public static func validate(_ raw: String, for origin: BotServiceOrigin) throws -> URL {
         guard (1...2048).contains(raw.utf8.count),
               !raw.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) }),
-              !raw.contains("\\"), let c = URLComponents(string: raw), let url = c.url,
-              c.scheme == "https", origin.allows(url), c.percentEncodedPath == "/pair", c.query == nil,
+              !raw.contains("\\"), let c = URLComponents(string: raw) else { throw BotServiceError.invalidAddress }
+        if c.scheme == appScheme { return try fromAppLink(c, for: origin) }
+        guard let url = c.url, c.scheme == "https", origin.allows(url), c.percentEncodedPath == "/pair", c.query == nil,
               let fragment = c.percentEncodedFragment, fragment.hasPrefix("code=") else { throw BotServiceError.invalidAddress }
         let code = fragment.dropFirst(5)
-        guard (6...256).contains(code.utf8.count), code.utf8.allSatisfy({
-            (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 95 || $0 == 45
-        }) else { throw BotServiceError.invalidAddress }
+        guard validCode(code) else { throw BotServiceError.invalidAddress }
         return url
+    }
+
+    /// The QR a woowtechbot server draws for phones (owner 2026-11-28, as Android woow.26): `openmausbot://pair?address=
+    /// <server>&code=<code>`. Only for the service being shown; it becomes the website's own pairing link, so the code is
+    /// entered on that service's page and nowhere else.
+    private static func fromAppLink(_ c: URLComponents, for origin: BotServiceOrigin) throws -> URL {
+        guard c.percentEncodedHost == "pair", c.user == nil, c.password == nil, c.port == nil, c.percentEncodedPath.isEmpty,
+              c.percentEncodedFragment == nil, let query = c.percentEncodedQuery else { throw BotServiceError.invalidAddress }
+        var values: [String: String] = [:]
+        for part in query.split(separator: "&", omittingEmptySubsequences: false) {
+            guard let equals = part.firstIndex(of: "="), values.count < 2,
+                  let value = String(part[part.index(after: equals)...]).replacingOccurrences(of: "+", with: " ").removingPercentEncoding
+            else { throw BotServiceError.invalidAddress }
+            let name = String(part[..<equals])
+            // The origin parser trims spaces, so a decoded value with any (or a control character) is refused here.
+            guard ["address", "code"].contains(name), values[name] == nil, !value.unicodeScalars.contains(where: {
+                CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0)
+            }) else { throw BotServiceError.invalidAddress }
+            values[name] = value
+        }
+        guard let code = values["code"], let address = values["address"], validCode(Substring(code)),
+              (try? BotServiceOrigin(address, allowHTTPLAN: origin.insecureLAN))?.value == origin.value,
+              let url = URL(string: origin.value + "/pair#code=" + code) else { throw BotServiceError.invalidAddress }
+        return url
+    }
+    private static let appScheme = "openmausbot"
+    private static func validCode(_ code: Substring) -> Bool {
+        (6...256).contains(code.utf8.count) && code.utf8.allSatisfy {
+            (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 95 || $0 == 45
+        }
     }
 }

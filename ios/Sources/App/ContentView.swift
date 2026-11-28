@@ -56,7 +56,7 @@ struct ContentView: View {
         .fullScreenCover(isPresented: Binding(get: { botWorkspace.selectedService != nil }, set: { if !$0 { botWorkspace.selectedService = nil } })) {
             if let id = botWorkspace.selectedService, let web = botWorkspace.session(id) {
                 BotServiceScreen(web: web, chat: session, notifications: notifications, localizer: localizer,
-                    close: { botWorkspace.selectedService = nil }, attach: { url in
+                    close: { botWorkspace.forgetResume(); botWorkspace.selectedService = nil }, attach: { url in
                         let attached = await attachDownload(url)
                         if attached { botWorkspace.selectedService = nil }
                         return attached
@@ -107,9 +107,20 @@ struct ContentView: View {
                 _ = session.switchBotConversation(to: id, workspace: botWorkspace)
             }
             botRestored = true
+            // The app was closed while a service was shown (Android woow.26): back to that service, after the first frame.
+            if botWorkspace.state.resume != nil {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    botWorkspace.resumeIfNeeded()
+                }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { BotPushController.shared.schedule() }
+            // Left for the home screen or another app with a service shown: opening the app again after it was closed comes
+            // back to it. Back in front in the same process, the screen itself is still there.
+            if phase == .background, let id = botWorkspace.selectedService { botWorkspace.rememberResume(id) }
+            if phase == .active, botWorkspace.selectedService != nil { botWorkspace.forgetResume() }
             if phase == .active && !botWorkspace.available {
                 do { try botWorkspace.reload() }
                 catch { botWorkspace.notice = .unreadable }

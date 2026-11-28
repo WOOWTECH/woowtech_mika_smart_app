@@ -40,6 +40,9 @@ struct BotWorkspaceSnapshot: Codable {
     var openedEvents: [String] = []
     // Optional preserves decoding of pre-push encrypted workspaces.
     var push: BotPushPreferences?
+    /// The service shown when the app went to the background, kept until it is in front again or closed (owner
+    /// 2026-11-28, Android `BotResumeEntry`): reopening the app after it was closed returns there. Only the service ID.
+    var resume: UUID?
     func validate() throws {
         try registry.validate()
         try push?.validate()
@@ -115,6 +118,24 @@ struct BotWorkspaceSnapshot: Codable {
         manageOnOpen = manage
         session(id)?.openList()
         selectedService = id
+    }
+
+    /// The service screen went to the background without the user closing it.
+    func rememberResume(_ id: UUID) {
+        guard state.resume != id else { return }
+        try? change { $0.resume = id }
+    }
+    /// The service screen is in front again, or the user closed it.
+    func forgetResume() {
+        guard state.resume != nil else { return }
+        try? change { $0.resume = nil }
+    }
+    /// At launch: reopen the service the app was left on, if it is still enabled.
+    func resumeIfNeeded() {
+        guard let id = state.resume else { return }
+        forgetResume()
+        guard selectedService == nil, let web = session(id) else { return }
+        web.openResume(); selectedService = id
     }
 
     func session(_ id: UUID) -> BotWebSession? {

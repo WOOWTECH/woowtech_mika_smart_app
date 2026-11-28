@@ -51,12 +51,30 @@ enum BotPushStatus {
     var pendingCleanup: Int { workspace.state.push?.registrations.filter { !$0.acknowledged }.count ?? 0 }
     /// The language each registration carries, so the push relay writes the notification in the app's language.
     private(set) var locale = "zh-TW"
+    /// What the notification service extension reads to show the bot and an excerpt (owner 2026-11-28, Android woow.26):
+    /// one item per service whose registration the server acknowledged, in the access group shared with the extension.
+    private let previews: BotPushPreviewKeychain? = (Bundle.main.object(forInfoDictionaryKey: "WoowBotPreviewAccessGroup") as? String)
+        .flatMap { $0.hasPrefix("$(") || $0.isEmpty ? nil : BotPushPreviewKeychain(accessGroup: $0) }
     /// A new interface language registers again, as smart re-registers its token string.
     func setInterfaceLanguage(english: Bool) {
+        registerCategories(english: english)
         let next = english ? "en" : "zh-TW"
         guard next != locale else { return }
         locale = next
         if optedIn { schedule() }
+    }
+
+    /// What iOS shows instead of a notification's text while previews are hidden (Settings > Notifications > Show
+    /// Previews): the relay's generic sentence, as Android's public version on a locked screen. The extension sets the
+    /// category from the reason.
+    private func registerCategories(english: Bool) {
+        UNUserNotificationCenter.current().getNotificationCategories { existing in
+            let ours = ["finished", "attention", "failed"].map { reason in
+                UNNotificationCategory(identifier: BotPushPreviewText.category(reason: reason), actions: [], intentIdentifiers: [],
+                                       hiddenPreviewsBodyPlaceholder: BotPushPreviewText.generic(reason: reason, english: english), options: [])
+            }
+            UNUserNotificationCenter.current().setNotificationCategories(Set(existing.filter { !$0.identifier.hasPrefix("woowtechbot.") } + ours))
+        }
     }
 
     private func configure() -> Bool {
@@ -135,6 +153,7 @@ enum BotPushStatus {
             guard generation == epoch, !Task.isCancelled else { return }
         }
         guard enabled else {
+            previews?.deleteAll()
             UIApplication.shared.unregisterForRemoteNotifications(); apnsReady = false
             #if !targetEnvironment(simulator)
             if FirebaseApp.app() != nil {
@@ -153,11 +172,27 @@ enum BotPushStatus {
         }
         #endif
         // Discovery is useful on simulators, but simulator injection is never reported as FCM delivery.
+        // Services are asked side by side, each within its own time limit (BotPushHTTP), so one unreachable service holds
+        // back the others by seconds, not by the sum of every timeout (Android woow.26: two unreachable PaaS labs).
+        let https = records.filter { $0.origin.hasPrefix("https://") }
+        for service in records where !service.origin.hasPrefix("https://") { services[service.id] = .httpsRequired }
+        let found = await withTaskGroup(of: (UUID, Result<BotPushSession, Error>).self) { group in
+            for service in https {
+                group.addTask { @MainActor in
+                    do { return (service.id, .success(try await BotPushSession.discover(service))) }
+                    catch { return (service.id, .failure(error)) }
+                }
+            }
+            var results: [UUID: Result<BotPushSession, Error>] = [:]
+            for await (id, result) in group { results[id] = result }
+            return results
+        }
+        guard generation == epoch, !Task.isCancelled else { return }
         var ready: [BotPushSession] = []
-        for service in records {
-            guard service.origin.hasPrefix("https://") else { services[service.id] = .httpsRequired; continue }
+        for service in https {
             do {
-                let connection = try await BotPushSession.discover(service)
+                guard let result = found[service.id] else { continue }
+                let connection = try result.get()
                 let current = await connection.current(in: workspace)
                 guard generation == epoch, !Task.isCancelled else { return }
                 guard current else { services[service.id] = .retry; continue }
@@ -202,6 +237,11 @@ enum BotPushStatus {
                     try BotPushDiscovery.validateAcknowledgement(data, serviceID: service.id)
                     var confirmed = entry; confirmed.acknowledged = true; try save(confirmed)
                     authorized[service.id] = connection; services[service.id] = .registered
+                    // Only now may the extension read this service's previews, with this verified session.
+                    if let credential = try? BotPushPreviewCredential(serviceId: service.id, origin: service.origin, cookie: connection.cookie,
+                                                                      sessionId: connection.discovery.sessionID, locale: locale) {
+                        try? previews?.save(credential)
+                    }
                 } catch {
                     // One deployment's timeout or rejected ACK must not prevent
                     // the other independently authenticated services from registering.
@@ -223,6 +263,8 @@ enum BotPushStatus {
         }
     }
     private func revoke(_ entry: BotPushRegistration, cookies: [HTTPCookie]?) async throws {
+        // No more previews for it, whether or not the server answers.
+        previews?.delete(entry.service.id)
         let connection = try await BotPushSession.discover(entry.service, cookies: cookies)
         guard connection.discovery.identity == entry.identity else { throw BotPushFailure.stale }
         let path = BotPushDiscovery.devicePath + "?serviceId=" + entry.service.id.uuidString.lowercased()
@@ -234,6 +276,7 @@ enum BotPushStatus {
     /// Uses the ORIGINAL cookie snapshot before website data is removed. No new
     /// profile may acknowledge cleanup of a retired identity.
     func retire(_ service: BotServiceRecord, cookies: [HTTPCookie]) async -> Bool {
+        previews?.delete(service.id)
         retiring = true; invalidate(); worker?.cancel()
         await worker?.value; worker = nil
         defer { retiring = false; schedule() }
@@ -333,8 +376,9 @@ private enum BotPushDiagnostics {
                 .map { $0.name + "=" + $0.value }.joined(separator: "; ")
         }
         let value = header("/api/auth/session")
+        // Scalars, not Characters: "\r\n" is one Character, so `contains("\n")` would miss it.
         guard !value.isEmpty, value.utf8.count <= 16384, value == header(BotPushDiscovery.devicePath),
-              !value.contains("\r"), !value.contains("\n") else { throw BotPushFailure.signIn }
+              !value.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\n" }) else { throw BotPushFailure.signIn }
         return value
     }
     func current(in workspace: BotWorkspaceStore) async -> Bool {
@@ -398,7 +442,9 @@ private final class BotPushHTTP: NSObject, URLSessionTaskDelegate, @unchecked Se
         try await retryWindow.check(service.origin)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil; configuration.urlCache = nil; configuration.httpShouldSetCookies = false
-        configuration.timeoutIntervalForRequest = 20; configuration.timeoutIntervalForResource = 25
+        // Each kind of request bounds its own time, as Android woow.26: an unreachable service answers discovery within 8 s.
+        let discovery = path == "/api/auth/session"
+        configuration.timeoutIntervalForRequest = discovery ? 8 : 20; configuration.timeoutIntervalForResource = discovery ? 8 : 25
         let session = URLSession(configuration: configuration, delegate: BotPushHTTP(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var request = URLRequest(url: url); request.httpMethod = method; request.httpBody = body

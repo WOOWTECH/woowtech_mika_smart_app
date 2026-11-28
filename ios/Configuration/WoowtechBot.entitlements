@@ -2,4 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
     <key>aps-environment</key><string>development</string>
+    <!-- The app's own group stays first, so items saved without a group stay the app's; the second is shared with the
+         notification service extension for previews only. -->
+    <key>keychain-access-groups</key><array>
+        <string>$(AppIdentifierPrefix)io.woowtech.assistant.bot</string>
+        <string>$(AppIdentifierPrefix)io.woowtech.assistant.bot.push-preview</string>
+    </array>
 </dict></plist>

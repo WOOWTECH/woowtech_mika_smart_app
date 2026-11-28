@@ -352,3 +352,36 @@ away and back (root reloaded behind the transition page, list again), reload ("�
 Chinese and dark mode, and the real HA add-on's pairing page with the app-style bar. This Mac was heavily loaded during the runs (load
 average above 20), so pages took 3–6 s to start; the transition page covered all of it. Not verified: a push target, a signed-in real
 woowtechbot service (pairing needs a code from the server), iPad (`wide`), accessibility sizes on the transition page.
+
+## Push previews, resilient push checks, resume and the server's pairing QR (Android PR #60, woow.26) on 2026-11-28
+
+The owner asked for the iOS variant to match Android woow.26's four changes.
+
+1. **One unreachable service no longer holds back the others.** `BotPushController.reconcile` asks every service's
+   `/api/auth/session` side by side (a task group) instead of one after another, and the transport bounds discovery to
+   8 s (other requests keep 20 s). On iOS the system shows alerts itself, so the visible effect was smaller than on
+   Android: while a check ran, notifications for a verified service were not presented in the foreground until every
+   earlier service had timed out. Each service's status and registration stay independent, as before.
+2. **Notifications show the bot and an excerpt.** A notification service extension (`Sources/BotNotificationService`,
+   bundle `io.woowtech.assistant.bot.NotificationService`, embedded only in the Bot variant) replaces the relay's generic
+   text with the bot's name and the start of its reply, read from the service: `GET /api/bots?messages=1` and
+   `GET /api/threads/{thread}/messages?limit=8`, 5 s and 1 MiB each, no redirect, only those two paths
+   (`BotPushPreviewText.isPreviewPath`). Parsing, the Markdown and direction-character cleanup, the 64 / 400 limits
+   (UTF-16 units) and the "需要處理：" / "未能完成：" prefixes are Android's (`BotPushPreview.swift`, same test cases).
+   The app writes the verified session (cookie header, session ID, origin, language) to a keychain access group shared
+   with the extension (`BotPushPreviewKeychain`, this device only, after first unlock) only after the service acknowledged
+   the registration, and deletes it on revocation, logout, removal or opt-out. The app's own keychain group stays first in
+   `keychain-access-groups`, so nothing else of the app moves to the shared group. Hidden previews show the generic
+   sentence (a notification category placeholder per reason), as Android's public version. The relay sets
+   `mutable-content` (bot-mode); an app without the extension shows the generic text. The bot notifications sheet's privacy
+   line says this.
+3. **Reopening the app returns to the bot page.** iOS keeps the service screen while the app is in the background, so
+   only a closed app needed this: the workspace sidecar keeps the shown service's ID when the app goes to the background
+   (`resume`), clears it when the screen is in front again or closed, and at launch reopens that service with
+   "正在回到剛才的畫面…" / "Returning to where you were…" (no bot list: the website shows its last bot).
+4. **The server's pairing QR.** `BotPairingLink` also accepts `openmausbot://pair?address=<server>&code=<code>` when the
+   address is the shown service, and turns it into that service's own `/pair#code=` link (Android's `BotPairingQr` rules
+   and test cases, plus a padded address and a port on the app link).
+
+Also fixed: line-break checks on cookie headers used `String.contains("\n")`, which misses "\r\n" (one Character in
+Swift); they check Unicode scalars now.

@@ -270,7 +270,8 @@ struct BotNotificationsSheet: View {
         let palette = MikaVisualPalette(scheme, look: .sheet)
         BotSheetScaffold(title: t("機器人通知", "Bot notifications"), closeLabel: t("關閉", "Close"),
                          closeIdentifier: "bot.notifications.done", close: close) {
-            Text(t("通知僅顯示一般提醒，請開啟服務查看詳細內容。", "Notifications contain only a generic alert. Open the service to review details."))
+            Text(t("通知會顯示是哪個機器人回覆和內容摘要；內容由手機直接向服務讀取，不經過推播服務。",
+                   "Notifications show which bot replied and the start of its reply. The phone reads them from the service itself; they never pass through the push service."))
                 .scaledFont(size: 14).foregroundStyle(palette.secondaryInk).lineSpacing(3)
                 .padding(.horizontal, 8).frame(maxWidth: .infinity, alignment: .leading)
             BotCard {

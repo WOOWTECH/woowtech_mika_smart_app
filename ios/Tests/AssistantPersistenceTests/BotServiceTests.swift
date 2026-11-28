@@ -13,6 +13,35 @@ final class BotServiceTests: XCTestCase {
             XCTAssertThrowsError(try BotPairingLink.validate(raw, for: origin), raw)
         }
     }
+    /// Android woow.26 `BotPairingQrTest`: the server's phone QR is accepted for this service only, as its own pairing link.
+    func testServersPhoneQrBecomesThisServicesOwnPairingLink() throws {
+        let origin = try BotServiceOrigin("https://bot.example.com")
+        for raw in ["openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair?code=ABCD-EFGH-IJKL&address=https%3A%2F%2Fbot.example.com%2F"] {
+            XCTAssertEqual(try BotPairingLink.validate(raw, for: origin).absoluteString, "https://bot.example.com/pair#code=ABCD-EFGH-IJKL", raw)
+        }
+        for raw in ["openmausbot://pair?address=https%3A%2F%2Fevil.example&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair?address=http%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com%2Fx&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com",
+                    "openmausbot://pair?code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL&redirect=x",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD&code=EFGH-IJKL",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=AB%3CCD%3EEFGH",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=abc",
+                    "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL#x",
+                    "openmausbot://thread/abc?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair/x?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+                    "openmausbot://user@pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair?address=+https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+                    "openmausbot://pair:8443?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL"] {
+            XCTAssertThrowsError(try BotPairingLink.validate(raw, for: origin), raw)
+        }
+        // A LAN service paired over HTTP keeps its own scheme, as Android's `allowHttpLan = origin.insecureLan`.
+        let lan = try BotServiceOrigin("http://192.168.2.30:8767", allowHTTPLAN: true)
+        XCTAssertEqual(try BotPairingLink.validate("openmausbot://pair?address=http%3A%2F%2F192.168.2.30%3A8767&code=ABCDEFGH", for: lan).absoluteString,
+                       "http://192.168.2.30:8767/pair#code=ABCDEFGH")
+    }
     func testOriginsRejectCredentialsAndAmbiguousLocalAddresses() throws {
         XCTAssertEqual(try BotServiceOrigin("https://EXAMPLE.com:443/").value, "https://example.com")
         for address in ["https://user:pass@example.com", "https://example.com/pair#code=secret", "https://example.com?token=x",

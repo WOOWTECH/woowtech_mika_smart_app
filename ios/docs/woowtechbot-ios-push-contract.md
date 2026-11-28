@@ -118,7 +118,7 @@ review.` for `finished`, `機器人需要您的注意，請開啟查看。` / `A
 Open to review.` for `permission` and `attention`, and `機器人未能完成，請開啟查看。` / `A bot
 couldn't finish. Open to review.` for `failed`. Default sound, `apns-push-type:
 alert`, priority 10, a one-hour expiration, one notification per conversation
-(`apns-collapse-id`), no `mutable-content`, and no chat contents: nothing of a
+(`apns-collapse-id`), `mutable-content`, and no chat contents: nothing of a
 conversation passes through Apple or Google. FCM data contains one `woowtechbot`
 string: JSON of exactly `v`, `serviceId`, `botId`, `threadId`, `eventId`, `reason`,
 with `v` the string `"1"`. No URL or action command.
@@ -133,11 +133,27 @@ The system can display a background alert before the app validates it. Therefore
 server-side identity revocation and generic notification content are essential.
 The app validates an explicit tap against the current authenticated registration
 and only opens the saved service origin with bot/thread query parameters. It does
-not automatically execute approvals, sign-in or tools. A notification service
-extension and silent background processing are not required for this alert path;
-an extension that writes the text on the phone (for example with the bot's name)
-would be a later app change, announced to the backends before they set
-`mutable-content`.
+not automatically execute approvals, sign-in or tools.
+
+## What the notification shows (owner 2026-11-28, as Android woow.26)
+
+The title is the bot that replied and the text the start of its reply, with
+"需要處理：" / "Needs you: " for `permission` and `attention` and "未能完成：" /
+"Couldn't finish: " for `failed`. The app's notification service extension
+(`BotNotificationService`, run because the relay sets `mutable-content`) reads them
+from that service with the session the app verified when the service acknowledged
+the registration: `GET /api/bots?messages=1` (the name, from `bots` or `groups`) and
+`GET /api/threads/{threadId}/messages?limit=8` (bot text after the last user
+message), with the same Cookie, `Origin` and `X-Woowtech-Session-Id` as the device
+registration, 5 s and 1 MiB each, no redirect. The app shares that session with the
+extension through one keychain access group (this device only, after first unlock),
+writes it only after the registration ACK and deletes it on revocation, logout,
+removal or opt-out. Any failure keeps the relay's generic text. While previews are
+hidden (Settings > Notifications > Show Previews, "When Unlocked" by default), iOS
+shows the generic sentence as the category placeholder, as Android's public version
+on a locked screen. The payload stays IDs only; there is no relay or server change
+beyond `mutable-content`. Backends must answer those two reads for the native
+client (Android already uses them).
 
 ## Required acceptance per deployment
 

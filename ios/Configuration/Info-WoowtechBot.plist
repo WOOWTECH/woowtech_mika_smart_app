@@ -44,6 +44,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>WoowBotPreviewAccessGroup</key>
+	<string>$(AppIdentifierPrefix)io.woowtech.assistant.bot.push-preview</string>
 	<key>WoowtechBotEnabled</key>
 	<true/>
 </dict>
