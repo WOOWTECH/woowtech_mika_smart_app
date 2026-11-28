@@ -14,7 +14,7 @@
     <string name="timing_retry">含重試 %1$s</string>
     <string name="duration_ms">%1$d 毫秒</string>
     <string name="duration_seconds_decimal">%1$s 秒</string>
-    <string name="result_error_detail">出錯:%1$s</string>
+    <string name="result_error_detail">出錯：%1$s</string>
     <string name="result_error">出錯了</string>
     <string name="result_error_prefix">出錯</string>
     <string name="result_effective">生效</string>
@@ -26,12 +26,12 @@
     <string name="guard_repeating">同一個操作反覆做</string>
     <string name="guard_no_progress">畫面一直沒變化</string>
     <string name="guard_failures">操作連續失敗</string>
-    <string name="err_ref_expired">介面已經變了,要重新看螢幕</string>
+    <string name="err_ref_expired">介面已經變了，要重新看螢幕</string>
     <string name="err_no_app">還沒開啟 App</string>
     <string name="err_invalid_args">參數不對</string>
     <string name="err_op_failed">操作沒成功</string>
     <string name="err_unknown_tool">沒有這個工具</string>
-    <string name="err_protected">畫面受保護,看不到</string>
+    <string name="err_protected">畫面受保護，看不到</string>
     <string name="err_confirm_required">要先徵得你同意</string>
     <string name="err_confirm_mismatch">和你同意的內容對不上</string>
     <string name="err_confirm_declined">你沒有同意</string>
@@ -54,7 +54,7 @@
     <string name="outcome_partial">只辦成了一部分</string>
     <string name="outcome_not_possible">沒有辦成</string>
     <string name="outcome_succeeded">辦成了</string>
-    <string name="outcome_unverified">辦完了,沒能核實</string>
+    <string name="outcome_unverified">辦完了，沒能核實</string>
     <string name="outcome_failed">沒有完成</string>
     <string name="outcome_unfinished">沒有結束</string>
     <string name="duration_s">%1$d 秒</string>

@@ -2,7 +2,7 @@
 <resources>
     <string name="language_title">語言</string>
     <string name="language_system">跟隨系統</string>
-    <string name="language_system_detail">系統語言 Mika 有譯文時用它,沒有時用英文</string>
+    <string name="language_system_detail">系統語言 Mika 有譯文時用它，沒有時用英文</string>
     <string name="settings_basic">常用</string>
     <string name="settings_language_appearance">語言與外觀</string>
     <string name="settings_model">模型</string>
@@ -46,16 +46,16 @@
     <string name="settings_a11y_sub">讀取和操作 Mika 的虛擬螢幕</string>
     <string name="settings_notif_progress_sub">進度和「需要你」提醒</string>
     <string name="settings_system_version">系統版本</string>
-    <string name="settings_android_focus">Android %1$s · Android 12、13 上背景操作可能影響主螢幕焦點,建議 Android 14+</string>
+    <string name="settings_android_focus">Android %1$s · Android 12、13 上背景操作可能影響主螢幕焦點，建議 Android 14+</string>
     <string name="settings_android">Android %1$s</string>
     <string name="settings_meets">滿足</string>
     <string name="settings_notif_master">通知總開關</string>
     <string name="settings_allowed">已允許</string>
     <string name="settings_task_notifs">任務通知</string>
     <string name="settings_keep_on">螢幕保持常亮</string>
-    <string name="settings_keep_on_sub">任務進行時螢幕不熄滅(沒在用時照常變暗),結束後恢復</string>
+    <string name="settings_keep_on_sub">任務進行時螢幕不熄滅（沒在用時照常變暗），結束後恢復</string>
     <string name="settings_mute">被操作的 App 靜音</string>
-    <string name="settings_mute_sub">Mika 操作的 App 不出聲,你接手時恢復聲音</string>
+    <string name="settings_mute_sub">Mika 操作的 App 不出聲，你接手時恢復聲音</string>
     <string name="settings_pace">操作節奏</string>
     <string name="settings_pace_fast">快</string>
     <string name="settings_pace_fast_detail">步與步之間不停，文字一次填好</string>
@@ -82,17 +82,17 @@
     <string name="routes_saved">已記住的操作路線</string>
     <string name="loading">正在讀取</string>
     <plurals name="routes_count">
-        <item quantity="other">%1$d 條 · 做過的事下次照著做,更快</item>
+        <item quantity="other">%1$d 條 · 做過的事下次照著做，更快</item>
     </plurals>
     <string name="routes_clear_all">全部清除</string>
-    <string name="routes_clear_title">清除全部已記住的操作路線?</string>
-    <string name="routes_clear_body">清除後,做過的事下次會重新一步步來做,不影響別的設定。</string>
+    <string name="routes_clear_title">清除全部已記住的操作路線？</string>
+    <string name="routes_clear_body">清除後，做過的事下次會重新一步步來做，不影響別的設定。</string>
     <string name="clear">清除</string>
     <string name="sandbox_proxy_off">%1$s · 允許連網後才生效</string>
     <string name="net_proxy">網路代理</string>
     <string name="net_proxy_row_sub">呼叫模型、下載更新、內建瀏覽器和指令都走它</string>
-    <string name="net_proxy_hint">Mika 呼叫模型（對話、模型清單、帳號登入）、在 App 裡下載更新、內建瀏覽器，以及「檔案與計算環境」裡的指令（那裡允許連網時）都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連，本機模型照常能用。可以帶「使用者:密碼@」，加密保存在這台手機上。留空表示直連。</string>
-    <string name="net_proxy_invalid">寫成 http://主機:連接埠 的樣子（也可以是 socks5、socks5h、https），主機前面可以帶「使用者:密碼@」。</string>
+    <string name="net_proxy_hint">Mika 呼叫模型（對話、模型清單、帳號登入）、在 App 裡下載更新、內建瀏覽器，以及「檔案與計算環境」裡的指令（那裡允許連網時）都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連，本機模型照常能用。可以帶「使用者：密碼@」，加密保存在這台手機上。留空表示直連。</string>
+    <string name="net_proxy_invalid">寫成 http://主機:連接埠 的樣子（也可以是 socks5、socks5h、https），主機前面可以帶「使用者：密碼@」。</string>
     <string name="net_proxy_container_only">https:// 代理只給「檔案與計算環境」裡的指令用，Mika 自己的連線照舊直連。想全部走代理，請用 http:// 或 socks5://。</string>
     <string name="net_proxy_browser_unsupported">這台手機的 WebView 不支援單獨設定代理，內建瀏覽器直連。</string>
     <string name="net_proxy_browser_socks_auth">內建瀏覽器用不了需要帳號密碼的 SOCKS 代理，它直連。</string>
@@ -148,17 +148,17 @@
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>
     <string name="mcp_servers_transport_stdio">本機程序</string>
-    <string name="mcp_servers_command">命令(可執行檔與參數)</string>
-    <string name="mcp_servers_stdio_help">在 Linux 沙箱裡執行,請先在沙箱裡裝好伺服器。</string>
-    <string name="mcp_servers_legacy_sse">使用舊版 HTTP+SSE 傳輸(2024-11-05)</string>
+    <string name="mcp_servers_command">命令（可執行檔與參數）</string>
+    <string name="mcp_servers_stdio_help">在 Linux 沙箱裡執行，請先在沙箱裡裝好伺服器。</string>
+    <string name="mcp_servers_legacy_sse">使用舊版 HTTP+SSE 傳輸（2024-11-05）</string>
     <string name="mcp_servers_use_oauth">使用 OAuth 2.1 登入</string>
     <string name="mcp_servers_sign_in">登入</string>
     <string name="mcp_servers_signing_in">等待瀏覽器登入…</string>
     <string name="mcp_servers_sign_in_ok">登入成功。用「儲存並測試」檢查工具。</string>
-    <string name="mcp_servers_sign_in_failed">登入失敗:%1$s</string>
-    <string name="mcp_servers_run_failed">MCP 伺服器連線失敗:%1$s</string>
+    <string name="mcp_servers_sign_in_failed">登入失敗：%1$s</string>
+    <string name="mcp_servers_run_failed">MCP 伺服器連線失敗：%1$s</string>
     <string name="mcp_servers_status_ok">可用 · %1$d 個工具</string>
-    <string name="mcp_servers_status_fail">連線失敗:%1$s</string>
+    <string name="mcp_servers_status_fail">連線失敗：%1$s</string>
     <string name="mcp_servers_refresh_all">測試全部</string>
-    <string name="mcp_servers_allowlist">允許的工具(英文逗號分隔,留空為全部)</string>
+    <string name="mcp_servers_allowlist">允許的工具（英文逗號分隔，留空為全部）</string>
 </resources>
