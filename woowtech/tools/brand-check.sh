@@ -47,9 +47,11 @@ apk)
     # (app/build.gradle.kts). Every Chinese label still has to be the one from values-b+zh+Hant.
     # A plain zh locale is upstream's Simplified values-zh, which still names Mika. aapt2 keeps it along with
     # zh-rTW, so the build drops it with --exclude-configs zh. zh stays off the list below to catch it coming back.
-    labels=$(say "$badging" | grep "^application-label-zh" | grep -v ":'渥屋助理'$" || true)
+    # zh-Hans and yue are the brand's Traditional strings copied for phones set to Simplified Chinese or Cantonese
+    # (iOS parity Q14, app/brand.gradle.kts), so their labels are checked like the others.
+    labels=$(say "$badging" | grep -E "^application-label-(zh|yue)" | grep -v ":'渥屋助理'$" || true)
     [ -z "$labels" ] || bad "Chinese labels other than '渥屋助理': $labels"
-    locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant|zh-TW)$' || true)
+    locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant|zh-TW|zh-Hans|b\+zh\+Hans|yue|b\+yue)$' || true)
     [ -z "$locales" ] || bad "unexpected UI locales: $(say "$locales" | tr '\n' ' ')"
     say "$badging" | grep -E "^(package|application-label|locales)" | sed 's/^/  /'
     # Reminders and scheduled tasks need an exact alarm that does not depend on the user granting "Alarms & reminders"

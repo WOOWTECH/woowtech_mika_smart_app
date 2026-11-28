@@ -3,6 +3,8 @@ package com.wangzan101.mika.ui
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import com.wangzan101.mika.ui.components.MikaDialog
 import com.wangzan101.mika.ui.components.MikaNoticeDialog
 import androidx.compose.material3.Text
@@ -83,12 +85,13 @@ fun WebSitesSection(state: WebSitesState, labeled: Boolean = true) {
                 Text(if (s.challenged(System.currentTimeMillis())) "$base\n\n$WEB_CHALLENGED_NOTE" else base)
             },
             confirmButton = {
+                // WOOWTECH fork: the capsule holds two buttons; each takes the full width, so its whole row presses it
                 Column {
                     state.onOpenLogin?.let { open ->
-                        TextButton({ picked = null; open(s.host) }) { Text(tr(R.string.web_open_login)) }
+                        TextButton({ picked = null; open(s.host) }, Modifier.fillMaxWidth()) { Text(tr(R.string.web_open_login)) }
                     }
                     val clearing = s.challenged(System.currentTimeMillis())
-                    TextButton({
+                    TextButton(modifier = Modifier.fillMaxWidth(), onClick = {
                         picked = null
                         state.onLogout(s.host)
                         notice = if (clearing) tr(R.string.web_cleared, s.host) else tr(R.string.web_signed_out, s.host, WEB_LOGOUT_PARTIAL)

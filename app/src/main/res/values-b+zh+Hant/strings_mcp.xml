@@ -2,15 +2,15 @@
 <resources>
     <string name="mcp_title">連接電腦</string>
     <string name="mcp_starting">正在開啟…</string>
-    <string name="mcp_failed">沒能開啟:%1$s</string>
+    <string name="mcp_failed">沒能開啟：%1$s</string>
     <string name="mcp_address">連線位址</string>
     <string name="mcp_no_address">現在沒連著 Wi-Fi 或私有網路</string>
     <string name="mcp_address_foot">選擇電腦在同一 Wi-Fi 或私有 VPN 中能存取的位址。</string>
     <string name="mcp_token">存取權杖</string>
     <string name="mcp_copy">複製</string>
     <string name="mcp_regenerate">換一個</string>
-    <string name="mcp_regenerate_title">換一個存取權杖?</string>
-    <string name="mcp_regenerate_body">用舊權杖的電腦會連不上,換上新權杖才能接著用。</string>
+    <string name="mcp_regenerate_title">換一個存取權杖？</string>
+    <string name="mcp_regenerate_body">用舊權杖的電腦會連不上，換上新權杖才能接著用。</string>
     <string name="mcp_regenerate_confirm">換</string>
     <string name="mcp_copy_config">複製設定</string>
     <string name="mcp_copied">已複製</string>
@@ -21,8 +21,8 @@
     <string name="mcp_usb_off_sub">關著。用 USB 偵錯連著的電腦可以開啟它</string>
     <string name="mcp_usb_on">USB 存取已開啟</string>
     <string name="mcp_network_title">Wi-Fi 和私有網路</string>
-    <string name="mcp_notif_body_usb">經 USB 連線,連接埠 %1$d(只在本機監聽)</string>
-    <string name="mcp_notif_body_both">連接埠 %1$d:經 USB,也在 Wi-Fi 和私有網路上</string>
+    <string name="mcp_notif_body_usb">經 USB 連線，連接埠 %1$d（只在本機監聽）</string>
+    <string name="mcp_notif_body_both">連接埠 %1$d：經 USB，也在 Wi-Fi 和私有網路上</string>
     <string name="mcp_choose_client">電腦端用法</string>
     <string name="mcp_access_off">電腦存取未開啟</string>
     <string name="mcp_request_received">已收到電腦請求</string>

@@ -140,9 +140,17 @@ internal fun botUiImportAvatar(context: Context, uri: Uri): String {
     }
     val oriented = Bitmap.createBitmap(crop, 0, 0, crop.width, crop.height, matrix, true)
     val scaled = Bitmap.createScaledBitmap(oriented, 320, 320, true)
+    // JPEG has no transparency: a transparent PNG or WebP is laid on white first, as iOS does (iOS parity k9, owner
+    // 2026-11-28), instead of the encoder turning its clear pixels black.
+    val opaque = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
+    android.graphics.Canvas(opaque).apply {
+        drawColor(android.graphics.Color.WHITE)
+        drawBitmap(scaled, 0f, 0f, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+    }
     val output = ByteArrayOutputStream()
-    check(scaled.compress(Bitmap.CompressFormat.JPEG, 90, output))
+    check(opaque.compress(Bitmap.CompressFormat.JPEG, 90, output))
     val result = Base64.getEncoder().encodeToString(output.toByteArray())
+    opaque.recycle()
     if (scaled !== oriented) scaled.recycle()
     if (oriented !== crop) oriented.recycle()
     if (crop !== source) crop.recycle()

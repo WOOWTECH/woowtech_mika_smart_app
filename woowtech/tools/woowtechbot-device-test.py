@@ -22,6 +22,8 @@ TESTS = [
     'com.wangzan101.mika.woowbot.BotProfileIsolationTest',
     'com.wangzan101.mika.woowbot.BotDownloadsDeviceTest',
     'com.wangzan101.mika.woowbot.BotDownloadsEndToEndTest',
+    'com.wangzan101.mika.woowbot.BotChineseUiDeviceTest',
+    'com.wangzan101.mika.woowbot.BotParityFollowupsDeviceTest',
 ]
 # The download test page runs on this host; the emulator reaches it as 10.0.2.2 (a LAN address for the app).
 FIXTURE_PORT = 8766

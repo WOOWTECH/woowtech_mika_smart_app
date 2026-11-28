@@ -8,9 +8,9 @@
     <string name="trigger_unconfirmed">定時任務結果待確認</string>
     <string name="trigger_unlock_failed">定時任務無法喚醒或解鎖手機。請在下次執行先手動解鎖，或在「設定 › 連接電腦」中檢查「允許遠端喚醒螢幕與解鎖」及已儲存的螢幕鎖定憑證。</string>
     <string name="trigger_alarm_title">定時任務需要「鬧鐘和提醒」權限</string>
-    <string name="trigger_alarm_body">沒有這個權限,定時任務到點可能不準時,甚至不會啟動。點這裡去開啟。</string>
+    <string name="trigger_alarm_body">沒有這個權限，定時任務到點可能不準時，甚至不會啟動。點這裡去開啟。</string>
     <string name="op_failed">操作失敗</string>
-    <string name="plans_alarm_body">沒有這個權限,定時任務到點可能不準時,甚至不會啟動。開一次就行。</string>
+    <string name="plans_alarm_body">沒有這個權限，定時任務到點可能不準時，甚至不會啟動。開一次就行。</string>
     <string name="plans_running_n">進行中 %1$d</string>
     <string name="plans_stopped_n">已停用 %1$d</string>
     <string name="plans_empty">還沒有定時任務\n在對話裡告訴 Mika 什麼時候提醒你，或什麼時候幫你做事。</string>

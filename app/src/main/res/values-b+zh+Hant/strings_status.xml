@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="progress_replay">按以往的做法快速執行中(第 %1$d/%2$d 步)</string>
+    <string name="progress_replay">按以往的做法快速執行中（第 %1$d/%2$d 步）</string>
     <string name="progress_waiting_app">等另一個任務用完%1$s</string>
     <plurals name="progress_batch">
         <item quantity="other">一次執行 %1$d 步</item>
     </plurals>
-    <string name="payment_item">商品:%1$s</string>
-    <string name="payment_amount">金額:%1$s</string>
-    <string name="payment_address">地址:%1$s</string>
+    <string name="payment_item">商品：%1$s</string>
+    <string name="payment_amount">金額：%1$s</string>
+    <string name="payment_address">地址：%1$s</string>
     <string name="state_on">已開啟</string>
     <string name="state_off">未開啟</string>
     <string name="state_not_running">未執行</string>
@@ -74,7 +74,7 @@
     <string name="explain_focus_body">Android 12、13 上背景操作可能影響主螢幕焦點：Mika 在虛擬螢幕上開啟 App 或翻頁時，你正在主螢幕輸入的地方可能短暫失去焦點，需要再點一下。Android 14 起虛擬螢幕有自己的焦點，不會這樣。這臺手機是 Android %1$s，仍然可以正常開始任務。</string>
     <string name="explain_notif">允許通知</string>
     <string name="explain_notif_body">允許後，任務進度和「需要你處理」的提醒會出現在通知欄和螢幕鎖定上。不允許也能用，只是看不到這些提醒。</string>
-    <string name="sandbox_command_prefix">正在處理檔案:</string>
+    <string name="sandbox_command_prefix">正在處理檔案：</string>
     <string name="sandbox_script">正在執行腳本</string>
     <string name="sandbox_online">可聯網</string>
     <string name="runtime_preparing">正在準備</string>

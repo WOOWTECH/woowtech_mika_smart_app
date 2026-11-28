@@ -1,6 +1,7 @@
 package com.wangzan101.mika.i18n
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -151,6 +152,27 @@ class StringResourcesTest {
         // 印尼语:现行代码和安卓 Locale 还在用的旧代码都认
         assertEquals(AppLanguage.Indonesian, of("id-ID"))
         assertEquals(AppLanguage.Indonesian, of("in-ID"))
+    }
+
+    /** WOOWTECH fork(和 iOS 对齐 Q14):跟随系统时第一个有界面的语言决定;简体中文、粤语显示品牌的繁体中文。 */
+    @Test
+    fun followSystemShowsTraditionalChineseForChinesePhones() {
+        // 单测里没有安卓的 ICU:台湾、香港、澳门补成繁体,其余中文补成简体
+        val likely = { l: Locale -> if (l.country in setOf("TW", "HK", "MO")) "Hant" else "Hans" }
+        fun of(vararg tags: String, ui: String? = "zh-Hant-TW") = AppLanguage.followSystem(tags.map(Locale::forLanguageTag), ui, likely)?.toLanguageTag()
+        for (tags in listOf("zh-Hans-CN", "zh-CN", "zh-SG", "zh", "yue-HK", "yue")) assertEquals(tags, "zh-Hant-TW", of(tags))
+        // 没有界面的语言跳过,轮到中文
+        assertEquals("zh-Hant-TW", of("ja-JP", "zh-Hans-CN"))
+        // 英文在前就是英文;本来就是繁体的不用换;都没有界面时安卓自己显示英文
+        assertNull(of("en-US", "zh-Hans-CN"))
+        assertNull(of("ja-JP", "en-US", "zh-CN"))
+        assertNull(of("zh-TW"))
+        assertNull(of("zh-HK"))
+        assertNull(of("zh-Hant-CN"))
+        assertNull(of("fr-FR"))
+        assertNull(of("ja-JP", "ko-KR"))
+        // 品牌没设(上游)时照安卓的规则
+        assertNull(of("zh-Hans-CN", ui = null))
     }
 
     @Test
