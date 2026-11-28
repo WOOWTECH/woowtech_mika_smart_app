@@ -59,6 +59,25 @@ class BotDownloadNamesTest {
         val long = BotDownloadNames.sanitize("n".repeat(300) + ".xlsx")
         assertEquals(BotDownloadNames.MAX_NAME, long.length)
         assertTrue(long.endsWith(".xlsx"))
+        // Bytes, not only characters: a long Chinese name stays under the file system's 255 bytes.
+        val chinese = BotDownloadNames.sanitize("季度報告".repeat(30) + ".pdf")
+        assertTrue(chinese.toByteArray(Charsets.UTF_8).size <= BotDownloadNames.MAX_NAME_BYTES)
+        assertTrue(chinese.endsWith(".pdf") && chinese.startsWith("季度報告"))
+        assertEquals(78 + 4, chinese.length)
+        // Never inside a character made of two UTF-16 units.
+        val emoji = BotDownloadNames.sanitize("😀".repeat(100) + ".png")
+        assertTrue(emoji.endsWith(".png"))
+        assertFalse(emoji.dropLast(4).last().isHighSurrogate())
+        assertEquals(emoji.dropLast(4).length % 2, 0)
+    }
+
+    @Test fun pageDownloadsNeedARecentTouchOrAnAccessibilityService() {
+        val now = 1_000_000L
+        assertTrue(pageDownloadAllowed(now, now - 1_000, assisted = false))
+        assertTrue(pageDownloadAllowed(now, now - BotDownloadLimits.GESTURE_MS, assisted = false))
+        assertFalse(pageDownloadAllowed(now, now - BotDownloadLimits.GESTURE_MS - 1, assisted = false))
+        assertFalse(pageDownloadAllowed(now, 0, assisted = false))
+        assertTrue(pageDownloadAllowed(now, 0, assisted = true))
     }
 
     @Test fun dataUrlsDecodeWithinTheLimit() {
