@@ -45,7 +45,7 @@ Switch: 32 × 20, knob 16 two in, 0.15 s; on = ink track with a page-coloured kn
 | `theme/Colors.kt`, `Theme.kt` | `WoowDarkColors` / `WoowLightColors` carry the phone tokens; `WoowSheetDark/LightColors` the settings look; new fields `panel, menu, menuHover, menuActive, control, inset, raisedHover`; Material dialogs take `menu` and `menuRadius` |
 | `BotUiPopovers.kt` | `BotUiPopover` (Popup, anchored, `pop-in`/`pop-out`), `BotUiPopoverItem`, `BotUiPopoverDivider` |
 | `BotUiSheet.kt` | `BotUiSheet`, `BotUiCard`, `BotUiSettingsRow`, `BotUiSectionLabel`, `BotUiSwitch`, `BotUiPillButton`, `BotUiTextField`, `BotUiSearchPill` |
-| `BotUiAvatar.kt` | the design's robot drawn from the preview's own SVG paths, eleven bot colours |
+| `BotUiAvatar.kt` | since 11/28 (owner) the bubble helmet, the same drawing as iOS (`bubble-helmet-avatar-spec.md`): ten outlines, ten expressions, twelve bot colours |
 | `BotUiProfileEditor.kt` | chat header and the name/icon page |
 
 ## Screens
@@ -57,7 +57,7 @@ Switch: 32 × 20, knob 16 two in, 0.15 s; on = ink track with a page-coloured kn
 | Row “…” and chat “…” | Material dropdown | popovers (name and icon, pin, delete / name and icon, new, find, files) |
 | Switch assistant / service | full page with a Material app bar | bottom sheet, cards, manage sheet and add dialog in the same family |
 | Bot notifications | full page of buttons | bottom sheet: switch row, system settings, per-service status |
-| Name and icon | app bar “✕ name ✓”, outlined field, numbered colour dots | design's page: round ✓ ✕ top right, 68 dp tile with pencil, centred name, icon card (robot / upload, three styles, eleven colours, face) |
+| Name and icon | app bar “✕ name ✓”, outlined field, numbered colour dots | design's page: round ✓ ✕ top right, 120 dp helmet with pencil, centred name, icon card (robot / upload; since 11/28 outline five by two, twelve colours, face, expression) |
 | Chat header | full-width capsule touching both screen edges | 8 dp side margin, round buttons (40 dp circle in a 48 dp target), capsule hugs its content and sits in the middle |
 | Find / files / dialogs | Material fields and text buttons | search pill, card rows, popover-surface dialogs with ink-coloured buttons (destructive stays red) |
 
@@ -70,6 +70,9 @@ reached the screen edge and the menu ended up 8 dp away from its button.
 
 `BotUiProfile.palette` (default 1) marks the generation. Profiles saved before it read as the original six colours and are mapped to the
 closest of the eleven (`colorIndex()`), so no conversation changes colour; the editor saves generation 2, where `face` is automatic / white / black.
+Since 11/28 generation 2 also has pearl white (index 11), and `shape` (outline) and `expression` sit beside it: profiles saved before them
+read as the circle at rest, and `robot` (the three earlier styles) is kept but no longer drawn. Automatic face features are dark when the
+colour's relative luminance is above 0.4 (yellow, silver, pearl white), otherwise white.
 
 ## Evidence
 

@@ -84,7 +84,7 @@ class BotUiProfileTest {
         assertEquals(BotUiProfile(face = 2), store.botUiProfile(id))
     }
 
-    @Test fun elevenColourPaletteValidatesAndLegacyProfilesKeepTheirLook() {
+    @Test fun currentPaletteValidatesAndLegacyProfilesKeepTheirLook() {
         // Original six-colour profiles map to the closest woowtechbot colour, so no conversation changes colour.
         val legacy = listOf(0 to 1, 1 to 8, 2 to 4, 3 to 3, 4 to 6, 5 to 10)
         legacy.forEach { (old, current) -> assertEquals(current, BotUiProfile(color = old).colorIndex()) }
@@ -92,9 +92,10 @@ class BotUiProfileTest {
         val upgraded = BotUiProfile(robot = 1, color = 4, face = 2).upgraded()
         assertEquals(BotUiProfile(robot = 1, color = 6, face = 0, palette = 2), upgraded)
         assertEquals(upgraded, upgraded.upgraded())
-        // The new generation allows all eleven colours and the three face modes; the old one still stops at six.
-        assertTrue(BotUiProfile(color = 10, face = 2, palette = 2).valid())
-        assertFalse(BotUiProfile(color = 11, palette = 2).valid())
+        // The new generation allows all twelve colours (pearl white since 11/28) and the three face modes; the old one still
+        // stops at six.
+        assertTrue(BotUiProfile(color = 11, face = 2, palette = 2).valid())
+        assertFalse(BotUiProfile(color = 12, palette = 2).valid())
         assertFalse(BotUiProfile(color = 6).valid())
         assertFalse(BotUiProfile(palette = 3).valid())
         assertEquals(2, BotUiProfile(color = 7, face = 2, palette = 2).faceMode())
@@ -111,5 +112,38 @@ class BotUiProfileTest {
         val legacy = ConversationStore(dir).botUiProfile("b")
         assertEquals(1, legacy.palette)
         assertEquals(4, legacy.colorIndex())
+    }
+
+    /** Owner 11/28, the bubble helmet: older sidecars read as the circle at rest, and the outline and expression persist. */
+    @Test fun bubbleHelmetReadsOlderProfilesAsTheCircleAtRestAndPersists() {
+        val dir = tmp.newFolder()
+        // Saved with the eleven-colour palette, and before any palette at all; neither has an outline or an expression.
+        File(dir, "a.json.bot_ui_profile").writeText("""{"robot":1,"color":10,"face":2,"palette":2}""")
+        File(dir, "b.json.bot_ui_profile").writeText("""{"robot":2,"color":3}""")
+        val store = ConversationStore(dir)
+        assertEquals(BotUiProfile(robot = 1, color = 10, face = 2, palette = 2, shape = BotUiProfile.CIRCLE, expression = 0), store.botUiProfile("a"))
+        val legacy = store.botUiProfile("b")
+        assertEquals(2, legacy.shape)
+        assertEquals(0, legacy.expression)
+        assertEquals(3, legacy.colorIndex())
+        // The earlier robot style is kept as it was; the helmet a new conversation starts with is the blue circle at rest.
+        assertEquals(2, legacy.robot)
+        assertEquals(BotUiProfile.CIRCLE, BotUiProfile().shape)
+        assertEquals(0, BotUiProfile().expression)
+        assertEquals(1, BotUiProfile().colorIndex())
+        // Pearl white, the star and the thinking face survive a save.
+        val helmet = BotUiProfile(color = 11, palette = 2, shape = 9, expression = 5)
+        assertTrue(store.saveBotUiProfile("a", "A", helmet))
+        assertEquals(helmet, ConversationStore(dir).botUiProfile("a"))
+        assertEquals(helmet, helmet.upgraded())
+        // Every outline and expression is valid; one past either end is not saved, and the earlier profile stays.
+        for (shape in 0 until BotUiProfile.SHAPES) assertTrue(BotUiProfile(palette = 2, shape = shape).valid())
+        for (expression in 0 until BotUiProfile.EXPRESSIONS) assertTrue(BotUiProfile(palette = 2, expression = expression).valid())
+        assertFalse(store.saveBotUiProfile("a", "A", helmet.copy(shape = BotUiProfile.SHAPES)))
+        assertFalse(store.saveBotUiProfile("a", "A", helmet.copy(expression = -1)))
+        assertEquals(helmet, ConversationStore(dir).botUiProfile("a"))
+        // A later version's outline this one does not know falls back to the default, like any other invalid sidecar.
+        File(dir, "b.json.bot_ui_profile").writeText("""{"color":3,"palette":2,"shape":10}""")
+        assertEquals(BotUiProfile(), ConversationStore(dir).botUiProfile("b"))
     }
 }
