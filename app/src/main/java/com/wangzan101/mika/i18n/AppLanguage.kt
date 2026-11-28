@@ -127,7 +127,7 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
          * 套到整个进程,但同一进程里的无障碍服务一启动,系统就不再让进程的配置跟着界面走(AOSP 的 WindowProcessController.onServiceStarted
          * 对 BIND_ACCESSIBILITY_SERVICE 清掉进程的覆盖配置),进程的默认语言退回系统语言:界面的字照旧(界面和 [resources] 各按
          * App 语言取),排版、字形却按系统语言——繁中的全形「，。」不再置中,内置浏览器向网站要的页面语言也跟着变。
-         * 跟随系统时不动。
+         * 跟随系统时不动;界面按 [followSystem] 换成繁体中文时除外。
          */
         fun applyDefaultLocale(context: Context) {
             // WOOWTECH fork: 跟随系统而界面换成了繁体中文时([followSystem])也设;系统语言改掉以后换回系统的
