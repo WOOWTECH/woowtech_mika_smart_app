@@ -386,7 +386,7 @@ class BotServiceActivity : ComponentActivity() {
      * agrees) another site's https file. Only shortly after the user touched the page, as on iOS.
      */
     private fun onDownload(view: WebView, service: BotService, url: String, disposition: String?, type: String?) {
-        if (System.currentTimeMillis() - touchedAt > BotDownloadLimits.GESTURE_MS) {
+        if (!pageDownloadAllowed(System.currentTimeMillis(), touchedAt, assisted())) {
             download = DownloadState("", error = R.string.bot_services_download_not_tapped); return
         }
         if (downloadJob?.isActive == true) {
@@ -404,6 +404,20 @@ class BotServiceActivity : ComponentActivity() {
             }
             else -> download = DownloadState("", error = R.string.bot_services_download_unsupported)
         }
+    }
+
+    /** An accessibility service other than this app's own acts for the user (TalkBack, Switch Access, Voice Access…). */
+    private fun assisted(): Boolean = runCatching {
+        val manager = getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+        manager.isEnabled && (manager.isTouchExplorationEnabled ||
+            manager.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                .any { it.resolveInfo?.serviceInfo?.packageName != packageName })
+    }.getOrDefault(false)
+
+    /** A key press on the page (keyboard, D-pad) counts as the user's input, like a touch. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) touchedAt = System.currentTimeMillis()
+        return super.dispatchKeyEvent(event)
     }
 
     private fun names(explicit: String?, disposition: String?, url: String?, type: String?) =

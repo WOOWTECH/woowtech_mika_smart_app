@@ -42,6 +42,13 @@ internal object BotDownloadLimits {
     const val GESTURE_MS = 60_000L
 }
 
+/**
+ * A download the page started is the user's when they touched or typed on the page within [BotDownloadLimits.GESTURE_MS],
+ * or when an accessibility service acts for them (TalkBack and Switch Access activate links without a touch event).
+ */
+internal fun pageDownloadAllowed(now: Long, lastInput: Long, assisted: Boolean): Boolean =
+    assisted || (lastInput > 0 && now - lastInput in 0..BotDownloadLimits.GESTURE_MS)
+
 internal class BotDownloadException(val reason: Int, val arg: String? = null) : Exception("download failed")
 
 /** File names and types. Pure (system lookups are passed in), so it is unit tested. */
@@ -73,6 +80,7 @@ internal object BotDownloadNames {
     private val generic = setOf("", "application/octet-stream", "binary/octet-stream", "application/unknown", "application/force-download",
         "application/x-download", "application/download")
     const val MAX_NAME = 120
+    const val MAX_NAME_BYTES = 240
 
     fun extension(name: String): String? = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
         .takeIf { it.isNotEmpty() && it.length <= 10 && name.lastIndexOf('.') > 0 && it.all { c -> c.isLetterOrDigit() } }
@@ -89,13 +97,21 @@ internal object BotDownloadNames {
 
     fun sanitize(raw: String): String {
         var name = raw.substringAfterLast('/').substringAfterLast('\\')
-        name = name.filterNot { it.isISOControl() || it in "<>:\"|?*" || it in '‪'..'‮' || it in '⁦'..'⁩' ||
-            it == '‎' || it == '‏' }
+        name = name.filterNot { it.isISOControl() || it in "<>:\"|?*" || it in '\u202A'..'\u202E' || it in '\u2066'..'\u2069' ||
+            it == '\u200E' || it == '\u200F' }
         name = name.trim().trim('.').trim()
         if (name.isEmpty()) name = "download"
-        if (name.length > MAX_NAME) {
-            val keep = extension(name)?.let { ".$it" }.orEmpty()
-            name = name.take(MAX_NAME - keep.length).trimEnd() + keep
+        // At most 120 characters and 240 UTF-8 bytes (file systems allow 255; the system may still add " (1)"), cut before the
+        // extension and never inside a character (iOS line, 2026-11-28: a long Chinese name passed 255 bytes).
+        val keep = extension(name)?.let { ".$it" }.orEmpty()
+        var base = name.removeSuffix(keep)
+        fun fits(text: String) = text.length + keep.length <= MAX_NAME && (text + keep).toByteArray(Charsets.UTF_8).size <= MAX_NAME_BYTES
+        if (!fits(base)) {
+            while (base.isNotEmpty() && !fits(base)) {
+                val pair = base.length >= 2 && base.last().isLowSurrogate() && base[base.length - 2].isHighSurrogate()
+                base = base.dropLast(if (pair) 2 else 1)
+            }
+            name = base.trimEnd().ifEmpty { "download" } + keep
         }
         return name
     }
