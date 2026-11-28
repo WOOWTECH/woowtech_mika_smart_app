@@ -99,11 +99,14 @@ class BotUiConversationDeviceTest {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent 4")).use { it.readBytes() }
         compose.waitForIdle()
         compose.onNodeWithTag("bot_ui_avatar_button").performClick()
-        compose.onNodeWithTag("bot_ui_robot_2").performScrollTo().performClick()
+        compose.onNodeWithTag("bot_ui_shape_9").performScrollTo().performClick()
+        compose.onNodeWithTag("bot_ui_expression_5").performScrollTo().performClick()
         compose.onNodeWithContentDescription(text(R.string.save)).performClick()
         compose.waitUntil(5_000) { store.title("a") == "Personal Alpha" }
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("bot_ui_profile_name").fetchSemanticsNodes().isEmpty() }
-        assertEquals(2, ConversationStore(dir).botUiProfile("a").robot)
+        val helmet = ConversationStore(dir).botUiProfile("a")
+        assertEquals(9, helmet.shape)
+        assertEquals(5, helmet.expression)
         assertEquals(BotUiProfile(color = 4), ConversationStore(dir).botUiProfile("b"))
         assertEquals("Beta", ConversationStore(dir).title("b"))
         compose.runOnUiThread { vm.openConversation("b") }

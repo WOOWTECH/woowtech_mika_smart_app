@@ -8,9 +8,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +33,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -71,6 +75,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -78,6 +83,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -157,10 +163,9 @@ internal fun BotUiChatHeader(vm: ChatViewModel, ui: ChatUi, subtitle: String?, o
 
 /**
  * Conversation name and icon, laid out like the design's `avatarPage`: no title, save and close as round buttons at the top
- * right, a 68 dp tile with a pencil badge, the name centred below it, and the icon card opening under them. Only the name and
- * the icon (robot or an uploaded picture) can change.
+ * right, the 120 dp bubble helmet with a pencil badge, the name centred below it, and the icon card opening under them. Only the
+ * name and the icon (the helmet or an uploaded picture) can change.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun BotUiProfileEditor(store: ConversationStore, id: String, fallback: String, onClose: () -> Unit) {
     val context = LocalContext.current
@@ -207,8 +212,8 @@ internal fun BotUiProfileEditor(store: ConversationStore, id: String, fallback: 
             }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(start = 12.dp, end = 12.dp, top = 18.dp, bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                // `.avatar-large`: 68 dp tile, radius 28 %, with a 23 dp pencil badge 4 dp outside its corner.
-                Box(Modifier.size(68.dp).testTag("bot_ui_avatar_button").selectable(selected = open, enabled = editable, role = Role.Button) { open = !open }
+                // `.avatar-large`: the 120 dp bubble helmet (spec: at least 120), with a 23 dp pencil badge 4 dp outside its corner.
+                Box(Modifier.size(120.dp).testTag("bot_ui_avatar_button").selectable(selected = open, enabled = editable, role = Role.Button) { open = !open }
                     .semantics { contentDescription = context.getString(R.string.bot_ui_edit_icon) }) {
                     BotUiAvatar(profile, Modifier.fillMaxSize())
                     Box(Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp).size(23.dp).clip(CircleShape)
@@ -277,57 +282,111 @@ internal fun BotUiProfileEditor(store: ConversationStore, id: String, fallback: 
                                 Spacer(Modifier.height(10.dp))
                                 Text(stringResource(R.string.bot_ui_crop_hint), Modifier.fillMaxWidth(), color = c.ink2, fontSize = 11.sp, lineHeight = 15.sp, textAlign = TextAlign.Center)
                             } else {
-                                val styleLabels = listOf(R.string.bot_ui_style_classic, R.string.bot_ui_style_square, R.string.bot_ui_style_round)
-                                Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    styleLabels.forEachIndexed { style, label ->
-                                        val picked = profile.image == null && profile.robot == style
-                                        Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(if (picked) c.raisedHover else Color.Transparent)
-                                            .border(2.dp, if (picked) c.ink else Color.Transparent, RoundedCornerShape(18.dp))
-                                            .selectable(selected = picked, enabled = editable, role = Role.RadioButton) { profile = profile.copy(robot = style, image = null) }
-                                            .padding(horizontal = 5.dp, vertical = 10.dp).testTag("bot_ui_robot_$style"),
-                                            horizontalAlignment = Alignment.CenterHorizontally) {
-                                            BotUiAvatar(profile.copy(robot = style, image = null), Modifier.size(50.dp))
-                                            Spacer(Modifier.height(6.dp))
-                                            Text(stringResource(label), color = c.ink2, fontSize = 11.sp, lineHeight = 15.sp)
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.height(23.dp))
-                                FlowRow(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    BotUiAvatarColors.forEachIndexed { index, entry ->
-                                        val picked = profile.image == null && profile.color == index
-                                        val ring = c.ink
-                                        val label = stringResource(entry.nameRes)
-                                        Box(Modifier.size(27.dp)
-                                            .drawBehind { if (picked) drawCircle(ring, radius = size.minDimension / 2f + 5.dp.toPx(), style = Stroke(2.dp.toPx())) }
-                                            .clip(CircleShape).background(entry.color)
-                                            .selectable(selected = picked, enabled = editable, role = Role.RadioButton) { profile = profile.copy(color = index, image = null) }
-                                            .semantics { contentDescription = label })
-                                    }
-                                }
-                                Spacer(Modifier.height(28.dp))
-                                Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.bot_ui_face), Modifier.weight(1f), color = c.ink2, fontSize = 12.sp, lineHeight = 16.sp)
-                                    Text(stringResource(R.string.bot_ui_face_auto), Modifier.clip(RoundedCornerShape(8.dp))
-                                        .selectable(selected = profile.face == 0, enabled = editable, role = Role.RadioButton) { profile = profile.copy(face = 0, image = null) }
-                                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                                        color = if (profile.face == 0 && profile.image == null) c.ink else c.ink2, fontSize = 12.sp, lineHeight = 16.sp)
-                                }
-                                Row(Modifier.fillMaxWidth().clip(CircleShape).background(c.raisedHover).padding(4.dp).selectableGroup()) {
-                                    listOf(1 to R.string.bot_ui_face_white, 2 to R.string.bot_ui_face_black).forEach { (face, label) ->
-                                        val picked = profile.image == null && profile.face == face
-                                        Text(stringResource(label), Modifier.weight(1f).clip(CircleShape).background(if (picked) c.bg else Color.Transparent)
-                                            .selectable(selected = picked, enabled = editable, role = Role.RadioButton) { profile = profile.copy(face = face, image = null) }
-                                            .padding(9.dp), color = if (picked) c.ink else c.ink2, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
-                                    }
-                                }
+                                BotUiHelmetPane(profile, editable) { profile = it }
                             }
                         }
                     }
                 }
                 if (busy) LinearProgressIndicator(Modifier.padding(top = 16.dp).fillMaxWidth())
                 if (error) Text(stringResource(R.string.bot_ui_save_error), Modifier.padding(top = 16.dp), color = c.warn, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+        }
+    }
+}
+
+/** A part of the helmet editor: 13 sp / 500 in the secondary ink, a heading for screen readers. */
+@Composable
+private fun HelmetPartLabel(text: Int, modifier: Modifier = Modifier) {
+    Text(stringResource(text), modifier.semantics { heading() }, color = MikaTheme.colors.ink2, fontSize = 13.sp, lineHeight = 18.sp,
+        fontWeight = FontWeight.Medium)
+}
+
+/**
+ * Owner 11/28, the website's editor for the bubble helmet: ten outlines five by two, twelve colours, the face in white, black or
+ * matching the body, and ten expressions. Every outline, colour and expression is a button of at least 48 dp; choosing one
+ * replaces an uploaded picture, as choosing a colour always did.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BotUiHelmetPane(profile: BotUiProfile, editable: Boolean, onChange: (BotUiProfile) -> Unit) {
+    val c = MikaTheme.colors
+    val noPhoto = profile.image == null
+    Column(Modifier.fillMaxWidth()) {
+        HelmetPartLabel(R.string.bot_ui_outline)
+        Spacer(Modifier.height(10.dp))
+        // 6 dp gaps keep each tile 48 dp wide down to a 320 dp screen.
+        Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            BotUiHelmetOutlines.indices.chunked(5).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEach { shape ->
+                        val picked = noPhoto && profile.shape == shape
+                        val label = stringResource(BotUiHelmetOutlines[shape].nameRes)
+                        val tileShape = RoundedCornerShape(16.dp)
+                        Box(Modifier.weight(1f).heightIn(min = 60.dp).clip(tileShape).background(if (picked) c.raisedHover else Color.Transparent)
+                            .border(2.dp, if (picked) c.ink2 else Color.Transparent, tileShape)
+                            .selectable(selected = picked, enabled = editable, role = Role.Button) { onChange(profile.copy(shape = shape, image = null)) }
+                            .semantics { contentDescription = label }.testTag("bot_ui_shape_$shape"), contentAlignment = Alignment.Center) {
+                            // The current colour, face and expression in this outline.
+                            BotUiHelmet(profile.copy(shape = shape), Modifier.size(44.dp))
+                        }
+                    }
+                }
+            }
+        }
+        // The 48 dp buttons leave 10 dp around each dot and 6 dp around each chip, so the gaps below the labels are smaller.
+        HelmetPartLabel(R.string.bot_ui_color, Modifier.padding(top = 22.dp, bottom = 2.dp))
+        FlowRow(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.Center, maxItemsInEachRow = 6) {
+            BotUiAvatarColors.forEachIndexed { index, entry ->
+                val picked = noPhoto && profile.color == index
+                val ring = c.ink
+                val label = stringResource(entry.nameRes)
+                // A 27 dp dot in a 48 dp button, the ring 5 dp outside it while picked. Every dot has a hairline edge, so pearl white
+                // still shows on the light card.
+                Box(Modifier.size(48.dp).clip(CircleShape)
+                    .selectable(selected = picked, enabled = editable, role = Role.Button) { onChange(profile.copy(color = index, image = null)) }
+                    .semantics { contentDescription = label }.testTag("bot_ui_color_$index"), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(27.dp)
+                        .drawBehind { if (picked) drawCircle(ring, radius = size.minDimension / 2f + 5.dp.toPx(), style = Stroke(2.dp.toPx())) }
+                        .clip(CircleShape).background(entry.color).border(Dp.Hairline, c.hair, CircleShape))
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            HelmetPartLabel(R.string.bot_ui_face, Modifier.weight(1f))
+            val auto = noPhoto && profile.face == 0
+            Box(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(8.dp))
+                .selectable(selected = auto, enabled = editable, role = Role.RadioButton) { onChange(profile.copy(face = 0, image = null)) }
+                .padding(horizontal = 6.dp).testTag("bot_ui_face_auto"), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.bot_ui_face_auto), color = if (auto) c.accent else c.ink2, fontSize = 13.sp, lineHeight = 18.sp,
+                    fontWeight = if (auto) FontWeight.SemiBold else FontWeight.Normal)
+            }
+        }
+        Row(Modifier.fillMaxWidth().clip(CircleShape).background(c.raisedHover).padding(4.dp).selectableGroup()) {
+            listOf(1 to R.string.bot_ui_face_white, 2 to R.string.bot_ui_face_black).forEach { (face, label) ->
+                val picked = noPhoto && profile.face == face
+                Text(stringResource(label), Modifier.weight(1f).clip(CircleShape).background(if (picked) c.bg else Color.Transparent)
+                    .selectable(selected = picked, enabled = editable, role = Role.RadioButton) { onChange(profile.copy(face = face, image = null)) }
+                    .padding(9.dp), color = if (picked) c.ink else c.ink2, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+            }
+        }
+        HelmetPartLabel(R.string.bot_ui_expression, Modifier.padding(top = 22.dp, bottom = 4.dp))
+        FlowRow(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BotUiHelmetExpressions.forEachIndexed { expression, entry ->
+                val picked = noPhoto && profile.expression == expression
+                val label = stringResource(entry.nameRes)
+                val press = remember { MutableInteractionSource() }
+                // A 36 dp chip in a 48 dp button: the button takes the touch, the chip shows the press.
+                Box(Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
+                    .selectable(selected = picked, interactionSource = press, indication = null, enabled = editable, role = Role.Button) {
+                        onChange(profile.copy(expression = expression, image = null))
+                    }
+                    .semantics { contentDescription = label }.testTag("bot_ui_expression_$expression"), contentAlignment = Alignment.Center) {
+                    Box(Modifier.heightIn(min = 36.dp).clip(CircleShape).background(c.raisedHover)
+                        .border(1.5.dp, if (picked) c.ink else Color.Transparent, CircleShape).indication(press, LocalIndication.current)
+                        .padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+                        Text(label, color = c.ink, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Normal)
+                    }
+                }
             }
         }
     }
