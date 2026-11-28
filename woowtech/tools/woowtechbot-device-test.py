@@ -20,6 +20,7 @@ TESTS = [
     'com.wangzan101.mika.woowbot.push.BotPushConnectionsDeviceTest',
     'com.wangzan101.mika.woowbot.BotResumeDeviceTest',
     'com.wangzan101.mika.woowbot.BotProfileIsolationTest',
+    'com.wangzan101.mika.woowbot.BotDownloadsDeviceTest',
 ]
 SERIAL = 'emulator-5554'
 # am instrument -r status codes per test.
