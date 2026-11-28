@@ -81,7 +81,8 @@ struct ContentView: View {
             switch page {
             case .edit:
                 if let archive = session.archive {
-                    BotProfileEditor(id: session.conversationID, archive: archive, workspace: botWorkspace, localizer: localizer) { botPage = nil }
+                    BotProfileEditor(id: session.conversationID, archive: archive, workspace: botWorkspace, localizer: localizer,
+                                     fallbackName: botCurrentTitle) { botPage = nil }
                 }
             case .search: BotConversationSearch(chat: session, localizer: localizer) { botPage = nil }
             case .files: BotConversationFiles(chat: session, localizer: localizer) { botPage = nil }
@@ -531,9 +532,9 @@ struct ContentView: View {
 
     #if WOOWTECHBOT
     private func botText(_ zh: String, _ en: String) -> String { localizer.language == .english ? en : zh }
+    /// Android's top bar: the chat's name, else its first message as a title, else the app's name.
     private var botCurrentTitle: String {
-        let record = session.archive?.conversations.first { $0.id.uuidString == session.conversationID }
-        return record?.customTitle ?? botWorkspace.presentation(session.conversationID).title ?? record?.title ?? BotBrand.appName(localizer)
+        session.botDisplayTitle(session.conversationID, workspace: botWorkspace) ?? BotBrand.appName(localizer)
     }
     /// Android `BotUiChatHeader`: a round back button, a capsule with the identity tile and name that hugs its content and sits
     /// in the middle, and a round "…" whose popover has name and icon, new chat, find and files.
@@ -564,7 +565,8 @@ struct ContentView: View {
     @ViewBuilder private var botChatMenuView: some View {
         BotPopoverSurface {
             BotPopoverRow(symbol: "pencil", title: botText("名稱與圖示", "Name and icon"), identifier: "bot.chat.menu.edit") { botChatMenu = nil; botPage = .edit }
-            BotPopoverRow(symbol: "square.and.pencil", title: botText("新對話", "New chat"), enabled: !session.isSubmitting,
+            // Android's canSwitch, as in the history: no running reply, no attachment being added, nothing left unsaved.
+            BotPopoverRow(symbol: "square.and.pencil", title: botText("新對話", "New chat"), enabled: session.canSwitchBotConversation,
                           identifier: "bot.chat.menu.new") { botChatMenu = nil; requestNewConversation() }
             BotPopoverRow(symbol: "magnifyingglass", title: botText("對話中尋找", "Find in conversation"), identifier: "bot.chat.menu.find") { botChatMenu = nil; botPage = .search }
             BotPopoverRow(symbol: "doc.text", title: botText("檔案", "Files"), identifier: "bot.chat.menu.files") { botChatMenu = nil; botPage = .files }
@@ -656,6 +658,8 @@ struct MikaVisualPalette {
     /// Android ink3: hints and quiet glyphs.
     var hintInk: Color { ink.opacity(dark ? 145.0 / 255 : 166.0 / 255) }
     var accent: Color { dark ? rgb(127, 192, 255) : rgb(11, 105, 204) }
+    /// Android `onAccent`: text on the accent fill, white on Daylight, #141414 on the light Midnight blue.
+    var onAccent: Color { dark ? rgb(20, 20, 20) : .white }
     var assistant: Color { surface }
     var glass: Color { dark ? (phoneMidnight ? rgb(44, 44, 46) : rgb(40, 40, 40)) : rgb(227, 227, 227) }
     var disabledControl: Color { glass }
@@ -2006,11 +2010,17 @@ private struct ChatSendBlockedCard: View {
     let dismiss: () -> Void
     let openSettings: () -> Void
     @Environment(\.colorScheme) private var colorScheme
+    #if WOOWTECHBOT
+    /// Android's warning dot, #FF9F0A.
+    private static let dot = Color(red: 1, green: 159.0 / 255, blue: 10.0 / 255)
+    #else
+    private static let dot = Color.orange
+    #endif
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Circle().fill(Color.orange).frame(width: 8, height: 8).accessibilityHidden(true)
+                Circle().fill(Self.dot).frame(width: 8, height: 8).accessibilityHidden(true)
                 Text(verbatim: localizer.text(.chatSendBlockedTitle))
                     .scaledFont(size: 15, weight: .semibold).foregroundStyle(palette.ink)
             }
@@ -2019,6 +2029,23 @@ private struct ChatSendBlockedCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
             HStack(spacing: 8) {
+                #if WOOWTECHBOT
+                // Android's NeedCard buttons: 48 high, 12 corners, 14.5 semibold; 知道了 on glass in ink, 去設定 on accent.
+                Button(action: dismiss) {
+                    Text(verbatim: localizer.text(.chatSendBlockedDismiss)).scaledFont(size: 14.5, weight: .semibold)
+                        .foregroundStyle(palette.ink).frame(maxWidth: .infinity, minHeight: 48)
+                        .background(palette.glass, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("chat.sendBlocked.dismiss")
+                Button(action: openSettings) {
+                    Text(verbatim: localizer.text(.chatSendBlockedOpenSettings)).scaledFont(size: 14.5, weight: .semibold)
+                        .foregroundStyle(palette.onAccent).frame(maxWidth: .infinity, minHeight: 48)
+                        .background(palette.accent, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("chat.sendBlocked.openSettings")
+                #else
                 Button(action: dismiss) {
                     Text(verbatim: localizer.text(.chatSendBlockedDismiss)).frame(maxWidth: .infinity)
                 }
@@ -2030,6 +2057,7 @@ private struct ChatSendBlockedCard: View {
                 .buttonStyle(.borderedProminent)
                 .tint(palette.accent)
                 .accessibilityIdentifier("chat.sendBlocked.openSettings")
+                #endif
             }
             .padding(.top, 14)
         }

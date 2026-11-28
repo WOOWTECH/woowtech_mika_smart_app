@@ -1,0 +1,11 @@
+/* The Bot build's wording where Android Direct (woowtech) overrides the shared text; looked up before App.strings. */
+
+/* Android woowtech strings_woowtech_wording.xml: 登出, not 退出登入. */
+"signin.signedOut" = "已登出";
+"chatgpt.signOut" = "登出";
+"chatgpt.signedOutNote" = "這台裝置上已登出。點「使用 ChatGPT 繼續」就能接著用方案；選好的模型都還在。";
+"chatgpt.revokeUnconfirmed" = "這台裝置上已登出，但 ChatGPT 那邊沒有確認。也可以在 ChatGPT 設定裡中斷與渥屋助理的連線。";
+"account.signedOutNote" = "這台裝置上已登出。要連 xAI 那邊的授權一起撤掉，到 xAI 帳號設定裡斷開。選好的模型都還在。";
+
+/* The Bot app's own name in Settings. */
+"settings.status.alertsLowered.detail" = "要你接手或同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。\n設定 › 通知 › 渥屋助理 Bot › 橫幅";

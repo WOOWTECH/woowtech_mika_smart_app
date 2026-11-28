@@ -12,6 +12,8 @@ struct BotProfileEditor: View {
     @ObservedObject var archive: ConversationArchiveStore
     @ObservedObject var workspace: BotWorkspaceStore
     let localizer: AppLocalizer
+    /// The name the chat is shown under when it has none of its own (Android: the top bar's name, or the history row's).
+    var fallbackName = ""
     let close: () -> Void
     @State private var name = ""
     @State private var avatar = BotConversationAvatar()
@@ -45,7 +47,8 @@ struct BotProfileEditor: View {
                     }
                     Spacer().frame(height: 24)
                     if cardOpen { card(palette).transition(.opacity.combined(with: .move(edge: .top))) }
-                    if busy { ProgressView().padding(.top, 16) }
+                    // Android's linear indicator while the picture is saved.
+                    if busy { BotLinearProgress().padding(.top, 16) }
                     if failed {
                         Text(t("無法讀取圖片或儲存變更。原有設定仍保留，請重試。", "Could not load the image or save changes. Your previous profile is preserved. Please try again."))
                             .scaledFont(size: 13).foregroundStyle(palette.warn).padding(.top, 16).accessibilityIdentifier("bot.edit.error")
@@ -59,7 +62,10 @@ struct BotProfileEditor: View {
         .tint(palette.accent)
         .onAppear {
             let row = archive.conversations.first { $0.id.uuidString == id }
-            name = row?.title ?? workspace.presentation(id).title ?? t("新對話", "New chat")
+            // A name given to it, else the name it is shown under (one line, at most 60 characters, so it can be saved).
+            let shown = fallbackName.components(separatedBy: .newlines).first?.trimmingCharacters(in: .whitespaces) ?? ""
+            name = row?.customTitle ?? workspace.presentation(id).title
+                ?? (shown.isEmpty ? BotBrand.appName(localizer) : String(shown.prefix(60)))
             avatar = workspace.presentation(id).avatar.upgraded()
             uploadTab = avatar.jpeg != nil
         }

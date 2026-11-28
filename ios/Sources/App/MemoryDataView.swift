@@ -705,6 +705,8 @@ private struct MemoryPalette {
     let hair: Color
     let edge: Color
     let accent: Color
+    /// Text on the accent fill.
+    let onAccent: Color
     let ok: Color
     let bad: Color
 
@@ -715,7 +717,7 @@ private struct MemoryPalette {
         background = direct.background; surface = direct.surface; fill = direct.glass
         selectedSegment = dark ? direct.raised : .white
         ink = direct.ink; ink2 = direct.secondaryInk; ink3 = direct.hintInk
-        hair = direct.hair; edge = direct.edge; accent = direct.accent
+        hair = direct.hair; edge = direct.edge; accent = direct.accent; onAccent = direct.onAccent
         ok = direct.ok; bad = direct.destructive
     }
     #else
@@ -730,6 +732,7 @@ private struct MemoryPalette {
         hair = Color(hex: dark ? 0x303034 : 0xE8E8EC)
         edge = Color(hex: dark ? 0x2B2B30 : 0xE9E9ED)
         accent = Color(hex: dark ? 0x5D80FF : 0x0A7CFF)
+        onAccent = .white
         ok = Color(hex: dark ? 0x3CCF7A : 0x1F9D55)
         bad = Color(hex: dark ? 0xFF6961 : 0xE5483D)
     }
@@ -757,7 +760,7 @@ private extension View {
     func memoryActionPill(_ palette: MemoryPalette, primary: Bool = false) -> some View {
         self
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(primary ? Color.white : palette.ink)
+            .foregroundStyle(primary ? palette.onAccent : palette.ink)
             .padding(.horizontal, 14)
             .frame(minHeight: 44)
             .background(primary ? palette.accent : palette.fill, in: Capsule())

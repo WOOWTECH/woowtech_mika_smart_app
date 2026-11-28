@@ -173,9 +173,9 @@
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
 			<key>one</key>
-			<string>%lld more — type a name to filter</string>
+			<string>%lld more, type a name to filter</string>
 			<key>other</key>
-			<string>%lld more — type a name to filter</string>
+			<string>%lld more, type a name to filter</string>
 		</dict>
 	</dict>
 	<key>models.viewAll</key>
@@ -189,9 +189,9 @@
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
 			<key>one</key>
-			<string>View all %lld model</string>
+			<string>See all %lld model</string>
 			<key>other</key>
-			<string>View all %lld models</string>
+			<string>See all %lld models</string>
 		</dict>
 	</dict>
 	<key>settings.notifications.lowered</key>

@@ -467,6 +467,40 @@ struct BotChevron: View {
     }
 }
 
+// MARK: Progress
+
+/// Android's LinearProgressIndicator (4 dp, full width, accent): the share received, or a bar moving across while the
+/// amount is unknown (still with Reduce Motion). Downloads, the service page while it loads, the name and icon page while
+/// it saves.
+struct BotLinearProgress: View {
+    var fraction: Double? = nil
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let accent = MikaVisualPalette(scheme).accent
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Rectangle().fill(accent.opacity(0.2))
+                if let fraction {
+                    Rectangle().fill(accent).frame(width: proxy.size.width * min(1, max(0, fraction)))
+                } else if reduceMotion {
+                    Rectangle().fill(accent).frame(width: proxy.size.width * 0.3)
+                } else {
+                    TimelineView(.animation) { context in
+                        let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
+                        Rectangle().fill(accent).frame(width: proxy.size.width * 0.3)
+                            .offset(x: proxy.size.width * (1.3 * phase - 0.3))
+                    }
+                }
+            }
+            .clipped()
+        }
+        .frame(height: 4)
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: Dialog
 
 /// The popover surface as a modal dialog (Android `MikaDialog`, Direct): menu colour and `--radius-menu` with no outline and

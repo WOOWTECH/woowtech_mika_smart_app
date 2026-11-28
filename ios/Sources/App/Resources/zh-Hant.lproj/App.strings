@@ -386,10 +386,10 @@
 "settings.status.notificationsOff.detail" = "會看不到任務結果和「需要你」提醒";
 "settings.status.allow" = "允許";
 "settings.status.alertsLowered" = "「需要你處理」的通知不會彈出";
-"settings.status.alertsLowered.detail" = "要你同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。";
+"settings.status.alertsLowered.detail" = "要你接手或同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。\n設定 › 通知 › 渥屋助理 › 橫幅";
 "settings.status.turnOn" = "去開啟";
 "settings.home.myData" = "我的資料";
-"settings.home.memory.detail" = "記憶、技能與網站登入";
+"settings.home.memory.detail" = "記憶、技能、操作路線與網站登入";
 "settings.advanced.title" = "進階與其他";
 "settings.advanced.detail" = "MCP 伺服器";
 "settings.home.connections" = "網路與連接";
@@ -562,7 +562,7 @@
 "models.changeKey" = "更換 API Key";
 "models.newKeyHint" = "貼上新的 Key";
 "models.models" = "模型";
-"models.modelsNote" = "點一個模型，可以把它用作主模型，或設定它能不能看圖。";
+"models.modelsNote" = "點一個模型，可以把它用作主模型、看圖或輕量模型。";
 "models.allTitle" = "%1$@ · 全部模型";
 "models.untestedNote" = "這家是跳過測試存下的，還不知道能不能用。選一個模型時會先試呼叫，也可以點「重新測試」。";
 "models.retest" = "重新測試";

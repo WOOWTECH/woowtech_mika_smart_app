@@ -262,17 +262,27 @@ private struct OnboardingDots: View {
 /// faded while it cannot be pressed.
 private struct OnboardingButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var scheme
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(textColor)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, minHeight: 52)
             .background(.tint, in: RoundedRectangle(cornerRadius: 14))
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
             .contentShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    /// Android `onAccent`: white on Daylight, #141414 on the light Midnight blue (white there reads at about 1.9:1).
+    private var textColor: Color {
+        #if WOOWTECHBOT
+        MikaVisualPalette(scheme).onAccent
+        #else
+        .white
+        #endif
     }
 }
 #endif

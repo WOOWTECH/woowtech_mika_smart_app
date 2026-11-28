@@ -510,7 +510,8 @@ struct BotServiceScreen: View {
             if web.cover == nil {
                 VStack(spacing: 0) {
                     if !web.workspaceControlsReady { header }
-                    if web.loading { ProgressView().frame(maxWidth: .infinity).accessibilityIdentifier("bot.loading") }
+                    // Android's linear indicator while a page loads.
+                    if web.loading { BotLinearProgress().accessibilityIdentifier("bot.loading") }
                     // Android's status line for downloads, over the website's own controls too.
                     BotDownloadStatusLine(web: web, downloads: web.downloads, localizer: localizer) { preview = .init(url: $0) }
                 }

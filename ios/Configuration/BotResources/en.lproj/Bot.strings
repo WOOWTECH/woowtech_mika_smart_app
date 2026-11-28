@@ -1,0 +1,4 @@
+/* The Bot build's wording where Android Direct (woowtech) overrides the shared text; looked up before App.strings. */
+
+/* The Bot app's own name in Settings. */
+"settings.status.alertsLowered.detail" = "When you need to take over or approve, these notifications now land quietly in Notification Center and are easy to miss. The same goes for “Task results”. Tap “Turn on” and turn on “Banners”.\nSettings › Notifications › WOOW Assistant Bot › Banners";

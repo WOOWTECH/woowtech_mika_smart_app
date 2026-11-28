@@ -167,7 +167,7 @@
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
 			<key>other</key>
-			<string>查看全部 %lld 個模型</string>
+			<string>檢視全部 %lld 個模型</string>
 		</dict>
 	</dict>
 	<key>settings.notifications.lowered</key>

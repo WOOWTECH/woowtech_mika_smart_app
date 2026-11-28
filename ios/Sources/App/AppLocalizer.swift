@@ -25,15 +25,25 @@ struct AppLocalizer {
 
     func text(_ message: AppText) -> String { resolve(message).text }
 
+    #if WOOWTECHBOT
+    /// The Bot build's own wording first (Android's woowtech overrides, Configuration/BotResources/*/Bot.strings), so the
+    /// store app's shared table stays as it is.
+    private static let tables = ["Bot", "App"]
+    #else
+    private static let tables = ["App"]
+    #endif
+
     func resolve(_ message: AppText) -> AppLocalizedText {
         let missing = "__WOOW_MISSING_TRANSLATION__"
         for candidate in [language, .traditionalChinese] {
             guard let bundle = bundles[candidate] else { continue }
-            let format = bundle.localizedString(forKey: message.key, value: missing, table: "App")
-            guard format != missing else { continue }
-            return AppLocalizedText(text: String(format: format, locale: Locale(identifier: candidate.rawValue),
-                                                 arguments: message.arguments),
-                                    language: candidate, usedFallback: candidate != language)
+            for table in Self.tables {
+                let format = bundle.localizedString(forKey: message.key, value: missing, table: table)
+                guard format != missing else { continue }
+                return AppLocalizedText(text: String(format: format, locale: Locale(identifier: candidate.rawValue),
+                                                     arguments: message.arguments),
+                                        language: candidate, usedFallback: candidate != language)
+            }
         }
         return AppLocalizedText(text: String(format: message.traditionalFallback,
                                               locale: Locale(identifier: "zh-Hant"), arguments: message.arguments),

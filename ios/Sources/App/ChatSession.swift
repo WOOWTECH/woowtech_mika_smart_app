@@ -268,6 +268,22 @@ final class ChatSession: ObservableObject {
         guard let first = entries.first(where: { $0.role == "user" }) else { return "" }
         return Self.botPlainTitle(first.content, attachments: first.attachments, localizer: AppLocalizer(language: interfaceLanguage()))
     }
+    /// The name a chat goes by (the chat's top bar, its name and icon page, its history row): the name given to it, else
+    /// its first message as a title (at most 60 characters); nil when neither exists (the caller falls back to the app's
+    /// name or 新對話, as Android).
+    func botDisplayTitle(_ id: String, workspace: BotWorkspaceStore) -> String? {
+        let record = archive?.conversations.first { $0.id.uuidString == id }
+        if let custom = record?.customTitle { return custom }
+        if let title = workspace.presentation(id).title { return title }
+        let localizer = AppLocalizer(language: interfaceLanguage())
+        let title: String
+        if let first = record?.turns.first {
+            title = Self.botPlainTitle(first.userText, attachments: first.attachments.map(ChatAttachmentItem.init(archived:)), localizer: localizer)
+        } else if id == conversationID {
+            title = botFirstMessageTitle
+        } else { return nil }
+        return title.isEmpty ? nil : String(title.prefix(60))
+    }
     /// Android `ChatCopy.plainTitle`: a message as a title.
     static func botPlainTitle(_ text: String, attachments: [ChatAttachmentItem], localizer: AppLocalizer) -> String {
         let words = ConversationQuote.parse(ChatAttachmentLines.displayText(text, items: attachments)).words

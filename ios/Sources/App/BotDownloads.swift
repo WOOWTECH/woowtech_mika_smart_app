@@ -69,7 +69,7 @@ struct BotDownloadStatusLine: View {
                 row(text: progressText(active), palette: palette) {
                     button(t("取消", "Cancel"), "bot.download.cancel", palette) { downloads.cancel(active.id) }
                 }
-                BotDownloadProgressBar(fraction: fraction(active), palette: palette)
+                BotLinearProgress(fraction: fraction(active))
             }
         }
     }
@@ -156,32 +156,4 @@ struct BotDownloadStatusLine: View {
     }
 }
 
-/// Android's LinearProgressIndicator under the download row: the share received, or a moving bar while the size is unknown.
-private struct BotDownloadProgressBar: View {
-    let fraction: Double?
-    let palette: MikaVisualPalette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Rectangle().fill(palette.accent.opacity(0.2))
-                if let fraction {
-                    Rectangle().fill(palette.accent).frame(width: proxy.size.width * fraction)
-                } else if reduceMotion {
-                    Rectangle().fill(palette.accent).frame(width: proxy.size.width * 0.3)
-                } else {
-                    TimelineView(.animation) { context in
-                        let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
-                        Rectangle().fill(palette.accent).frame(width: proxy.size.width * 0.3)
-                            .offset(x: proxy.size.width * (1.3 * phase - 0.3))
-                    }
-                }
-            }
-            .clipped()
-        }
-        .frame(height: 4)
-        .accessibilityHidden(true)
-    }
-}
 #endif

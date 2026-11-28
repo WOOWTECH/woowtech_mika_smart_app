@@ -117,10 +117,7 @@ struct BotConversationList: View {
     }
     /// Android `ChatCopy.plainTitle` of the first message, unless the chat was named.
     private func savedTitle(_ record: ArchivedConversation) -> String {
-        if let custom = record.customTitle { return custom }
-        guard let first = record.turns.first else { return record.title }
-        let title = ChatSession.botPlainTitle(first.userText, attachments: first.attachments.map(ChatAttachmentItem.init(archived:)), localizer: localizer)
-        return title.isEmpty ? record.title : title
+        chat.botDisplayTitle(record.id.uuidString, workspace: workspace) ?? record.title
     }
     /// The open conversation before its first save, also while its first reply runs: a selected-looking row with only
     /// its title (no time, preview or "…"), the first message's first line or 新對話.
@@ -181,7 +178,11 @@ struct BotConversationList: View {
                              onClose: { servicesRequest = nil })
         }
         .fullScreenCover(isPresented: Binding(get: { editID != nil }, set: { if !$0 { editID = nil } })) {
-            if let editID { BotProfileEditor(id: editID, archive: archive, workspace: workspace, localizer: localizer) { self.editID = nil } }
+            if let editID {
+                // Android opens it with the row's title.
+                BotProfileEditor(id: editID, archive: archive, workspace: workspace, localizer: localizer,
+                                 fallbackName: rowTitle(editID)) { self.editID = nil }
+            }
         }
     }
 
@@ -389,6 +390,11 @@ struct BotConversationList: View {
 
     private func tool(_ title: String, _ symbol: String, _ destination: BotLocalDestination) -> some View {
         BotPopoverRow(symbol: symbol, title: title, identifier: "bot.tool.\(destination)") { dismissPopover(); select(destination) }
+    }
+
+    private func rowTitle(_ id: String) -> String {
+        if let record = archive.conversations.first(where: { $0.id.uuidString == id }) { return savedTitle(record) }
+        return draftTitle(id)
     }
 
     private var deleteTitle: String {
