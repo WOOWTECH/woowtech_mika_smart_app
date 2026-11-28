@@ -21,7 +21,10 @@ TESTS = [
     'com.wangzan101.mika.woowbot.BotResumeDeviceTest',
     'com.wangzan101.mika.woowbot.BotProfileIsolationTest',
     'com.wangzan101.mika.woowbot.BotDownloadsDeviceTest',
+    'com.wangzan101.mika.woowbot.BotDownloadsEndToEndTest',
 ]
+# The download test page runs on this host; the emulator reaches it as 10.0.2.2 (a LAN address for the app).
+FIXTURE_PORT = 8766
 SERIAL = 'emulator-5554'
 # am instrument -r status codes per test.
 STATUS = {'0': 'passed', '-1': 'error', '-2': 'failed', '-3': 'ignored', '-4': 'skipped (assumption)'}
@@ -106,8 +109,21 @@ def main():
         summary['packages'] = dict(app=target, tests=test_package)
         device('shell', 'pm', 'grant', target, 'android.permission.POST_NOTIFICATIONS')
 
-        out = run('instrument.txt', [adb, '-s', SERIAL, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'class', ','.join(TESTS),
-                                     f'{test_package}/{runner}'], timeout=1500, check=False)
+        fixture_log = (args.out / 'downloads-fixture.log').open('wb')
+        fixture = subprocess.Popen([sys.executable, 'tools/woowtechbot-ui/downloads-fixture.py', '--host', '127.0.0.1', '--port', str(FIXTURE_PORT)],
+                                   stdout=fixture_log, stderr=subprocess.STDOUT)
+        for _ in range(60):
+            try:
+                import urllib.request
+                urllib.request.urlopen(f'http://127.0.0.1:{FIXTURE_PORT}/', timeout=2).read(); break
+            except Exception:
+                time.sleep(1)
+        try:
+            out = run('instrument.txt', [adb, '-s', SERIAL, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'class', ','.join(TESTS),
+                                         '-e', 'downloadsFixture', f'http://10.0.2.2:{FIXTURE_PORT}', f'{test_package}/{runner}'],
+                      timeout=1500, check=False)
+        finally:
+            fixture.terminate()
         current = {}
         for line in out.splitlines():
             m = re.match(r'INSTRUMENTATION_STATUS: (class|test)=(.*)', line)

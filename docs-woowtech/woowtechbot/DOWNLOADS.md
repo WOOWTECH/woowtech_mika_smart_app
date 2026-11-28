@@ -26,11 +26,12 @@ repository. The iOS bot app does the same through `WKDownload` (iOS line, conver
 | `blob:<service origin>/…` | `assets/woowtechbot/workspace-downloads.js` runs at document start (`addDocumentStartJavaScript`, also on page load for older WebViews). It wraps `URL.createObjectURL` so each Blob stays readable for 60 s after the page revokes its URL. It records each `<a download>` name. It hands the Blob over in 512 KiB base64 chunks; `BotBlobReader` polls with `evaluateJavascript` and the page gets no native interface. Object URLs of other origins are refused. |
 | `data:` | Decoded natively (`BotDataUrl`), base64 or percent-encoded, 32 MB at most. |
 | The service's own URL | OkHttp with the profile's cookie and the service's Origin. Up to 5 redirects. A redirect to another https host (storage) gets no cookie and no Origin. |
-| Another site's https URL | Confirmation first: "下載其他網站的檔案？", with the file name and host. Then the same download without cookie. |
+| Another site's https URL | Confirmation first: "下載其他網站的檔案？", with the file name and host. Then the same download without cookie. This only happens when the WebView reports another site's file as a download, for example from a frame. A link to another site is stopped before it loads (the WebView decides before the response), so it gets the existing "在外部瀏覽器開啟連結？" and the browser downloads it. iOS can see the response type first and asks "下載其他網站的檔案？" there. |
 
 - Only a download within 60 s of the user's last touch on the page is taken, the same rule as iOS. Others show "已擋下沒有經過你點擊的下載。".
 - **Names and types** (`BotDownloadNames`):
   - Name: `<a download>`, then Content-Disposition (`filename*` before `filename`), then the URL's last segment.
+  - For direct and `data:` downloads the WebView reports only the URL. The page script remembers the anchors clicked in the last 10 s, and the app asks for the name by the URL's first 128 characters and its length.
   - Type: a known extension decides it, so the website's `octet-stream` HTML saves as `text/html`. Otherwise the response or Blob type is used, and its extension is added when the name has none.
   - Names are cleaned: no path, control characters, direction overrides or reserved characters; 120 characters at most, keeping the extension.
 - **Saving:** files go to the phone's Downloads folder through MediaStore (`IS_PENDING` until complete, removed on failure or cancel). No location picker and no storage permission.
@@ -53,6 +54,10 @@ repository. The iOS bot app does the same through `WKDownload` (iOS line, conver
   - A real WebView page makes a revoked 1.5 MiB `.xlsx` Blob. It is read back, saved into Downloads, and checked byte for byte, by type and by folder.
   - Common types save under their own names, and a `data:` CSV is saved.
   - Failed and cancelled downloads leave nothing behind.
+- `app/src/androidTest/.../BotDownloadsEndToEndTest.kt`, in the same workflow:
+  - The real service screen opens the test page below. The page runs on the emulator's host and is reached as `http://10.0.2.2:8766` with the trusted-LAN option.
+  - A download without a tap is blocked.
+  - After a tap, each way saves its file into Downloads under its own name and type, byte for byte: the website's POST → Blob → revoke (xlsx, html, png, Chinese name), direct (pdf), attachment (docx), redirect (zip) and `data:` (csv with its anchor name).
 - `tools/woowtechbot-ui/downloads-fixture.py`, a test page for both platforms:
   - Every type comes four ways: direct, attachment header, redirect, and the website's POST → Blob → revoke pattern.
   - It also has `data:` links, a Chinese file name, another site's PDF (asks first) and a download that starts 70 s after the last tap (must be blocked).

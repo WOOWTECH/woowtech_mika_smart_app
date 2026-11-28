@@ -288,6 +288,12 @@ internal class BotBlobReader(private val view: WebView, private val hook: String
 
     suspend fun close() { runCatching { eval("window.__woowDownloads && window.__woowDownloads.end(${q(token)})") } }
 
+    /** The `download` name of the anchor the user just clicked for [url] (direct and data: downloads), if any. */
+    suspend fun anchorName(url: String): String? = runCatching {
+        if (eval(hook) != "true") return null
+        text(eval("window.__woowDownloads.named(${q(url.take(128))},${url.length})"))?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+
     private suspend fun eval(script: String): String? = withContext(Dispatchers.Main) {
         if (!valid()) throw BotDownloadException(R.string.bot_services_download_blob_failed)
         withTimeout(20_000) { suspendCancellableCoroutine { done -> view.evaluateJavascript(script) { if (done.isActive) done.resume(it) } } }

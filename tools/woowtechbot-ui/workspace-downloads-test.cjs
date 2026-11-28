@@ -50,6 +50,14 @@ const CHUNK = 512 * 1024;
     for (let i = 0; i < 50 && state === 'pending'; i++) { state = await call('window.__woowDownloads.info("t2", "blob:x")'); await page.waitForTimeout(10); }
     assert.equal(state, 'failed');
     assert.equal(await call('window.__woowDownloads.take("nope", 0)'), 'unknown');
+    // Direct and data: downloads: the app asks for the clicked anchor's name by the URL's start and length.
+    const named = await page.evaluate(() => {
+      const href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('a,b\n') + 'x'.repeat(300);
+      const a = document.createElement('a'); a.href = href; a.download = '表格.csv'; document.body.append(a);
+      a.addEventListener('click', (e) => e.preventDefault()); a.click(); a.remove();
+      return [window.__woowDownloads.named(href.slice(0, 128), href.length), window.__woowDownloads.named(href.slice(0, 128), href.length + 1)];
+    });
+    assert.deepEqual(named, ['表格.csv', null]);
     // Revoked Blobs are let go after 60 s, so the page's memory is not held for long.
     const released = await page.evaluate(async () => {
       const real = window.setTimeout; let delay = -1;
@@ -63,7 +71,7 @@ const CHUNK = 512 * 1024;
       return [delay, window.__woowDownloads.info('t3', href)];
     });
     assert.deepEqual(released, [60000, 'failed']);
-    console.log('PASS: idempotent hook, website-style revoke-at-once blob kept, anchor download name, chunked read of 1 MiB+ exact bytes, end, unknown blob and token, release after 60 s');
+    console.log('PASS: idempotent hook, website-style revoke-at-once blob kept, anchor download name, named() lookup for direct and data: downloads, chunked read of 1 MiB+ exact bytes, end, unknown blob and token, release after 60 s');
   } finally {
     await browser.close();
   }

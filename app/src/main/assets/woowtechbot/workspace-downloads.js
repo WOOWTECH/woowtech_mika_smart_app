@@ -7,6 +7,7 @@
   if (window.__woowDownloads) return true;
   const kept = new Map();
   const names = new Map();
+  const recent = [];
   const create = URL.createObjectURL;
   const revoke = URL.revokeObjectURL;
   URL.createObjectURL = function (object) {
@@ -26,8 +27,12 @@
   function note(anchor) {
     try {
       if (anchor && anchor.hasAttribute && anchor.hasAttribute('download') && anchor.href) {
-        names.set(anchor.href, anchor.getAttribute('download') || '');
+        const name = anchor.getAttribute('download') || '';
+        names.set(anchor.href, name);
         if (names.size > 64) names.delete(names.keys().next().value);
+        // The app sees only the URL of a direct or data: download, so it asks by the URL's start and length.
+        recent.unshift({ prefix: anchor.href.slice(0, 128), length: anchor.href.length, name, at: Date.now() });
+        recent.length = Math.min(recent.length, 8);
       }
     } catch (e) { /* nothing to note */ }
   }
@@ -81,6 +86,11 @@
     end(token) {
       jobs.delete(token);
       return true;
+    },
+    named(prefix, length) {
+      const now = Date.now();
+      const hit = recent.find((r) => r.prefix === prefix && r.length === length && now - r.at < 10000);
+      return hit && hit.name ? hit.name : null;
     },
   };
   return true;

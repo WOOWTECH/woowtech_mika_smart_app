@@ -396,8 +396,8 @@ class BotServiceActivity : ComponentActivity() {
             url.startsWith("blob:") ->
                 if (blobOfService(url, service)) startBlobDownload(view, service, url, disposition, type)
                 else download = DownloadState("", error = R.string.bot_services_download_unsupported)
-            url.regionMatches(0, "data:", 0, 5, ignoreCase = true) -> startDataDownload(service, url, disposition)
-            url.length <= BotOrigin.MAX_URL && service.policy.allows(url) -> startHttpDownload(service, url, disposition, type, foreign = false)
+            url.regionMatches(0, "data:", 0, 5, ignoreCase = true) -> startDataDownload(view, service, url, disposition)
+            url.length <= BotOrigin.MAX_URL && service.policy.allows(url) -> startHttpDownload(service, url, disposition, type, foreign = false, view)
             url.length <= BotOrigin.MAX_URL && url.startsWith("https://") -> {
                 val name = names(null, disposition, url, type).first
                 foreignDownload = ForeignDownload(service, url, disposition, type, name, runCatching { java.net.URI(url).host }.getOrNull().orEmpty())
@@ -409,15 +409,18 @@ class BotServiceActivity : ComponentActivity() {
     private fun names(explicit: String?, disposition: String?, url: String?, type: String?) =
         BotDownloadNames.resolve(explicit, disposition, url, type, { BotDownloadStore.systemType(it) }, { BotDownloadStore.systemExtension(it) })
 
-    private fun startHttpDownload(service: BotService, url: String, disposition: String?, type: String?, foreign: Boolean) {
+    private fun startHttpDownload(service: BotService, url: String, disposition: String?, type: String?, foreign: Boolean, view: WebView? = null) {
         val cookie = if (foreign) null else runCatching { webView?.let { WebViewCompat.getProfile(it).cookieManager.getCookie(url) } }.getOrNull()
         val first = names(null, disposition, url, type).first
+        val page = pageStarts
         runDownload(first) { store, report ->
+            // The page's own <a download="name"> wins, as in a browser.
+            val anchor = view?.let { BotBlobReader(it, BotWorkspaceDownloads.script(this@BotServiceActivity)) { webView === it && pageStarts == page }.anchorName(url) }
             var saved: Pair<Uri, Pair<String, String>>? = null
             try {
                 withContext(Dispatchers.IO) {
                     BotWebTransfers.download(service, url, cookie, foreign, open = { head ->
-                        val (name, kind) = names(null, head.disposition ?: disposition, head.url, head.type ?: type)
+                        val (name, kind) = names(anchor, head.disposition ?: disposition, head.url, head.type ?: type)
                         val uri = store.create(name, kind)
                         saved = uri to (name to kind)
                         store.output(uri)
@@ -447,10 +450,13 @@ class BotServiceActivity : ComponentActivity() {
         }
     }
 
-    private fun startDataDownload(service: BotService, url: String, disposition: String?) {
+    private fun startDataDownload(view: WebView, service: BotService, url: String, disposition: String?) {
+        val page = pageStarts
         runDownload(names(null, disposition, null, null).first) { store, report ->
+            val anchor = BotBlobReader(view, BotWorkspaceDownloads.script(this@BotServiceActivity)) { webView === view && pageStarts == page && current(service) }
+                .anchorName(url)
             val decoded = withContext(Dispatchers.Default) { BotDataUrl.decode(url) }
-            val (name, kind) = names(null, disposition, null, decoded.type)
+            val (name, kind) = names(anchor, disposition, null, decoded.type)
             val uri = store.create(name, kind)
             try {
                 withContext(Dispatchers.IO) { store.output(uri).use { it.write(decoded.bytes) } }
