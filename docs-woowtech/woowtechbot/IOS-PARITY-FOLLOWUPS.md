@@ -38,6 +38,9 @@ How it is done:
 - **Runtime:** `AppLanguage.followSystem` sets the app's own screens, the overlay, texts outside the UI and the process default locale to `zh-Hant-TW`.
   - Library texts follow, including screen reader labels.
   - CJK glyphs, full-width punctuation and number formats also follow.
+- **Android quirk:** once a WebView has loaded, Android counts the WebView's own languages as the app's.
+  - For a list such as "ja, zh-Hans", text Android picks by itself can then be English, for example a notification built outside the app's screens.
+  - The app's own screens still follow the rule above.
 - **Not changed:** prompts, user data, model output, and the language list in settings (跟隨系統 / 繁體中文 / English).
   - No woowtech release ever offered Simplified Chinese, so there is no saved choice to migrate.
 
@@ -59,7 +62,7 @@ How it is done:
   - `ProviderPresetsTest.xaiPresetGivesTheGrokExample`, plus an xAI case in `ModelSetupViewModelTest`
   - `BrandValuesTest`, which checks that `ui.chinese` is set
 - **Device tests** (GitHub emulator workflow `woowtechbot-device.yml`, API 35 and 36):
-  - `BotChineseUiDeviceTest`: the APK resolves zh-Hans-CN, zh-CN, zh-SG, zh, yue-HK and "ja, zh-Hans" to the Traditional strings. It covers the brand's own strings, brand-renamed upstream strings, upstream strings and the woowtechbot screens' strings. English, French, Japanese and "en, zh-Hans" stay English.
+  - `BotChineseUiDeviceTest`: the APK resolves zh-Hans-CN, zh-CN, zh-SG, zh and yue-HK to the Traditional strings. `AppLanguage` gives the app's screens Traditional Chinese for these and for "ja, zh-Hans". It covers the brand's own strings, brand-renamed upstream strings, upstream strings and the woowtechbot screens' strings. English, French, Japanese and "en, zh-Hans" stay English.
   - `BotParityFollowupsDeviceTest`:
     - A transparent PNG avatar comes back as a 320 × 320 JPEG with white corners and its red centre.
     - Both dialog buttons are at least 44 dp × 100 dp, and a tap near the edge of each presses it.

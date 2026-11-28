@@ -84,8 +84,10 @@ class BotParityFollowupsDeviceTest {
             }
         }
         for (tag in listOf("delete", "cancel")) compose.onNodeWithTag(tag).assertHeightIsAtLeast(44.dp).assertWidthIsAtLeast(100.dp)
-        compose.onNodeWithTag("delete").performTouchInput { click(Offset(width - 6f, height / 2f)) }
-        compose.onNodeWithTag("cancel").performTouchInput { click(Offset(6f, 6f)) }
+        // Near each end at mid-height, well away from the centred label. The rounded corners outside the capsule are not part
+        // of it, as on iOS (a capsule content shape), so the taps are not in the very corners.
+        compose.onNodeWithTag("delete").performTouchInput { click(Offset(width - 12f, height / 2f)) }
+        compose.onNodeWithTag("cancel").performTouchInput { click(Offset(12f, height / 2f)) }
         compose.runOnIdle { assertTrue(deleted); assertTrue(cancelled) }
     }
 }

@@ -38,7 +38,10 @@ class BotChineseUiDeviceTest {
         assertEquals("zh-Hant", hant.getString(R.string.ui_locale))
         // One string from each source: the brand's own, a brand-renamed upstream one, upstream's, and the woowtechbot screens'.
         val ids = listOf(R.string.app_name, R.string.about_data_note, R.string.takeover_move_back_failed, R.string.model_setup_title, R.string.bot_ui_profile)
-        for (tags in listOf("zh-Hans-CN", "zh-CN", "zh-SG", "zh", "yue-HK", "ja-JP,zh-Hans-CN")) {
+        // Single languages only: once a WebView has loaded, Android counts the WebView's own languages (Japanese too) as
+        // the app's, so for a list like "ja, zh-Hans" it picks Japanese and falls back to English. The app's own screens
+        // do not depend on that: AppLanguage gives them Traditional Chinese for such a list (the next test).
+        for (tags in listOf("zh-Hans-CN", "zh-CN", "zh-SG", "zh", "yue-HK")) {
             val r = resources(tags)
             assertEquals(tags, "zh-Hant", r.getString(R.string.ui_locale))
             for (id in ids) assertEquals("$tags ${context.resources.getResourceEntryName(id)}", hant.getString(id), r.getString(id))
