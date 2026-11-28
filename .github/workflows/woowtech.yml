@@ -58,19 +58,27 @@ jobs:
         run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :core:test --tests "com.wangzan101.mika.core.brand.*" --stacktrace
       - name: Build woowtech release (unsigned) and debug
         run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleWoowtechRelease :app:assembleWoowtechDebug --stacktrace
+      # The Play edition goes to Google Play as an App Bundle. It is built here unsigned, from the same commit as the APKs,
+      # and signed with the upload key on the release machine (that machine may not have the disk space for a build).
+      - name: Build woowtech release bundle (unsigned)
+        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:bundleWoowtechRelease --stacktrace
       - name: Brand checks (APK)
         run: |
           for apk in app/build/outputs/apk/woowtech/release/*.apk; do
             sh woowtech/tools/brand-check.sh apk "$apk"
           done
       - name: Checksums
-        run: cd app/build/outputs/apk/woowtech && find . -name '*.apk' -exec sha256sum {} + | tee SHA256SUMS.txt
+        run: |
+          cd app/build/outputs/apk/woowtech && find . -name '*.apk' -exec sha256sum {} + | tee SHA256SUMS.txt
+          cd ../../bundle/woowtechRelease && sha256sum *.aab | tee SHA256SUMS.txt
       - uses: actions/upload-artifact@v7
         with:
           name: woowtech-apk-${{ github.sha }}
           path: |
             app/build/outputs/apk/woowtech/**/*.apk
             app/build/outputs/apk/woowtech/SHA256SUMS.txt
+            app/build/outputs/bundle/woowtechRelease/*.aab
+            app/build/outputs/bundle/woowtechRelease/SHA256SUMS.txt
           retention-days: 14
       - name: Upload reports
         if: failure()

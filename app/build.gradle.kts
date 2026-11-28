@@ -145,8 +145,8 @@ android {
             dimension = "brand"
             // Play edition lives beside the direct-download app instead of replacing its data or signature.
             applicationId = "io.woowtech.assistant"
-            versionCode = 5
-            versionName = "${defaultConfig.versionName}-play.5"
+            versionCode = 6
+            versionName = "${defaultConfig.versionName}-play.6"
             buildConfigField("boolean", "BETA", "false")
             buildConfigField("boolean", "PLAY_EDITION", "true")
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
