@@ -15,9 +15,9 @@ object BotResumeEntry {
     private const val KEY = "serviceId"
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** The service screen went to the background without the user closing it. */
+    /** The service screen went out of sight without the user closing it; it stays recorded while it is open. */
     fun left(context: Context, serviceId: String) { prefs(context).edit().putString(KEY, serviceId).apply() }
-    /** The service screen is in front again, or the user closed it. */
+    /** The user closed the service screen. */
     fun returned(context: Context) { prefs(context).edit().remove(KEY).apply() }
 
     /** Call for the launch intent and onNewIntent of the launcher activity. */

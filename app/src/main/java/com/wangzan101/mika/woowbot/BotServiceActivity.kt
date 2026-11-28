@@ -597,7 +597,12 @@ class BotServiceActivity : ComponentActivity() {
         view.webChromeClient = null
         view.destroy()
     }
-    override fun onPause() { sessionHints?.cancel(); webView?.onPause(); super.onPause() }
+    override fun onPause() {
+        // Out of sight without being closed (Home, another app, a sheet on top): opening the app again comes back here. On
+        // pause, not stop: the emulator test opened the app 0.17 s after Home, before onStop.
+        if (!isFinishing && !isChangingConfigurations) selectedService?.let { BotResumeEntry.left(this, it) }
+        sessionHints?.cancel(); webView?.onPause(); super.onPause()
+    }
     override fun onResume() {
         super.onResume(); webView?.onResume(); webView?.let(::applyAppearance)
         // Pairing can complete inside the SPA without navigation. Parent may re-check /api/auth/session.
@@ -609,12 +614,8 @@ class BotServiceActivity : ComponentActivity() {
             }
         }
     }
-    override fun onStart() { super.onStart(); BotResumeEntry.returned(this) }
-    override fun onStop() {
-        // Left for the home screen or another app, not closed: opening the app again comes back here.
-        if (!isFinishing && !isChangingConfigurations) selectedService?.let { BotResumeEntry.left(this, it) }
-        super.onStop()
-    }
+    /** Closed by the user (Back, the local assistant, leaving a removed service): opening the app again shows the history. */
+    override fun finish() { BotResumeEntry.returned(this); super.finish() }
     override fun onDestroy() {
         if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityDestroy configChange=$isChangingConfigurations")
         parked.values.toList().forEach(::destroy); destroyWebView(); scope.cancel(); super.onDestroy()
