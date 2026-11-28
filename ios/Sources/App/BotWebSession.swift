@@ -17,6 +17,13 @@ enum BotTransitionText { case list, chat, reload, resume }
     @Published private(set) var loading = false
     @Published private(set) var failed = false
     @Published var externalURL: URL?
+    /// Another site's file the website asked to download: the person confirms first (owner 2026-11-28, as Android).
+    @Published var externalDownload: URL?
+    /// What the download status line says once no download is running (Android's download row): the last download
+    /// kept in Files, one that could not be kept, one refused without a tap, or one that failed.
+    @Published var downloadNotice: BotDownloadNotice?
+    /// Downloads of files the page made itself (blob:, data:): when one fails, the person is asked to tap download again.
+    private(set) var pageMadeDownloads = Set<UUID>()
     @Published var dialog: BotWebDialog?
     @Published private(set) var workspaceControlsReady = false
     @Published var presentationAction: BotWorkspaceAction?
@@ -38,6 +45,28 @@ enum BotTransitionText { case list, chat, reload, resume }
     var sceneActive = true
     private var valid = true
     private var downloadUntil = Date.distantPast
+    /// A download follows the person's own action: a touch on the page in the last minute (the website first fetches a file
+    /// and only then hands over a `blob:` link; owner 2026-11-28, as Android), or a link they tapped, kept 120 s for a slow
+    /// answer, or another site's file they agreed to.
+    private var userActedRecently: Bool { Date() < downloadUntil || Date().timeIntervalSince(touchedAt) < 60 }
+    /// A download is taken only within 60 s of the person's last tap on the page (Android: the same rule); any other is
+    /// refused and the status line says so.
+    private func tapAllowsDownload() -> Bool {
+        if userActedRecently { return true }
+        downloadNotice = .untapped
+        return false
+    }
+
+    /// A file the website made itself: a `blob:` URL of this service's origin, or a `data:` URL. It is saved like any
+    /// download and never shown in place of the website (owner 2026-11-28: every kind of file can be downloaded).
+    nonisolated static func isPageFile(_ url: URL, policy: BotServiceOrigin) -> Bool {
+        switch url.scheme?.lowercased() {
+        case "data": return true
+        case "blob": return URL(string: String(url.absoluteString.dropFirst(5))).map(policy.allows) == true
+        default: return false
+        }
+    }
+    nonisolated static func isWebAddress(_ url: URL) -> Bool { url.scheme == "https" && url.user == nil && url.password == nil }
 
     init(service: BotServiceRecord, dataStore: WKWebsiteDataStore) {
         self.service = service
@@ -51,9 +80,21 @@ enum BotTransitionText { case list, chat, reload, resume }
         webView.allowsBackForwardNavigationGestures = true
         webView.accessibilityIdentifier = "bot.webview"
         webView.accessibilityValue = service.origin
-        downloads = BrowserDownloadManager(root: PendingFileFolder.live("BotDownloads/" + service.profileID.uuidString).root,
-                                            allowsURL: service.policy.allows)
+        // Every kind of file the service offers, large videos included (owner 2026-11-28; Android: 2 GB). A download may
+        // follow the service's redirects to other https sites (cloud storage); WebKit sends each site only its own cookies.
+        var limits = BrowserDownloadLimits()
+        limits.maximumFileBytes = 2 * 1_073_741_824
+        limits.maximumStoredBytes = 4 * 1_073_741_824
+        // One download at a time, as Android: another one is refused with 另一個下載還在進行.
+        limits.maximumActive = 1
+        let policy = service.policy
+        downloads = BrowserDownloadManager(root: PendingFileFolder.live("BotDownloads/" + service.profileID.uuidString).root, limits: limits,
+                                            allowsURL: { policy.allows($0) || Self.isPageFile($0, policy: policy) || Self.isWebAddress($0) })
+        downloads.asksFirst = false
+        webView.configuration.userContentController.addUserScript(Self.downloadScript(policy))
         super.init()
+        downloads.onFinished = { [weak self] item in self?.keep(item) }
+        downloads.onFailed = { [weak self] item in self?.downloadNotice = .failed(item.id) }
         webView.configuration.websiteDataStore.httpCookieStore.add(self)
         webView.navigationDelegate = self; webView.uiDelegate = self
     }
@@ -138,7 +179,7 @@ enum BotTransitionText { case list, chat, reload, resume }
         valid = false; workspaceControlsReady = false; presentationAction = nil
         webView.stopLoading(); downloads.cancelAll()
         for item in downloads.items where !item.phase.isActive { downloads.remove(item.id) }
-        dialog?.finish(nil); dialog = nil; externalURL = nil
+        dialog?.finish(nil); dialog = nil; externalURL = nil; externalDownload = nil
         webView.navigationDelegate = nil; webView.uiDelegate = nil
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
@@ -192,34 +233,77 @@ enum BotTransitionText { case list, chat, reload, resume }
             decisionHandler(.cancel); return
         }
         let own = service.policy.allows(url)
+        let pageFile = Self.isPageFile(url, policy: service.policy)
+        let fromService = action.sourceFrame.request.url.map(service.policy.allows) == true
+        // A tapped link keeps its download for a slow answer. VoiceOver and Switch Control open links without a touch on
+        // the page, so for them the link itself counts as the tap (a page's own scripted click does not count otherwise).
+        if action.navigationType == .linkActivated, own || pageFile,
+           userActedRecently || UIAccessibility.isVoiceOverRunning || UIAccessibility.isSwitchControlRunning {
+            downloadUntil = max(downloadUntil, Date().addingTimeInterval(120))
+        }
+        // A file the website made itself (its download buttons fetch the file, then hand over a blob: link): saved like any
+        // download, never shown in place of the website. Only from the service's own page.
+        if pageFile, action.shouldPerformDownload || action.targetFrame?.isMainFrame != false {
+            decisionHandler(fromService && tapAllowsDownload() ? .download : .cancel); return
+        }
+        // Another site's page made the file (Android: refused, and said so).
+        if url.scheme == "blob" || url.scheme == "data", action.shouldPerformDownload || action.targetFrame?.isMainFrame != false {
+            if tapAllowsDownload() { downloadNotice = .unsupported }
+            decisionHandler(.cancel); return
+        }
+        // Another site's file asked for with a download link: the person confirms first, as on Android.
+        if action.shouldPerformDownload, !own, Self.isWebAddress(url) {
+            if tapAllowsDownload() { externalDownload = url }
+            decisionHandler(.cancel); return
+        }
         // Cross-origin subframes remain ordinary HTTPS web content with no
         // native authority; main-frame navigation is always exact-origin.
         if action.targetFrame?.isMainFrame == false {
-            decisionHandler(own || (url.scheme == "https" && url.user == nil && url.password == nil) ? .allow : .cancel)
+            if action.shouldPerformDownload, own { decisionHandler(tapAllowsDownload() ? .download : .cancel); return }
+            decisionHandler(own || Self.isWebAddress(url) ? .allow : .cancel)
             return
         }
         guard own else {
-            if action.navigationType == .linkActivated, url.scheme == "https", url.user == nil, url.password == nil,
-               action.sourceFrame.request.url.map(service.policy.allows) == true {
+            if action.navigationType == .linkActivated, Self.isWebAddress(url), fromService {
                 externalURL = url
             }
             decisionHandler(.cancel); return
         }
-        if action.navigationType == .linkActivated { downloadUntil = Date().addingTimeInterval(15) }
         if action.targetFrame == nil {
             decisionHandler(.cancel); webView.load(action.request); return
         }
         if action.shouldPerformDownload {
-            decisionHandler(Date() < downloadUntil ? .download : .cancel)
+            decisionHandler(tapAllowsDownload() ? .download : .cancel)
         } else { decisionHandler(.allow) }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
                  decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
         guard valid else { decisionHandler(.cancel); return }
-        if response.isForMainFrame && !response.canShowMIMEType {
-            decisionHandler(response.response.url.map(service.policy.allows) == true && Date() < downloadUntil ? .download : .cancel)
-        } else { decisionHandler(.allow) }
+        guard let url = response.response.url else { decisionHandler(.allow); return }
+        let http = response.response as? HTTPURLResponse
+        let answered = http.map { (200...299).contains($0.statusCode) && ![204, 205].contains($0.statusCode) } ?? true
+        let attachment = http?.value(forHTTPHeaderField: "Content-Disposition")?
+            .trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("attachment") == true
+        let mime = response.response.mimeType?.lowercased() ?? ""
+        let page = mime == "text/html" || mime == "application/xhtml+xml"
+        // A file, not a page: an attachment, a type iOS cannot show, or anything but a page in place of the website
+        // (a PDF, a picture, a video, a recording, an Office file, an archive...). It is downloaded, not shown.
+        let file = answered && (attachment || !response.canShowMIMEType || (response.isForMainFrame && !page && !mime.isEmpty))
+        guard file else {
+            decisionHandler(response.isForMainFrame && !response.canShowMIMEType ? .cancel : .allow); return
+        }
+        if service.policy.allows(url) || Self.isPageFile(url, policy: service.policy) {
+            if userActedRecently { decisionHandler(.download) }
+            // A file shown inside a frame of the website stays there, as before; one in place of the website is refused.
+            else if !response.isForMainFrame, response.canShowMIMEType, !attachment { decisionHandler(.allow) }
+            else { downloadNotice = .untapped; decisionHandler(.cancel) }
+        } else if Self.isWebAddress(url), userActedRecently {
+            // Another site's file in a frame of the website: the person confirms first.
+            externalDownload = url; decisionHandler(.cancel)
+        } else {
+            decisionHandler(response.canShowMIMEType && !attachment ? .allow : .cancel)
+        }
     }
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
         receive(download, url: navigationAction.request.url)
@@ -228,9 +312,53 @@ enum BotTransitionText { case list, chat, reload, resume }
         receive(download, url: navigationResponse.response.url)
     }
     private func receive(_ download: WKDownload, url: URL?) {
-        guard valid, Date() < downloadUntil else { download.cancel(nil); return }
+        guard valid else { download.cancel(nil); return }
+        guard tapAllowsDownload() else { download.cancel(nil); return }
         downloadUntil = .distantPast; loading = false
+        downloadNotice = nil
+        let before = Set(downloads.items.map(\.id))
         downloads.accept(download, from: url)
+        if let url, url.scheme == "blob" || url.scheme == "data", let item = downloads.items.first(where: { !before.contains($0.id) }) {
+            pageMadeDownloads.insert(item.id)
+        }
+    }
+    /// The person agreed to download another site's file.
+    func downloadExternal(_ url: URL) {
+        externalDownload = nil
+        guard valid, Self.isWebAddress(url) else { return }
+        downloadUntil = Date().addingTimeInterval(15)
+        webView.startDownload(using: URLRequest(url: url)) { [weak self] download in
+            Task { @MainActor in self?.receive(download, url: url) }
+        }
+    }
+    /// Keeps every finished download in Files › On My iPhone › 渥屋助理 Bot (the app's Documents, which the app treats as the
+    /// person's own files), the place Android's downloads go to its Downloads folder. The app's own list keeps its copy for
+    /// 分享 and 附加到對話.
+    private func keep(_ item: BrowserDownloadItem) {
+        guard valid, let source = item.fileURL else { return }
+        do {
+            let target = try BotDownloadsFolder.copy(source, named: item.fileName)
+            downloadNotice = .saved(BotSavedDownload(name: target.lastPathComponent, url: target))
+        } catch { downloadNotice = .unsaved(item.fileName) }
+    }
+    /// Only on the service's own pages, in the page's world: the website's blob: links stay readable for 60 s after it
+    /// revokes them (it revokes right after the click, before a download could read them; Android keeps them 60 s too),
+    /// and a file share (the HTML preview's 儲存) falls back to the website's own download, as on Android. It reads
+    /// nothing, sends nothing and has no native interface.
+    nonisolated static func downloadScript(_ policy: BotServiceOrigin) -> WKUserScript {
+        let origin = (try? JSONSerialization.data(withJSONObject: [policy.value])).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        let source = """
+        (function (origin) {
+          if (location.origin !== origin) return;
+          var revoke = URL.revokeObjectURL;
+          URL.revokeObjectURL = function (url) { setTimeout(function () { revoke.call(URL, url); }, 60000); };
+          if (navigator.canShare) {
+            var canShare = navigator.canShare.bind(navigator);
+            navigator.canShare = function (data) { return data && data.files && data.files.length ? false : canShare(data); };
+          }
+        })(\(origin)[0]);
+        """
+        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page)
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { loading = true; failed = false; workspaceControlsReady = false }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -246,7 +374,13 @@ enum BotTransitionText { case list, chat, reload, resume }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { fail(error) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fail(error) }
     private func fail(_ error: Error) {
-        guard valid, (error as NSError).code != NSURLErrorCancelled else { return }
+        let error = error as NSError
+        guard valid, error.code != NSURLErrorCancelled else { return }
+        // A link that became a download, or a file not shown in place of the website, ends that load with WebKit's
+        // "frame load interrupted" (102): the page already shown stays, so it is not a failure.
+        if error.domain == "WebKitErrorDomain", error.code == 102, pageCommits > 0 {
+            loading = false; return
+        }
         loading = false; failed = true; workspaceControlsReady = false
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { loading = false; failed = true; workspaceControlsReady = false }
@@ -343,6 +477,8 @@ struct BotServiceScreen: View {
     @State private var retiring: Retirement?
     @State private var busy = false
     @State private var serviceFollowUp: ServiceFollowUp?
+    /// A kept download opened from the status line (開啟).
+    @State private var preview: ChatAttachmentPreviewTarget?
     private enum ServiceFollowUp { case local, service(UUID, manage: Bool), manage, downloads, pairing }
     private struct Retirement: Identifiable { let remove: Bool; var id: Bool { remove } }
     @Environment(\.colorScheme) private var colorScheme
@@ -375,6 +511,8 @@ struct BotServiceScreen: View {
                 VStack(spacing: 0) {
                     if !web.workspaceControlsReady { header }
                     if web.loading { ProgressView().frame(maxWidth: .infinity).accessibilityIdentifier("bot.loading") }
+                    // Android's status line for downloads, over the website's own controls too.
+                    BotDownloadStatusLine(web: web, downloads: web.downloads, localizer: localizer) { preview = .init(url: $0) }
                 }
             }
         }
@@ -389,7 +527,8 @@ struct BotServiceScreen: View {
         }
         .tint(palette.accent)
         .modifier(BrowserDownloadPresentations(manager: web.downloads, chat: chat, showsList: $showsDownloads,
-                                               localizer: localizer, attach: attach))
+                                               localizer: localizer, attach: attach, showsNote: false))
+        .sheet(item: $preview) { target in ChatAttachmentPreview(url: target.url) { preview = nil } }
         .task(id: web.transitionID) { await web.runTransition(dark: colorScheme == .dark, localizer: localizer) }
         .onChange(of: scenePhase, initial: true) { _, phase in web.sceneActive = phase == .active }
         .task(id: "\(colorScheme)-\(scenePhase)-\(localizer.language)") {
@@ -408,7 +547,7 @@ struct BotServiceScreen: View {
         .onChange(of: web.presentationAction) { _, action in
             guard let action else { return }; web.presentationAction = nil
             guard !showsServices, !showsNotifications, !showsPairing, !showsDownloads, !showsManage,
-                  web.dialog == nil, web.externalURL == nil, retiring == nil else { return }
+                  web.dialog == nil, web.externalURL == nil, web.externalDownload == nil, retiring == nil else { return }
             switch action {
             case .services: showsServices = true
             case .notifications: showsNotifications = true
@@ -436,7 +575,8 @@ struct BotServiceScreen: View {
         .sheet(isPresented: $showsPairing) {
             BotPairingView(service: web.service, localizer: localizer, connect: web.open)
         }
-        .botDialog(isPresented: retiring != nil || web.externalURL != nil, dismiss: { retiring = nil; web.externalURL = nil }) {
+        .botDialog(isPresented: retiring != nil || web.externalURL != nil || web.externalDownload != nil,
+                   dismiss: { retiring = nil; web.externalURL = nil; web.externalDownload = nil }) {
             if let retiring {
                 BotRetireDialog(remove: retiring.remove, localizer: localizer, confirm: { retire(retiring) }, cancel: { self.retiring = nil })
             } else if let url = web.externalURL {
@@ -446,6 +586,19 @@ struct BotServiceScreen: View {
                     HStack(spacing: 10) {
                         BotDialogButton(title: t("取消", "Cancel"), kind: .dismiss, identifier: "bot.external.cancel") { web.externalURL = nil }
                         BotDialogButton(title: t("開啟", "Open"), kind: .confirm, identifier: "bot.external.open") { openURL(url); web.externalURL = nil }
+                    }.padding(.top, 24)
+                }
+            } else if let url = web.externalDownload {
+                // Android: another site's file is downloaded only after the person agrees; its name and site are shown.
+                BotDialogSurface {
+                    BotDialogTitle(text: t("下載其他網站的檔案？", "Download a file from another site?"))
+                    BotDialogBody(text: [url.lastPathComponent.isEmpty || url.lastPathComponent == "/" ? nil : url.lastPathComponent, url.host]
+                        .compactMap { $0 }.joined(separator: "\n"))
+                    HStack(spacing: 10) {
+                        BotDialogButton(title: t("取消", "Cancel"), kind: .dismiss, identifier: "bot.externalDownload.cancel") { web.externalDownload = nil }
+                        BotDialogButton(title: t("下載", "Download"), kind: .confirm, identifier: "bot.externalDownload.download") {
+                            web.downloadExternal(url)
+                        }
                     }.padding(.top, 24)
                 }
             }

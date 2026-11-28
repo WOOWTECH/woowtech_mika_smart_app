@@ -387,3 +387,59 @@ The owner asked for the iOS variant to match Android woow.26's four changes.
 
 Also fixed: line-break checks on cookie headers used `String.contains("\n")`, which misses "\r\n" (one Character in
 Swift); they check Unicode scalars now.
+
+## Downloading every file type from a service (Android PR #64) on 2026-11-28
+
+The owner found that files offered by woowtechbot did not download on a phone (Android said blob downloads were not
+supported). Every type has to download on both platforms: pictures, video, audio, PDF, Word, Excel, HTML, ZIP and the rest.
+The website makes most files itself: it fetches the file, makes a Blob, clicks an `<a download>` with a `blob:` link and
+revokes that link at once (App.js, 2026-11-27 bundle). Its only direct link is the workspace backup.
+
+- **How.** `WKDownload` for everything (`BotWebSession`): a `blob:` link of the service's own origin, a `data:` link, a
+  link with `download`, a `Content-Disposition: attachment` answer, and any non-page answer shown in place of the
+  website (a PDF, a picture, a video...). A page-world script at document start, on the service's origin only, keeps
+  revoked `blob:` links readable for 60 s (Android keeps the Blob 60 s too) and makes `navigator.canShare` refuse files,
+  so the HTML preview's 儲存 falls back to the website's own download, as on Android. It reads nothing, sends nothing and
+  has no native interface.
+- **When.** Only within 60 s of the person's last touch on the page (Android's rule; a tapped link keeps its download
+  120 s for a slow answer). VoiceOver and Switch Control open links without a touch, so for them the link activation
+  counts. Any other download is refused with 「已擋下沒有經過你點擊的下載。」/"Blocked a download you didn’t tap.". A file of
+  another site's page (`blob:` or `data:` not from the service) is refused with Android's 「無法下載這個檔案：連結格式不支援，
+  或不是來自這個服務。」. A file shown inside a frame of the website stays there.
+- **Another site.** A download link to another https site asks first: 「下載其他網站的檔案？」 with the name and host, then
+  downloads it without the service's cookies (WebKit sends each site only its own). A plain link to another site still
+  offers to open it in the browser, as on Android.
+- **Names and types.** `<a download>`, then Content-Disposition (WebKit reads `filename*` first), then the address. A name
+  without an extension gets its type's (`UTType`), so `report` with `application/pdf` is kept as `report.pdf`. Names are
+  cleaned as before (no path, control or direction characters, reserved characters; 120 bytes, keeping the extension).
+- **Where.** Every finished download is copied into Files › On My iPhone › 渥屋助理 Bot (the app's Documents, shown by
+  `UIFileSharingEnabled`; "name (2).ext" when taken), the place Android's go to Downloads. The service menu's 下載 keeps
+  the app's own copy for 分享 and 附加到對話.
+- **Status row** (`BotDownloadStatusLine`, Android's row above the page): 「正在下載：名稱 NN%」/"Downloading name NN%" with a
+  progress bar and 取消; then 「已下載到「檔案」App 的「渥屋助理 Bot」：名稱」/"Saved to Files › WOOW Assistant Bot: name" with 開啟
+  (Quick Look, which can share or save it elsewhere) and 關閉; otherwise Android's reason with 知道了/OK: too large (2 GB),
+  另一個下載還在進行 (one at a time, as Android), the link not supported, a page-made file that could not be read
+  (「請在網頁上再按一次下載」), or the download failed. Two reasons are iOS's own: the app's waiting downloads reached 4 GB, and
+  the device is full.
+- **Not a page failure.** A link that becomes a download ends its load with WebKit's "frame load interrupted" (102); the
+  page already shown stays and no 「無法載入服務」 row appears.
+
+- **Audio-only MPEG-4 stays .m4a.** The system's extension for `audio/mp4` is mp4, and once in 35 page-made downloads
+  WebKit renamed the website's `sample.m4a` to `sample.mp4` (the bytes were right). `withExtension` turns an `audio/mp4`
+  ".mp4" back into ".m4a" and gives ".m4a" to an `audio/mp4` name without an extension.
+
+Validation on 2026-11-28 (iPhone simulator, candidates 45–47, through the real service screen):
+
+- The iOS page (`scripts/bot_fixture_server.py --files DIR`, `/downloads`): 18 ways (12 page-made Blobs of png, jpg, mp4,
+  m4a, mp3, pdf, docx, xlsx, an octet-stream .html, zip, txt, csv; a PDF Blob named without an extension; a `data:` png;
+  the share fallback; a `download` link; a PDF shown in place of the site; an attachment), every kept file identical
+  byte for byte. (Its first page counts as a sign-in page, so a link from it shows the transition page for about 4 s;
+  the driver waits for it to go.)
+- The Android line's shared page (`tools/woowtechbot-ui/downloads-fixture.py`; the copy used only adds the type to each
+  label so the UI driver can tell them apart, and splits the page in two): 20 types × direct / attachment / redirect /
+  the website's POST → Blob → revoke, without the HTML redirect, which opens the page as a page on both platforms, plus
+  `data:` CSV and PNG with their `download` names and a Chinese file name twice: 83 of 83 files kept, 82 identical by
+  name and bytes, the 83rd the m4a above (right bytes, .mp4 name; fixed since). Another site's PDF link offered the
+  browser; the download the page started 70 s after the last tap was refused with the untapped row.
+- `scripts/CheckBrowserDownloadNames.sh`: the name rules (extension by type, m4a, Chinese names, paths, direction and
+  reserved characters, 120 bytes keeping the extension).

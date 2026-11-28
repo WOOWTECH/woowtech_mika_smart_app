@@ -23,11 +23,87 @@ NOTE = b"WOOW iOS isolated service download fixture\n"
 # timeline as Android's tools/woowtechbot-ui/list-fixture.html), which logs what it did to /test/list-events.
 LIST_PAGE = None
 LIST_EVENTS = []
+DL_EVENTS = []
+REQUESTS = []
+# --files DIR: /downloads, a page with one button per type and per way the website downloads (owner 2026-11-28: every kind
+# of file downloads in the app). Files are served from DIR at /files/<name> (their own type) and /attach/<name> (attachment).
+FILES = None
+TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".mp4": "video/mp4", ".m4a": "audio/mp4", ".mp3": "audio/mpeg",
+         ".pdf": "application/pdf", ".html": "text/html; charset=utf-8", ".txt": "text/plain; charset=utf-8",
+         ".csv": "text/csv; charset=utf-8", ".zip": "application/zip",
+         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+         ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+DOWNLOADS_PAGE = """<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Download tests</title><style>body{font:14px system-ui;padding:8px;padding-top:calc(8px + env(safe-area-inset-top))}
+h1{font-size:20px;margin:4px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button,a{display:block;font:inherit;padding:8px 6px;margin:0;width:100%;box-sizing:border-box;text-align:left}</style>
+<h1>Download tests</h1><div class="grid">
+<button onclick="blobDl('sample-image.png')">blob image png</button>
+<button onclick="blobDl('sample-photo.jpg')">blob photo jpg</button>
+<button onclick="blobDl('sample-video.mp4')">blob video mp4</button>
+<button onclick="blobDl('sample-audio.m4a')">blob audio m4a</button>
+<button onclick="blobDl('sample-audio.mp3')">blob audio mp3</button>
+<button onclick="blobDl('sample-document.pdf')">blob pdf</button>
+<button onclick="blobDl('sample-report.docx')">blob word docx</button>
+<button onclick="blobDl('sample-sheet.xlsx')">blob excel xlsx</button>
+<button onclick="blobDl('sample-page.html', 'sample-page.html', 'application/octet-stream')">blob html octet</button>
+<button onclick="blobDl('sample-archive.zip')">blob zip</button>
+<button onclick="blobDl('sample-notes.txt')">blob text txt</button>
+<button onclick="blobDl('sample-table.csv')">blob table csv</button>
+<button onclick="blobDl('sample-document.pdf', 'report-no-extension')">blob pdf without extension</button>
+<button onclick="dataDl()">data image png</button>
+<button onclick="shareSave()">share html save</button>
+<a href="/files/sample-archive.zip" download>direct zip download</a>
+<a href="/files/sample-document.pdf">direct pdf link</a>
+<a href="/attach/sample-photo.jpg">attachment jpg link</a></div>
+<script>
+const log = what => navigator.sendBeacon('/test/dl-event', what);
+window.addEventListener('error', e => log('error ' + e.message));
+log('loaded revoke=' + String(URL.revokeObjectURL).slice(0, 40) + ' share=' + (navigator.canShare ? String(navigator.canShare).slice(0, 30) : 'none'));
+document.addEventListener('click', e => log('click ' + (e.target && e.target.textContent || '').slice(0, 30) + ' trusted=' + e.isTrusted), true);
+['touchstart', 'touchend', 'mousedown', 'mouseover'].forEach(n => document.addEventListener(n, e => log(n + ' ' + (e.target && e.target.textContent || '').slice(0, 20)), true));
+async function blobDl(name, save, type) {
+  log('start ' + name);
+  const r = await fetch('/files/' + name, {method: 'POST'});
+  log('fetched ' + r.status);
+  let b = await r.blob();
+  if (type) b = new Blob([b], {type: type});
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a'); a.href = u; a.download = save || name;
+  document.body.appendChild(a); a.click(); a.remove();
+  log('clicked ' + u.slice(0, 40));
+  setTimeout(() => URL.revokeObjectURL(u), 0);
+}
+function dataDl() {
+  fetch('/files/sample-image.png').then(r => r.blob()).then(b => {
+    const reader = new FileReader();
+    reader.onload = () => { const a = document.createElement('a'); a.href = reader.result; a.download = 'data-image.png'; a.click(); };
+    reader.readAsDataURL(b);
+  });
+}
+async function shareSave() {
+  const html = '<!doctype html><meta charset="utf-8"><title>share</title><p>share save</p>';
+  const file = new File([html], 'share-page.html', {type: 'text/html'});
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({files: [file]})) {
+    await navigator.share({files: [file]}); return;
+  }
+  const u = URL.createObjectURL(new Blob([html], {type: 'application/octet-stream'}));
+  const a = document.createElement('a'); a.href = u; a.download = 'share-page.html'; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 0);
+}
+</script></html>"""
 
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass  # Request URLs and Cookie headers never enter a test log.
+
+    def parse_request(self):
+        ok = super().parse_request()
+        # Paths only (no query, cookie or header), for the download tests' evidence at /test/requests.
+        if ok and len(REQUESTS) < 1000:
+            REQUESTS.append({"t": round(time.time(), 3), "method": self.command, "path": urlsplit(self.path).path})
+        return ok
 
     def token(self):
         cookie = SimpleCookie()
@@ -49,8 +125,30 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def serve_file(self, path):
+        for prefix, attachment in (("/files/", False), ("/attach/", True)):
+            if FILES is not None and path.startswith(prefix):
+                name = path[len(prefix):]
+                target = FILES / name
+                if "/" in name or not name or not target.is_file():
+                    self.send("not found", 404)
+                    return True
+                extension = target.suffix.lower()
+                headers = {"Content-Disposition": f'attachment; filename="{name}"'} if attachment else {}
+                self.send(target.read_bytes(), content_type=TYPES.get(extension, "application/octet-stream"), headers=headers)
+                return True
+        return False
+
     def do_GET(self):
         path = urlsplit(self.path)
+        if path.path == "/test/requests":
+            return self.send(json.dumps(REQUESTS[-200:]), content_type="application/json")
+        if path.path == "/test/dl-events":
+            return self.send(json.dumps(DL_EVENTS), content_type="application/json")
+        if FILES is not None and path.path == "/downloads":
+            return self.send(DOWNLOADS_PAGE)
+        if self.serve_file(path.path):
+            return
         if path.path == "/note.txt":
             return self.send(NOTE, content_type="text/plain", headers={"Content-Disposition": 'attachment; filename="ios-bot-note.txt"'})
         if path.path == "/redirect-note":
@@ -82,11 +180,19 @@ class Handler(BaseHTTPRequestHandler):
 <form method="post" action="/pair"><button name="identity" value="iOS A">Sign in as iOS A</button><button name="identity" value="iOS B">Sign in as iOS B</button></form>
 <label>Web draft<textarea aria-label="Web draft" id="draft"></textarea></label>
 <a href="/note.txt" download="ios-bot-note.txt">Download test note</a>
+<a href="/downloads">Download tests</a>
 <a href="https://example.com/">External link</a><p>''' + target + '''</p>
 <input type="file" aria-label="Attach file">''' + shell_close + '''<script>const input=document.getElementById('draft');input.value=localStorage.getItem('fixture.draft')||'';input.oninput=()=>localStorage.setItem('fixture.draft',input.value);</script></html>''')
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if self.serve_file(path):
+            return
+        if path == "/test/dl-event":
+            size = int(self.headers.get("Content-Length", "0"))
+            if size <= 512 and len(DL_EVENTS) < 500:
+                DL_EVENTS.append({"t": round(time.time(), 3), "what": self.rfile.read(size).decode("utf-8", "replace")})
+            return self.send("", 204)
         if path == "/test/list-event":
             size = int(self.headers.get("Content-Length", "0"))
             if size > 512 or len(LIST_EVENTS) > 2000:
@@ -119,9 +225,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, default=8767)
+    parser.add_argument("--files", help="serve /downloads and the test files in this folder")
     parser.add_argument("--list-workspace", action="store_true",
                         help="serve the phone bot-list workspace (bot_list_fixture.html) to signed-in sessions")
     args = parser.parse_args()
+    if args.files:
+        FILES = pathlib.Path(args.files).resolve()
     if args.list_workspace:
         LIST_PAGE = (pathlib.Path(__file__).resolve().parent / "bot_list_fixture.html").read_text()
     address = ipaddress.ip_address(args.host)

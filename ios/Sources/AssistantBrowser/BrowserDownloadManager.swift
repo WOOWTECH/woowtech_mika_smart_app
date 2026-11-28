@@ -1,5 +1,6 @@
 #if canImport(WebKit)
 import Foundation
+import UniformTypeIdentifiers
 import WebKit
 
 /// The browser's downloads, one for the app: the browser's tabs and a web
@@ -24,6 +25,13 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
     private var polling: Task<Void, Never>?
     /// The list is on screen, so a finished download needs no note.
     public var listIsOpen = false
+    /// False where the caller already knows the download is the person's own and wants it at once (the woowtechbot service
+    /// screen, owner 2026-11-28): no question, the download starts as soon as WebKit has the response.
+    public var asksFirst = true
+    /// Called once a file has finished and waits in the app (the woowtechbot service screen keeps a copy in Files).
+    public var onFinished: ((BrowserDownloadItem) -> Void)?
+    /// Called once a download has failed (the woowtechbot service screen says why on its status line).
+    public var onFailed: ((BrowserDownloadItem) -> Void)?
 
     private final class Transfer {
         let download: WKDownload
@@ -162,9 +170,10 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
                                                    active: items.filter { $0.phase.isActive && $0.id != id }.count, limits: limits)
         }
         if let failure { completionHandler(nil); end(id, .failed(failure)); return }
-        items[index].ask(fileName: BrowserDownloadRules.fileName(suggestedFilename), expectedBytes: expected,
-                         host: BrowserDownloadRules.host(of: response.url), now: Date())
+        items[index].ask(fileName: BrowserDownloadRules.fileName(Self.withExtension(suggestedFilename, mimeType: response.mimeType)),
+                         expectedBytes: expected, host: BrowserDownloadRules.host(of: response.url), now: Date())
         transfer.decide = completionHandler
+        if !asksFirst { answer(id, allowed: true); return }
         if question == nil { question = items[index] }
         // Unanswered in time, the download is dropped and its question closes.
         Task { [weak self] in
@@ -213,6 +222,7 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
             items[index].phase = .finished
             finish(id)
             if !listIsOpen { notice = items[index] }
+            onFinished?(items[index])
         } catch {
             files.remove(id)
             end(id, .failed(BrowserDownloadRules.isDeviceFull(error) ? .deviceFull : .unavailable))
@@ -224,6 +234,20 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
         guard let (id, _) = transfer(of: download) else { return }
         guard let item = items.first(where: { $0.id == id }), item.phase.isActive else { finish(id); return }
         end(id, .failed(BrowserDownloadRules.isDeviceFull(error) ? .deviceFull : .network))
+    }
+
+    /// A name without an extension gets the one of its type, so the file opens in the right app (a website's download
+    /// attribute or a generic blob can leave it out).
+    nonisolated static func withExtension(_ name: String, mimeType: String?) -> String {
+        let mime = mimeType?.lowercased()
+        // Audio-only MPEG-4 is an .m4a. The system's extension for audio/mp4 is mp4, and WebKit now and then renames a
+        // website's "x.m4a" to "x.mp4" from it (seen once in 35 page-made downloads on 2026-11-28).
+        if mime == "audio/mp4", (name as NSString).pathExtension.lowercased() == "mp4" {
+            return (name as NSString).deletingPathExtension + ".m4a"
+        }
+        guard (name as NSString).pathExtension.isEmpty, let mime, mime != "application/octet-stream",
+              let ext = mime == "audio/mp4" ? "m4a" : UTType(mimeType: mime)?.preferredFilenameExtension, !ext.isEmpty else { return name }
+        return (name.isEmpty ? "download" : name) + "." + ext
     }
 
     // MARK: Bookkeeping
@@ -262,6 +286,7 @@ public final class BrowserDownloadManager: NSObject, ObservableObject, WKDownloa
     private func end(_ id: UUID, _ phase: BrowserDownloadItem.Phase) {
         set(id, phase)
         finish(id)
+        if case .failed = phase, let item = items.first(where: { $0.id == id }) { onFailed?(item) }
         nextQuestion()
     }
 

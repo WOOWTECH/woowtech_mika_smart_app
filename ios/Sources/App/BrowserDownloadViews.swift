@@ -13,6 +13,8 @@ struct BrowserDownloadPresentations: ViewModifier {
     let localizer: AppLocalizer
     /// Copies a finished download into the chat's tray; true when it is there.
     let attach: (URL) async -> Bool
+    /// False where the screen shows its own status for downloads (the woowtechbot service screen).
+    var showsNote = true
 
     func body(content: Content) -> some View {
         content
@@ -37,7 +39,7 @@ struct BrowserDownloadPresentations: ViewModifier {
             .sheet(isPresented: $showsList, onDismiss: { manager.listIsOpen = false }) {
                 BrowserDownloadsView(manager: manager, chat: chat, localizer: localizer, attach: attach)
             }
-            .overlay(alignment: .top) { note }
+            .overlay(alignment: .top) { if showsNote { note } }
     }
 
     @ViewBuilder private var note: some View {
