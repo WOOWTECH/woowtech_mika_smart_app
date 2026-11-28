@@ -154,7 +154,8 @@ android {
             // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。
             // Compose UI 的 zh-rTW 也有 state_on/state_off:系统语言是 zh-TW 时这两句用它的「已開啟」「已關閉」,和上游一样。
             // aapt2 留 zh-rTW 时会连带留下上游简体的 values-zh,所以 woowtech 变体另外传 --exclude-configs zh(文件末尾的 onVariants)。
-            resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
+            // b+zh+Hans、b+yue 也是繁体:简体中文、粤语的手机显示繁体中文界面(和 iOS 一样,app/brand.gradle.kts 从繁体复制)。
+            resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW", "b+zh+Hans", "b+yue")
         }
         // Google Play edition of the Apporo brand: the woowtech Play edition's features (no phone control, executable sandbox,
         // or OCR) with Apporo's name, look and brand.properties. Its own package, data and signature.
