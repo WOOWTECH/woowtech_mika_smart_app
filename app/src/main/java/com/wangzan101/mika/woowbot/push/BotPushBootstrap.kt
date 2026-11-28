@@ -34,6 +34,7 @@ object BotPushBootstrap {
         }
         BotPushRuntime.controller = controller
         BotPushRuntime.notifications = BotPushNotifications(app, MainActivity::class.java, controller::accepts)
+        BotPushRuntime.previews = connections::preview
         refresh(app)
         scope.launch {
             var previous = registry.state.value.services.associate { it.id to it.profileId }
@@ -62,7 +63,7 @@ object BotPushBootstrap {
         BotPushRuntime.epoch.incrementAndGet()
         scope.launch {
             val complete = runCatching { BotPushRuntime.controller?.setOptIn(enabled) ?: false }.getOrDefault(false)
-            BotPushRuntime.notifications?.cancelStale()
+            if (complete || !enabled) BotPushRuntime.notifications?.cancelStale()
             val drained = runCatching { BotPushPendingInbox.drain(context) }.getOrDefault(false)
             if (!complete || !drained) runCatching { BotPushRefreshJob.schedule(context.applicationContext) }
         }
@@ -71,7 +72,8 @@ object BotPushBootstrap {
         install(context)
         scope.launch {
             val complete = runCatching { BotPushRuntime.controller?.refresh() ?: false }.getOrDefault(false)
-            BotPushRuntime.notifications?.cancelStale()
+            // An incomplete refresh means some service could not be checked: keep its notifications until it can be.
+            if (complete || BotPushRuntime.controller?.optedIn != true) BotPushRuntime.notifications?.cancelStale()
             val drained = runCatching { BotPushPendingInbox.drain(context) }.getOrDefault(false)
             if (!complete || !drained) runCatching { BotPushRefreshJob.schedule(context.applicationContext) }
         }

@@ -5,4 +5,5 @@
     <string name="bot_services_opening_list">正在打開機器人列表…</string>
     <string name="bot_services_opening_chat">正在打開對話…</string>
     <string name="bot_services_reloading">正在重新載入…</string>
+    <string name="bot_services_resuming">正在回到剛才的畫面…</string>
 </resources>

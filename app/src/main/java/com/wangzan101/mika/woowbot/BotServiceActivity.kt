@@ -129,8 +129,12 @@ class BotServiceActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectedService = intent.getStringExtra(EXTRA_SERVICE)
-        landOnList = savedInstanceState == null && !intent.hasExtra(EXTRA_BOT) && !intent.hasExtra(EXTRA_THREAD)
-        if (!landOnList) transitionText = R.string.bot_services_opening_chat
+        // Reopening the app returns to the page the user left (BotResumeEntry): the website shows its last bot, and in the
+        // same process the saved page itself.
+        val resuming = intent.getBooleanExtra(EXTRA_RESUME, false)
+        landOnList = savedInstanceState == null && !resuming && !intent.hasExtra(EXTRA_BOT) && !intent.hasExtra(EXTRA_THREAD)
+        if (resuming) transitionText = R.string.bot_services_resuming
+        else if (!landOnList) transitionText = R.string.bot_services_opening_chat
         managing = intent.getBooleanExtra(EXTRA_MANAGE, false)
         if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityCreate restored=" + (savedInstanceState != null))
         if (!BuildConfig.WOOWTECHBOT_ENABLED) { finish(); return }
@@ -605,6 +609,12 @@ class BotServiceActivity : ComponentActivity() {
             }
         }
     }
+    override fun onStart() { super.onStart(); BotResumeEntry.returned(this) }
+    override fun onStop() {
+        // Left for the home screen or another app, not closed: opening the app again comes back here.
+        if (!isFinishing && !isChangingConfigurations) selectedService?.let { BotResumeEntry.left(this, it) }
+        super.onStop()
+    }
     override fun onDestroy() {
         if (BuildConfig.BOT_VIEWPORT_DIAGNOSTICS) android.util.Log.i("BotRouteQA", "activityDestroy configChange=$isChangingConfigurations")
         parked.values.toList().forEach(::destroy); destroyWebView(); scope.cancel(); super.onDestroy()
@@ -616,6 +626,8 @@ class BotServiceActivity : ComponentActivity() {
         private const val EXTRA_SERVICE = "woowbot.serviceId"
         private const val EXTRA_BOT = "woowbot.botId"
         private const val EXTRA_THREAD = "woowbot.threadId"
+        private const val EXTRA_RESUME = "woowbot.resume"
+        fun resumeIntent(context: Context, serviceId: String): Intent = intent(context, serviceId).putExtra(EXTRA_RESUME, true)
         fun intent(context: Context, serviceId: String, botId: String? = null, threadId: String? = null): Intent =
             Intent(context, BotServiceActivity::class.java).putExtra(EXTRA_SERVICE, serviceId)
                 .apply {

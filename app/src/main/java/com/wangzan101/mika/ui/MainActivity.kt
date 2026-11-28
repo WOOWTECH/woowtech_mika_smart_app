@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         conversationRequests.restore(intent, savedInstanceState)
         com.wangzan101.mika.woowbot.push.BotPushTapEntry.handle(this, intent)
+        com.wangzan101.mika.woowbot.BotResumeEntry.handle(this, intent)
         monitor = SystemStatusMonitor(this, PhoneServices.of(this).shellControl)
         val store = ProviderStore.get(this)
         setContent {
@@ -138,6 +139,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         conversationRequests.receive(intent)
         com.wangzan101.mika.woowbot.push.BotPushTapEntry.handle(this, intent)
+        com.wangzan101.mika.woowbot.BotResumeEntry.handle(this, intent)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

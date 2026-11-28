@@ -4,9 +4,11 @@
     <string name="bot_push_title">WOOWTECH Bot</string>
     <string name="bot_push_action">A bot needs your attention. Open to review.</string>
     <string name="bot_push_done">A bot has finished. Open to review.</string>
+    <string name="bot_push_prefix_failed">Couldn\'t finish: %1$s</string>
+    <string name="bot_push_prefix_action">Needs you: %1$s</string>
     <string name="bot_push_failed">A bot couldn\'t finish. Open to review.</string>
     <string name="bot_push_settings_title">Bot notifications</string>
-    <string name="bot_push_settings_privacy">Notifications contain only a generic alert. Open the service to review details.</string>
+    <string name="bot_push_settings_privacy">Notifications show which bot replied and the start of its reply. The phone reads them from the service itself; they never pass through the push service.</string>
     <string name="bot_push_not_configured">Notifications are unavailable in this build. This app’s own Firebase configuration has not been supplied.</string>
     <string name="bot_push_server_not_ready">Push delivery is not ready: the paired service registration integration is not available yet.</string>
     <string name="bot_push_enable">Allow bot notifications</string>

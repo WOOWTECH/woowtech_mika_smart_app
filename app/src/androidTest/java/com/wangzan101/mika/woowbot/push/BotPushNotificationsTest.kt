@@ -44,7 +44,8 @@ class BotPushNotificationsTest {
         awaitCount(1)
         val notification = own().single().notification
         assertEquals(BotPushNotifications.DONE, notification.channelId)
-        assertEquals(Notification.VISIBILITY_SECRET, notification.visibility)
+        assertEquals(Notification.VISIBILITY_PRIVATE, notification.visibility)
+        assertEquals(text(notification), text(requireNotNull(notification.publicVersion)))
         assertNotNull(notification.contentIntent)
         assertFalse(notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("thread_1"))
         renderer.receive(target().data())
@@ -60,11 +61,31 @@ class BotPushNotificationsTest {
         awaitCount(4)
         val failed = own().single { it.tag.endsWith("|event_4") }.notification
         assertEquals(BotPushNotifications.DONE, failed.channelId)
-        assertEquals(Notification.VISIBILITY_SECRET, failed.visibility)
+        assertEquals(Notification.VISIBILITY_PRIVATE, failed.visibility)
         val failedText = failed.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
         assertNotEquals(own().single { it.tag.endsWith("|event_1") }.notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString(), failedText)
         assertFalse(failedText.contains("thread_1"))
     }
+    @Test fun previewShowsTheBotAndItsReplyWithAGenericLockScreenVersion() {
+        val renderer = renderer()
+        renderer.receive(target("event_p").data(), BotPushPreview("Podman QA", "Here is the answer."))
+        awaitCount(1)
+        val shown = own().single().notification
+        assertEquals("Podman QA", shown.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals("Here is the answer.", text(shown))
+        assertEquals(Notification.VISIBILITY_PRIVATE, shown.visibility)
+        val lockScreen = requireNotNull(shown.publicVersion)
+        assertFalse(text(lockScreen).contains("answer"))
+        assertFalse(lockScreen.extras.getCharSequence(Notification.EXTRA_TITLE).toString().contains("Podman"))
+        // Questions and failures say so before the excerpt; a missing excerpt keeps the generic text under the bot's name.
+        renderer.receive(target("event_q").copy(reason = "attention").data(), BotPushPreview("Podman QA", "Red or blue?"))
+        renderer.receive(target("event_n").data(), BotPushPreview("Podman QA", null))
+        awaitCount(3)
+        val question = text(own().single { it.tag.endsWith("|event_q") }.notification)
+        assertTrue(question.endsWith("Red or blue?") && question != "Red or blue?")
+        assertEquals(text(lockScreen), text(own().single { it.tag.endsWith("|event_n") }.notification))
+    }
+    private fun text(notification: Notification) = notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
     @Test fun rejectedServiceAndContentNeverProduceNotification() {
         renderer({ false }).receive(target().data())
         renderer().receive(target().data() + ("url" to "https://example.invalid"))

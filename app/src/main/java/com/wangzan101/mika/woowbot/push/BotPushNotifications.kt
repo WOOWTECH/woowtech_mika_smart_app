@@ -22,7 +22,8 @@ class BotPushNotifications(
     private val received: BotPushHistory = BotPushPersistentHistory(context, "received"),
 ) {
     private val manager = context.getSystemService(NotificationManager::class.java)
-    @Synchronized fun receive(data: Map<String, String>) {
+    /** [preview] is read on the phone from the service; without it the notification keeps the generic text. */
+    @Synchronized fun receive(data: Map<String, String>, preview: BotPushPreview? = null) {
         val target = BotPushContract.parse(data) ?: return
         if (!accepts(target.serviceId) || !manager.areNotificationsEnabled()) return
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
@@ -42,17 +43,32 @@ class BotPushNotifications(
             target.data().forEach { (key, value) -> putExtra(PREFIX + key, value) }
         }
         val tap = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(context, channel)
+        val generic = tr(when (target.reason) {
+            "finished" -> R.string.bot_push_done
+            "failed" -> R.string.bot_push_failed
+            else -> R.string.bot_push_action
+        })
+        // Owner 2026-11-28: which bot replied and the start of its reply. The lock screen follows the system setting: all
+        // content, or this generic version when the user hides sensitive content.
+        val lockScreen = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(tr(R.string.bot_push_title)).setContentText(generic).build()
+        val excerpt = preview?.excerpt?.let { text ->
+            when (target.reason) {
+                "finished" -> text
+                "failed" -> tr(R.string.bot_push_prefix_failed, text)
+                else -> tr(R.string.bot_push_prefix_action, text)
+            }
+        }
+        val builder = Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(tr(R.string.bot_push_title))
-            .setContentText(tr(when (target.reason) {
-                "finished" -> R.string.bot_push_done
-                "failed" -> R.string.bot_push_failed
-                else -> R.string.bot_push_action
-            }))
+            .setContentTitle(preview?.botName ?: tr(R.string.bot_push_title))
+            .setContentText(excerpt ?: generic)
             .addExtras(android.os.Bundle().apply { putString(SERVICE_EXTRA, target.serviceId) })
-            .setVisibility(Notification.VISIBILITY_SECRET)
-            .setContentIntent(tap).setAutoCancel(true).build()
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .setPublicVersion(lockScreen)
+            .setContentIntent(tap).setAutoCancel(true)
+        if (excerpt != null) builder.setStyle(Notification.BigTextStyle().bigText(excerpt))
+        val notification = builder.build()
         try {
             // Exact event tag prevents same-thread events replacing each other's tap extras.
             if (!accepts(target.serviceId)) return

@@ -9,6 +9,29 @@ class BotPairingQrTest {
         val url = "https://bot.example.com/pair#code=ABCDEF-123456"
         assertEquals(url, BotPairingQr.validate(url, origin))
     }
+    @Test fun acceptsTheServersPhoneQrForThisServiceAsItsOwnPairingLink() {
+        assertEquals("https://bot.example.com/pair#code=ABCD-EFGH-IJKL",
+            BotPairingQr.validate("openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL", origin))
+        assertEquals("https://bot.example.com/pair#code=ABCD-EFGH-IJKL",
+            BotPairingQr.validate("openmausbot://pair?code=ABCD-EFGH-IJKL&address=https%3A%2F%2Fbot.example.com%2F", origin))
+    }
+    @Test fun rejectsAPhoneQrForAnotherServerOrWithAmbiguousParts() {
+        listOf(
+            "openmausbot://pair?address=https%3A%2F%2Fevil.example&code=ABCD-EFGH-IJKL",
+            "openmausbot://pair?address=http%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com%2Fx&code=ABCD-EFGH-IJKL",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com",
+            "openmausbot://pair?code=ABCD-EFGH-IJKL",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL&redirect=x",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD&code=EFGH-IJKL",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=AB%3CCD%3EEFGH",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=abc",
+            "openmausbot://pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL#x",
+            "openmausbot://thread/abc?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+            "openmausbot://pair/x?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+            "openmausbot://user@pair?address=https%3A%2F%2Fbot.example.com&code=ABCD-EFGH-IJKL",
+        ).forEach { value -> assertTrue(value, runCatching { BotPairingQr.validate(value, origin) }.isFailure) }
+    }
     @Test fun rejectsCrossOriginCommandsCredentialsAndAmbiguousParameters() {
         listOf(
             "https://evil.example/pair#code=ABCDEF",

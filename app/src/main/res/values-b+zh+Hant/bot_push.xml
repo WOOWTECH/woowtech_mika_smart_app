@@ -4,9 +4,11 @@
     <string name="bot_push_title">WOOWTECH Bot</string>
     <string name="bot_push_action">機器人需要您的注意，請開啟查看。</string>
     <string name="bot_push_done">機器人已完成，請開啟查看。</string>
+    <string name="bot_push_prefix_failed">未能完成：%1$s</string>
+    <string name="bot_push_prefix_action">需要處理：%1$s</string>
     <string name="bot_push_failed">機器人未能完成，請開啟查看。</string>
     <string name="bot_push_settings_title">機器人通知</string>
-    <string name="bot_push_settings_privacy">通知僅顯示一般提醒，請開啟服務查看詳細內容。</string>
+    <string name="bot_push_settings_privacy">通知會顯示是哪個機器人回覆和內容摘要；內容由手機直接向服務讀取，不經過推播服務。</string>
     <string name="bot_push_not_configured">此版本尚未提供這個應用程式專用的 Firebase 設定，無法使用推播通知。</string>
     <string name="bot_push_server_not_ready">推播尚未就緒：配對服務的通知註冊整合尚未提供。</string>
     <string name="bot_push_enable">允許機器人通知</string>

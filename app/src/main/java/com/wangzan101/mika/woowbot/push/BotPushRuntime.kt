@@ -25,6 +25,8 @@ object BotPushRuntime {
     val epoch = java.util.concurrent.atomic.AtomicLong()
     @Volatile var controller: BotPushController? = null
     @Volatile var notifications: BotPushNotifications? = null
+    /** Reads a verified push's bot name and excerpt from its service; installed with the connections. */
+    @Volatile var previews: (suspend (BotPushTarget) -> BotPushPreview?)? = null
 }
 
 /** Safe, in-memory discovery results; READY is capability readiness, not a registration ACK. */
