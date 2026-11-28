@@ -66,4 +66,7 @@ How it is done:
   - `BotParityFollowupsDeviceTest`:
     - A transparent PNG avatar comes back as a 320 × 320 JPEG with white corners and its red centre.
     - Both dialog buttons are at least 44 dp × 100 dp, and a tap near the edge of each presses it.
-- **Q24:** the iOS line's scanner (`q24-scan.py`) finds nothing left in either Traditional Chinese folder.
+- **Q24:** the iOS line's scanner (`q24-scan.py`) finds only two strings left in the Traditional Chinese folders, and both are on purpose.
+  - The two are `net_proxy_hint` and `net_proxy_invalid`.
+  - Their 「使用者:密碼@」 is the literal `user:password@` the user types into the proxy address, so the colon stays half-width.
+  - woow.30 shipped them with a full-width colon; this was fixed afterwards.

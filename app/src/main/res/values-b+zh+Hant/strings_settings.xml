@@ -91,8 +91,8 @@
     <string name="sandbox_proxy_off">%1$s · 允許連網後才生效</string>
     <string name="net_proxy">網路代理</string>
     <string name="net_proxy_row_sub">呼叫模型、下載更新、內建瀏覽器和指令都走它</string>
-    <string name="net_proxy_hint">Mika 呼叫模型（對話、模型清單、帳號登入）、在 App 裡下載更新、內建瀏覽器，以及「檔案與計算環境」裡的指令（那裡允許連網時）都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連，本機模型照常能用。可以帶「使用者：密碼@」，加密保存在這台手機上。留空表示直連。</string>
-    <string name="net_proxy_invalid">寫成 http://主機:連接埠 的樣子（也可以是 socks5、socks5h、https），主機前面可以帶「使用者：密碼@」。</string>
+    <string name="net_proxy_hint">Mika 呼叫模型（對話、模型清單、帳號登入）、在 App 裡下載更新、內建瀏覽器，以及「檔案與計算環境」裡的指令（那裡允許連網時）都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連，本機模型照常能用。可以帶「使用者:密碼@」，加密保存在這台手機上。留空表示直連。</string>
+    <string name="net_proxy_invalid">寫成 http://主機:連接埠 的樣子（也可以是 socks5、socks5h、https），主機前面可以帶「使用者:密碼@」。</string>
     <string name="net_proxy_container_only">https:// 代理只給「檔案與計算環境」裡的指令用，Mika 自己的連線照舊直連。想全部走代理，請用 http:// 或 socks5://。</string>
     <string name="net_proxy_browser_unsupported">這台手機的 WebView 不支援單獨設定代理，內建瀏覽器直連。</string>
     <string name="net_proxy_browser_socks_auth">內建瀏覽器用不了需要帳號密碼的 SOCKS 代理，它直連。</string>
