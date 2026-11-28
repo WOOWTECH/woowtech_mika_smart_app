@@ -3,9 +3,9 @@ package com.wangzan101.mika.woowbot
 import android.app.UiAutomation
 import android.graphics.Bitmap
 import android.os.SystemClock
-import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -13,13 +13,15 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.printToLog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.wangzan101.mika.BuildConfig
+import com.wangzan101.mika.MikaApp
 import com.wangzan101.mika.R
 import com.wangzan101.mika.cap.phone.PhoneServices
+import com.wangzan101.mika.core.agent.Turn
 import com.wangzan101.mika.ui.MainActivity
 import com.wangzan101.mika.ui.components.Adaptive
 import org.junit.After
@@ -35,6 +37,10 @@ import java.io.File
  * Owner 2026-11-28: tablets follow the iPad rules. On a tablet emulator (the workflow's Pixel Tablet run) this checks that the
  * inbox docks beside the chat in landscape and not in portrait, and saves screenshots of the inbox, the services sheet, a
  * dialog, portrait and the settings page for the owner (pulled from files/tablet-shots into the run's evidence).
+ *
+ * The compose test clock only moves while the test synchronises, so every step waits for what it expects through the compose
+ * rule (a plain sleep left a click's dialog unshown and the sheet's exit motion unplayed). Only resumed activities count as
+ * compose roots: while the services sheet is up, the main activity's nodes are not found.
  */
 @RunWith(AndroidJUnit4::class)
 class BotTabletLayoutDeviceTest {
@@ -44,6 +50,13 @@ class BotTabletLayoutDeviceTest {
     private var service: BotService? = null
     private var scenario: ActivityScenario<MainActivity>? = null
     private val shots by lazy { File(context.getExternalFilesDir(null), "tablet-shots").apply { mkdirs() } }
+    private val store by lazy { (context.applicationContext as MikaApp).conversations }
+    // A few conversations, so the inbox shows rows as it does in use.
+    private val samples = listOf(
+        "tablet-qa-trip" to "整理本週行程",
+        "tablet-qa-lights" to "關掉客廳的燈",
+        "tablet-qa-report" to "整理月報重點",
+    )
 
     @Before fun setUp() {
         assumeTrue(BuildConfig.WOOWTECHBOT_ENABLED)
@@ -51,17 +64,24 @@ class BotTabletLayoutDeviceTest {
         // A saved service skips the welcome page (Q18) and a seen guide skips the phone step: the app opens on the inbox.
         service = BotServices.registry(context).add("Tablet QA", "https://tablet-qa.example.com")
         PhoneServices.of(context).setupPrompt.markGuideSeen()
+        samples.forEach { (id, title) ->
+            store.append(id, Turn(title, "好的。", "succeeded"))
+            store.rename(id, title)
+        }
     }
 
     @After fun tearDown() {
         scenario?.close()
         instrumentation.uiAutomation.setRotation(UiAutomation.ROTATION_UNFREEZE)
         service?.let { s -> runCatching { BotServices.registry(context).remove(s.id) } }
+        samples.forEach { (id, _) -> runCatching { store.delete(id) } }
     }
 
     private fun settle() {
+        runCatching { compose.waitForIdle() }
         instrumentation.waitForIdleSync()
-        SystemClock.sleep(1200)
+        // The CI tablet emulator draws about one frame a second at 2560 x 1600.
+        SystemClock.sleep(1500)
     }
 
     private fun shot(name: String) {
@@ -69,6 +89,9 @@ class BotTabletLayoutDeviceTest {
         val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
         File(shots, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
+
+    private fun gone(text: String) =
+        compose.waitUntil(20_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty() }
 
     private fun rotate(rotation: Int) {
         instrumentation.uiAutomation.setRotation(rotation)
@@ -81,13 +104,25 @@ class BotTabletLayoutDeviceTest {
         return width
     }
 
+    // While activities swap or relaunch there can be no resumed compose root at all; that is "not yet", not a failure.
     private fun awaitTag(tag: String) =
-        compose.waitUntil(20_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(20_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
 
     private fun awaitText(text: String) =
-        compose.waitUntil(20_000) { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(20_000) { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
 
     @Test fun inboxDocksInLandscapeAndTheOtherPagesFollowTheTabletRules() {
+        try {
+            walk()
+        } catch (t: Throwable) {
+            // What was on screen and in the tree when it failed, for the run's evidence.
+            runCatching { shot("fail") }
+            runCatching { compose.onAllNodes(isRoot()).printToLog("TabletLayout") }
+            throw t
+        }
+    }
+
+    private fun walk() {
         // The Pixel Tablet's natural orientation is landscape.
         rotate(UiAutomation.ROTATION_FREEZE_0)
         scenario = ActivityScenario.launch(MainActivity::class.java)
@@ -107,12 +142,13 @@ class BotTabletLayoutDeviceTest {
         shot("2-landscape-services-window")
         // Its add-service dialog: centred.
         compose.onNodeWithText(context.getString(R.string.bot_services_add)).performClick()
-        settle()
+        awaitText(context.getString(R.string.bot_services_cancel))
         shot("3-landscape-add-service-dialog")
-        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        settle()
-        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        settle()
+        compose.onNodeWithText(context.getString(R.string.bot_services_cancel)).performClick()
+        gone(context.getString(R.string.bot_services_cancel))
+        // Closing the sheet finishes its activity after the exit motion; the docked inbox is in front again.
+        compose.onNodeWithContentDescription(context.getString(R.string.bot_ui_close)).performClick()
+        awaitTag("bot_ui_history")
 
         // Portrait: no longer docked; coming from docked the chat shows, not the inbox.
         rotate(UiAutomation.ROTATION_FREEZE_90)
@@ -125,11 +161,13 @@ class BotTabletLayoutDeviceTest {
         // The inbox page in portrait, then settings from its gear: a centred 720 dp column.
         compose.onNodeWithContentDescription(context.getString(R.string.bot_ui_history)).performClick()
         awaitTag("bot_ui_history")
+        awaitText(samples.first().second)
         shot("5-portrait-inbox")
+        // The gear's menu, then its Settings item.
         compose.onNodeWithContentDescription(context.getString(R.string.settings_title)).performClick()
-        settle()
+        awaitText(context.getString(R.string.settings_title))
         compose.onNodeWithText(context.getString(R.string.settings_title)).performClick()
-        settle()
+        compose.waitUntil(20_000) { compose.onAllNodesWithTag("bot_ui_history").fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty() }
         shot("6-portrait-settings")
         rotate(UiAutomation.ROTATION_FREEZE_0)
         shot("7-landscape-settings")
