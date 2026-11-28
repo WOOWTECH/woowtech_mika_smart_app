@@ -469,8 +469,9 @@ struct BotChevron: View {
 
 // MARK: Dialog
 
-/// The popover surface as a modal dialog (Android `MikaDialog`, Direct): menu colour and `--radius-menu`, a 20/26 title, a
-/// 14.5/23 body in secondary ink, two pill buttons at 6 % / 10 % ink, destructive in red.
+/// The popover surface as a modal dialog (Android `MikaDialog`, Direct): menu colour and `--radius-menu` with no outline and
+/// no shadow (tonal elevation 0), a 20/26 title, a 14.5/23 body in secondary ink, two pill buttons at 6 % / 10 % ink,
+/// destructive in red.
 struct BotDialogHost<Dialog: View>: ViewModifier {
     let isPresented: Bool
     let dismiss: () -> Void
@@ -482,8 +483,9 @@ struct BotDialogHost<Dialog: View>: ViewModifier {
         content.overlay {
             if isPresented {
                 ZStack {
-                    // .glass-scrim: #0000008c on Midnight, #0000002e on Daylight.
-                    Color.black.opacity(scheme == .dark ? 140.0 / 255 : 46.0 / 255).ignoresSafeArea()
+                    // Android's platform dialog dim, 60 % black in both themes (measured on its evidence screenshots:
+                    // #FCFCFC behind the delete dialog shows as #656565, #141414 as #080808).
+                    Color.black.opacity(0.6).ignoresSafeArea()
                         .onTapGesture(perform: dismiss).accessibilityHidden(true)
                     // A dialog that does not fit (keyboard up, large text) scrolls instead of truncating its text.
                     ViewThatFits(in: .vertical) {
@@ -517,8 +519,6 @@ struct BotDialogSurface<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) { content }
             .padding(24)
             .background(palette.menu, in: shape)
-            .overlay(shape.strokeBorder(palette.hair50, lineWidth: 1))
-            .shadow(color: .black.opacity(0.3), radius: 24, y: 12)
     }
 }
 

@@ -256,14 +256,30 @@ final class ChatSession: ObservableObject {
         let source: ArchivedConversation?
     }
     private var botComposers: [String: BotParkedComposer] = [:]
+    /// Conversations left with attachments or a quote waiting (Android `botUiPendingDraftIds`): the history lists them.
+    var parkedBotConversationIDs: Set<String> { Set(botComposers.keys) }
+    /// Android `canSwitch`: no reply running or arriving, no attachment being added, no reply left unsaved.
+    var canSwitchBotConversation: Bool {
+        !isSubmitting && !isAddingAttachments && replyPreview == nil && pendingArchiveSave == nil && archiveNotice == nil
+    }
+    /// The open conversation's name before it is saved (Android `ChatCopy.title`): its first message without the quote
+    /// and attachment lines, the first line of it; only attachments, their label; empty for an empty conversation.
+    var botFirstMessageTitle: String {
+        guard let first = entries.first(where: { $0.role == "user" }) else { return "" }
+        return Self.botPlainTitle(first.content, attachments: first.attachments, localizer: AppLocalizer(language: interfaceLanguage()))
+    }
+    /// Android `ChatCopy.plainTitle`: a message as a title.
+    static func botPlainTitle(_ text: String, attachments: [ChatAttachmentItem], localizer: AppLocalizer) -> String {
+        let words = ConversationQuote.parse(ChatAttachmentLines.displayText(text, items: attachments)).words
+        let line = words.components(separatedBy: .newlines).lazy.map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? ""
+        return line.isEmpty && !attachments.isEmpty ? ChatAttachmentLines.label(for: attachments, localizer: localizer) : line
+    }
 
     /// A switch parks waiting attachments without deleting their files. Active
     /// requests and unsaved replies still have to finish before switching.
     @discardableResult func switchBotConversation(to id: UUID?, workspace: BotWorkspaceStore) -> Bool {
         if id?.uuidString == conversationID { return true }
-        guard !isSubmitting, !isAddingAttachments, replyPreview == nil, pendingArchiveSave == nil, archiveNotice == nil else {
-            workspace.notice = .busy; return false
-        }
+        guard canSwitchBotConversation else { workspace.notice = .busy; return false }
         let record = id.flatMap { id in archive?.conversations.first { $0.id == id } }
         if let id, record == nil, workspace.state.chats[id.uuidString] == nil { return false }
         if let record, !canOpenConversation(record) { return false }
@@ -288,12 +304,20 @@ final class ChatSession: ObservableObject {
         draft = workspace.presentation(conversationID).draft
         do { try workspace.saveDraft(conversationID, text: draft) }
         catch { workspace.notice = .draftUnsaved }
+        // Android shows no line about it: opening a chat from the history or starting a new one is quiet.
+        chatNotice = nil
         return true
     }
 
-    @discardableResult func deleteBotConversation(_ id: UUID, workspace: BotWorkspaceStore) -> Bool {
-        guard !isSubmitting, !isAddingAttachments else { workspace.notice = .busy; return false }
+    /// Android: any chat can be deleted while a task runs; deleting the running one stops its task first (a web task
+    /// stops at its next step, so this waits for it, up to 5 s).
+    @discardableResult func deleteBotConversation(_ id: UUID, workspace: BotWorkspaceStore) async -> Bool {
         let current = conversationID == id.uuidString
+        if current, isSubmitting || isAddingAttachments {
+            cancel()
+            for _ in 0..<50 where isSubmitting || isAddingAttachments { try? await Task.sleep(for: .milliseconds(100)) }
+            guard !isSubmitting, !isAddingAttachments else { workspace.notice = .busy; return false }
+        }
         if archive?.conversations.contains(where: { $0.id == id }) == true {
             guard deleteConversation(id: id) else { return false }
             do { try workspace.forgetChat(id.uuidString) }
@@ -304,7 +328,7 @@ final class ChatSession: ObservableObject {
             if current { newConversation() }
         }
         if let parked = botComposers.removeValue(forKey: id.uuidString) { attachmentStore.discard(parked.attachments) }
-        if current { draft = "" }
+        if current { draft = ""; chatNotice = nil }
         return true
     }
     #endif
@@ -1505,6 +1529,12 @@ final class ChatSession: ObservableObject {
     #if WOOWTECHBOT
     private func applyBotTitle(_ id: UUID) {
         let workspace = BotWorkspaceStore.shared
+        // A pin given before the first save (Android keeps it in the draft's .pin file) moves into the archive.
+        if workspace.presentation(id.uuidString).pinnedAt != nil, let archive,
+           let record = archive.conversations.first(where: { $0.id == id }), record.pinnedAt == nil {
+            do { try archive.setPinned(id: id, expectedPinnedAt: nil, pinned: true); try workspace.setDraftPinned(id.uuidString, false) }
+            catch { workspace.notice = .changesUnsaved }
+        }
         guard let title = workspace.presentation(id.uuidString).title,
               let archive, let record = archive.conversations.first(where: { $0.id == id }), record.customTitle == nil else { return }
         do { try archive.rename(id: id, expectedTitle: nil, to: title) }

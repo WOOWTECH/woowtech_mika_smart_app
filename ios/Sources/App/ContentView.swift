@@ -12,6 +12,9 @@ struct ContentView: View {
     @State private var browserReturnSection: AppSection = .chat
     #if WOOWTECHBOT
     @State private var showsDrawer = true
+    /// Android keeps the history's search words and place while it is closed and opened again.
+    @State private var botHistorySearch = ""
+    @State private var botHistoryScroll: String?
     @StateObject private var botWorkspace = BotWorkspaceStore.shared
     @State private var botSheet: BotChatSheet?
     @State private var botPage: BotChatPage?
@@ -40,6 +43,16 @@ struct ContentView: View {
     @State private var replyBackgroundTask: UIBackgroundTaskIdentifier = .invalid
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    #if WOOWTECHBOT
+    /// Android's page back control: an ink arrow named 返回 / Back (it returns to the history or the page before).
+    private var backTint: Color { palette.ink }
+    private var backLabel: String { localizer.language == .english ? "Back" : "返回" }
+    #else
+    private var backTint: Color { palette.accent }
+    private var backLabel: String {
+        localizer.text(selection == .browser && browserReturnSection == .memory ? .shellBackToMemory : .shellBackToChat)
+    }
+    #endif
     private var webTaskColors: ChatWebTaskColors {
         ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
                           fill: palette.assistant, background: palette.background)
@@ -290,8 +303,10 @@ struct ContentView: View {
               #if WOOWTECHBOT
               if let archive = session.archive {
                   BotConversationList(chat: session, archive: archive, workspace: botWorkspace, localizer: localizer,
-                      close: closeDrawer, new: requestNewConversation, select: botSelect)
-                      .transition(.move(edge: .leading))
+                      close: closeDrawer, new: requestNewConversation, select: botSelect,
+                      search: $botHistorySearch, scrollID: $botHistoryScroll)
+                      // Android puts the history on and takes it off at once, without a slide.
+                      .transition(.identity)
               }
               #else
               GeometryReader { geometry in
@@ -379,11 +394,10 @@ struct ContentView: View {
                             #endif
                         } label: {
                             Image(systemName: "chevron.backward")
-                                .foregroundStyle(palette.accent)
+                                .foregroundStyle(backTint)
                                 .frame(width: 40, height: 40)
                         }
-                        .accessibilityLabel(localizer.text(selection == .browser && browserReturnSection == .memory
-                                                           ? .shellBackToMemory : .shellBackToChat))
+                        .accessibilityLabel(backLabel)
                         .accessibilityIdentifier("section.back")
                         .accessibilityFocused($backHasVoiceOverFocus)
                     }

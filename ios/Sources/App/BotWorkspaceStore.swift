@@ -9,7 +9,12 @@ struct BotChatPresentation: Codable, Equatable {
     var avatar = BotConversationAvatar()
     var draft = ""
     var updatedAt = Date()
+    /// When the chat was first kept (Android `bot_ui_seen_<id>`): a draft's time and place in the history.
+    var createdAt: Date?
+    /// A pin given before the first save; it moves into the archive with that save.
+    var pinnedAt: Date?
     var hasSavedContent: Bool { !draft.isEmpty || title != nil || !avatar.isDefault }
+    var shownAt: Date { createdAt ?? updatedAt }
 }
 
 enum BotWorkspaceNotice {
@@ -198,15 +203,26 @@ struct BotWorkspaceSnapshot: Codable {
         guard presentation(id).draft != text || state.currentChat != id else { return }
         try change {
             var chat = $0.chats[id] ?? .init(); chat.draft = text; chat.updatedAt = Date()
+            if chat.createdAt == nil { chat.createdAt = chat.updatedAt }
             $0.chats[id] = chat; $0.currentChat = id
             // Blank untouched chats have no recoverable content. Keeping one
             // for every New tap would eventually exhaust the sidecar's bound.
-            $0.chats = $0.chats.filter { $0.value.hasSavedContent }
+            // A pin stays until the first save takes it.
+            $0.chats = $0.chats.filter { $0.value.hasSavedContent || $0.value.pinnedAt != nil }
         }
     }
     func savePresentation(_ id: String, title: String?, avatar: BotConversationAvatar) throws {
         try change {
             var chat = $0.chats[id] ?? .init(); chat.title = title; chat.avatar = avatar
+            if chat.createdAt == nil { chat.createdAt = Date() }
+            $0.chats[id] = chat
+        }
+    }
+    func setDraftPinned(_ id: String, _ pinned: Bool) throws {
+        guard (presentation(id).pinnedAt != nil) != pinned else { return }
+        try change {
+            var chat = $0.chats[id] ?? .init(); chat.pinnedAt = pinned ? Date() : nil
+            if chat.createdAt == nil { chat.createdAt = Date() }
             $0.chats[id] = chat
         }
     }
