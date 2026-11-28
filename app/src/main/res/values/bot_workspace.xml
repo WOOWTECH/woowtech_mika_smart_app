@@ -5,4 +5,5 @@
     <string name="bot_services_opening_list">Opening the bot list…</string>
     <string name="bot_services_opening_chat">Opening the conversation…</string>
     <string name="bot_services_reloading">Reloading…</string>
+    <string name="bot_services_resuming">Returning to where you were…</string>
 </resources>

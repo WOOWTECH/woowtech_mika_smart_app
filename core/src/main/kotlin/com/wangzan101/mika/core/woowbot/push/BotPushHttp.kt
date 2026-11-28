@@ -1,6 +1,8 @@
 package com.wangzan101.mika.core.woowbot.push
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -42,8 +44,9 @@ class BotPushOkHttpTransport : BotPushHttpTransport {
         .retryOnConnectionFailure(false).callTimeout(20, TimeUnit.SECONDS).build()
     override suspend fun request(credentials: BotPushCredentials, method: String, path: String,
         sessionId: String?, body: String?, beforeSend: suspend () -> Unit): BotPushHttpResponse = withContext(Dispatchers.IO) {
+        val preview = method == "GET" && BotPushHttpApi.isPreviewPath(path)
         require(path == "/api/auth/session" || path == BotPushHttpApi.PATH ||
-            path == "${BotPushHttpApi.PATH}?serviceId=${credentials.serviceId}")
+            path == "${BotPushHttpApi.PATH}?serviceId=${credentials.serviceId}" || preview)
         if (System.currentTimeMillis() < (retryAfter[credentials.origin] ?: 0L)) throw BotPushHttpException(429)
         val request = Request.Builder().url(credentials.origin + path)
             .header("Cookie", credentials.cookie).header("Origin", credentials.origin)
@@ -52,7 +55,15 @@ class BotPushOkHttpTransport : BotPushHttpTransport {
         request.method(method, body?.toRequestBody("application/json".toMediaType()))
         beforeSend()
         currentCoroutineContext().ensureActive()
-        client.newCall(request.build()).execute().use { response ->
+        val call = client.newCall(request.build())
+        // A blocking call ignores coroutine timeouts, so each kind of request bounds its own time: an unreachable service
+        // must not hold back the others' notifications (2026-11-28: two unreachable PaaS labs, 20 s each).
+        call.timeout().timeout(when {
+            path == "/api/auth/session" -> DISCOVERY_TIMEOUT_MS
+            preview -> PREVIEW_TIMEOUT_MS
+            else -> 20_000L
+        }, TimeUnit.MILLISECONDS)
+        call.execute().use { response ->
             if (response.code == 429) {
                 val now = System.currentTimeMillis()
                 val header = response.header("Retry-After")
@@ -63,12 +74,17 @@ class BotPushOkHttpTransport : BotPushHttpTransport {
                 retryAfter[credentials.origin] = maxOf(now + 30_000L, until ?: 0L)
             }
             val source = response.body?.source() ?: error("Missing push response")
-            source.request(65537)
-            check(source.buffer.size <= 65536) { "Oversize push response" }
+            val limit = if (preview) PREVIEW_LIMIT else 65_536L
+            source.request(limit + 1)
+            check(source.buffer.size <= limit) { "Oversize push response" }
             BotPushHttpResponse(response.code, source.readUtf8())
         }
     }
 }
+
+private const val DISCOVERY_TIMEOUT_MS = 8_000L
+private const val PREVIEW_TIMEOUT_MS = 5_000L
+private const val PREVIEW_LIMIT = 1_048_576L
 
 /** HTTP/status errors never include response bodies, cookies, tokens or request headers. */
 class BotPushHttpException(val status: Int) : Exception("Push request failed ($status)")
@@ -156,9 +172,25 @@ class BotPushHttpApi(
         if (registered) check(json.string("serviceId") == serviceId && canonicalUuid(json.string("registrationId")))
         else check(json["serviceId"] == JsonNull && json["registrationId"] == JsonNull)
     }
+    /**
+     * The bot's name and the start of its latest reply for a notification, read with the verified session (owner
+     * 2026-11-28). Two fixed GETs of the website's own API; any failure leaves that part out.
+     */
+    suspend fun preview(credentials: BotPushCredentials, botId: String, threadId: String): BotPushPreview? = coroutineScope {
+        require(BotPushContract.validId(botId) && BotPushContract.validId(threadId))
+        val bots = async { runCatching { transport.request(credentials, "GET", BOTS_PATH, null, null, {}) }.getOrNull() }
+        val messages = async { runCatching { transport.request(credentials, "GET", messagesPath(threadId), null, null, {}) }.getOrNull() }
+        val name = bots.await()?.takeIf { it.status == 200 }?.let { BotPushPreviewText.name(it.body, botId) }
+        val excerpt = messages.await()?.takeIf { it.status == 200 }?.let { BotPushPreviewText.excerpt(it.body) }
+        if (name == null && excerpt == null) null else BotPushPreview(name, excerpt)
+    }
     companion object {
         const val PATH = "/api/woowtech/android-push/device"
+        const val BOTS_PATH = "/api/bots?messages=1"
         private val RESPONSE_KEYS = setOf("v", "serviceId", "registrationId", "state", "registered")
+        private val MESSAGES_PATH = Regex("/api/threads/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}/messages\\?limit=8")
+        fun messagesPath(threadId: String) = "/api/threads/$threadId/messages?limit=8"
+        fun isPreviewPath(path: String) = path == BOTS_PATH || MESSAGES_PATH.matches(path)
     }
 }
 private fun JsonObject.string(key: String): String? = (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content

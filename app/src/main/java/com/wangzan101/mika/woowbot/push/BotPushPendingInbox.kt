@@ -3,6 +3,9 @@ package com.wangzan101.mika.woowbot.push
 import android.content.Context
 import com.wangzan101.mika.core.woowbot.push.*
 import com.wangzan101.mika.woowbot.BotServices
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,19 +37,35 @@ object BotPushPendingInbox {
         BotPushRefreshJob.schedule(context)
         BotPushBootstrap.refresh(context)
     }
-    @Synchronized fun drain(context: Context): Boolean {
-        val controller = BotPushRuntime.controller ?: return false
+    /**
+     * Shows the queued pushes whose service is verified, each with the bot's name and an excerpt when the service answers
+     * in time (owner 2026-11-28), with the generic text otherwise.
+     */
+    suspend fun drain(context: Context): Boolean {
+        val (complete, accepted) = take(context)
+        // Already taken from the queue: show them even if the job is stopped meanwhile.
+        withContext(NonCancellable) {
+            for (target in accepted) {
+                val preview = BotPushRuntime.previews?.let { read -> runCatching { withTimeoutOrNull(10_000L) { read(target) } }.getOrNull() }
+                BotPushRuntime.notifications?.receive(target.data(), preview)
+            }
+        }
+        return complete
+    }
+    @Synchronized private fun take(context: Context): Pair<Boolean, List<BotPushTarget>> {
+        val controller = BotPushRuntime.controller ?: return false to emptyList()
         val inbox = load(context)
         val snapshots = inbox.snapshot().associateBy { it.target.serviceId }
         val ledger = BotPushPreferencesLedger(context).read()
+        val accepted = mutableListOf<BotPushTarget>()
         val complete = inbox.drain(System.currentTimeMillis(), { id ->
             if (!controller.optedIn) null else {
                 val service = BotServices.registry(context).find(id)?.takeIf { it.enabled }
                 val binding = ledger.singleOrNull { it.serviceId == id }
                 if (service == null || binding == null) null else service.profileId + "|" + binding.authIdentity
             }
-        }, { id -> controller.acceptsIdentity(id, snapshots[id]?.profile?.substringAfter("|").orEmpty()) }) { target -> BotPushRuntime.notifications?.receive(target.data()) }
+        }, { id -> controller.acceptsIdentity(id, snapshots[id]?.profile?.substringAfter("|").orEmpty()) }) { target -> accepted.add(target) }
         save(context, inbox)
-        return complete
+        return complete to accepted
     }
 }

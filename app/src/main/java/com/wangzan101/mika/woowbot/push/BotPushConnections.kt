@@ -4,7 +4,10 @@ import androidx.webkit.ProfileStore
 import com.wangzan101.mika.core.woowbot.push.*
 import com.wangzan101.mika.woowbot.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.ConcurrentHashMap
 
 /** Only cookies in process memory; durable ledger remains identity-only. All profile reads run on main. */
@@ -51,37 +54,60 @@ internal class BotPushConnections(private val registry: BotServiceRegistry, priv
         var unresolvedRegistration = false
         val enabled = registry.state.value.services.filter { it.enabled }
         discovery.value = enabled.associate { it.id to BotPushDiscovery.CHECKING }
-        for (service in enabled) {
+        // Services are asked side by side, each within its own time limit (see the transport), so one unreachable service
+        // holds back the others' notifications by seconds, not by the sum of every timeout.
+        val checked = coroutineScope {
+            enabled.map { service ->
+                val credentials = withContext(Dispatchers.Main.immediate) { runCatching { capture(service) }.getOrNull() }
+                Triple(service, credentials, credentials?.let { async { discover(it) } })
+            }.map { (service, credentials, found) -> Triple(service, credentials, found?.await()) }
+        }
+        for ((service, credentials, session) in checked) {
             val hasRegistration = recorded.any { it.serviceId == service.id }
-            val credentials = withContext(Dispatchers.Main.immediate) { runCatching { capture(service) }.getOrNull() }
             if (credentials == null) {
                 report(service.id, BotPushDiscovery.SIGN_IN_REQUIRED)
                 if (hasRegistration) unresolvedRegistration = true
                 continue
             }
-            try {
-                val session = api.discover(credentials)
-                if (!valid() || !current(credentials)) {
-                    report(service.id, BotPushDiscovery.IDENTITY_CHANGED)
-                    if (hasRegistration) unresolvedRegistration = true
-                    continue
-                }
-                report(service.id, if (session.ready) BotPushDiscovery.READY else BotPushDiscovery.SERVER_NOT_READY)
-                sessions[session.binding] = session
-                if (session.ready) next.add(session.binding)
-                else if (hasRegistration) unresolvedRegistration = true
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (_: Exception) {
+            if (session == null) {
                 report(service.id, BotPushDiscovery.UNAVAILABLE)
                 // Missing discovery is not a user request to revoke a previously registered service.
                 if (hasRegistration) unresolvedRegistration = true
+                continue
             }
+            if (!valid() || !current(credentials)) {
+                report(service.id, BotPushDiscovery.IDENTITY_CHANGED)
+                if (hasRegistration) unresolvedRegistration = true
+                continue
+            }
+            report(service.id, if (session.ready) BotPushDiscovery.READY else BotPushDiscovery.SERVER_NOT_READY)
+            sessions[session.binding] = session
+            if (session.ready) next.add(session.binding)
+            else if (hasRegistration) unresolvedRegistration = true
         }
-        check(!unresolvedRegistration) { "Registered service discovery is temporarily unavailable" }
+        // 2026-11-28: one unreachable registered service used to leave every service without notifications. The services
+        // verified now keep taking them; the unresolved one keeps its registration (the check below stops any cleanup or
+        // revocation) and takes none until it answers again.
         if (valid()) eligible = next
+        check(!unresolvedRegistration) { "Registered service discovery is temporarily unavailable" }
         val retain = pending() + next
         sessions.keys.retainAll(retain)
     }
+    private suspend fun discover(credentials: BotPushCredentials): BotPushSession? = try { api.discover(credentials) }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (_: Exception) { null }
+
+    /** The bot's name and an excerpt for a notification already accepted, read with that service's verified session. */
+    suspend fun preview(target: BotPushTarget): BotPushPreview? {
+        val binding = bindings().firstOrNull { it.serviceId == target.serviceId } ?: return null
+        val credentials = sessions[binding]?.credentials ?: return null
+        if (!current(credentials)) return null
+        return try { withTimeout(8_000L) { api.preview(credentials, target.botId, target.threadId) } }
+        catch (_: kotlinx.coroutines.TimeoutCancellationException) { null }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (_: Exception) { null }
+    }
+
     /** Main-thread page/resume hint: invalidate immediately when its profile cookie changed. */
     fun sessionHint(service: BotService) {
         val old = eligible.mapNotNull { sessions[it] }.filter { it.credentials.serviceId == service.id }
